@@ -48,7 +48,7 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 
 | Phase | Epic goal | Issues |
 |---|---|---|
-| 0 Foundations | Identity-ready model, timestamps, conventions, DB config, migration, tests, CI, branch rules | 14 |
+| 0 Foundations | Identity-ready model, timestamps, conventions, DB config, migration, tests, CI, branch rules, onboarding script | 15 |
 | 1 Authentication | Cookie-only auth, register/login/logout, email flows, rate limits, CSRF, `/users/me` | 13 |
 | 2 Settings CRUD | Membership model, access helper, settings CRUD, cascade fix | 9 |
 | 3 Sharing | Invite codes, accept, members, leave/remove | 8 |
@@ -59,7 +59,7 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 | 8 Dashboard and Polish | Dashboard, seed data, OpenAPI, perf, security review | 7 |
 | 9 Frontend Integration | Auth pages, API client, replace mocks, e2e | 17 |
 
-Total: **99 work items + 10 epics = 109 issues.**
+Total: **100 work items + 10 epics = 110 issues.**
 
 ## Critical path
 
