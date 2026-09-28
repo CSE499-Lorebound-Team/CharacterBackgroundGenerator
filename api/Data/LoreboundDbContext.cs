@@ -44,6 +44,12 @@ public class LoreboundDbContext
           .IsRequired()
           .HasMaxLength(60);
 
+      // Identity's EmailIndex is non-unique; RequireUniqueEmail is only an
+      // app-level check, so enforce it in the database too.
+      user.HasIndex(u => u.NormalizedEmail)
+          .HasDatabaseName("EmailIndex")
+          .IsUnique();
+
       // A user who owns settings cannot be hard-deleted (see P6-11).
       user.HasMany(u => u.CampaignSettings)
           .WithOne(setting => setting.Owner)

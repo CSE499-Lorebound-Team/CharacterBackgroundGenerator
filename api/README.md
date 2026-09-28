@@ -14,6 +14,10 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
 - Every enum column is stored as a string. `LoreboundDbContext.ConfigureConventions`
   applies this to all enum properties, so new enums (`SettingRole`,
   `CharacterStatus`, ...) need no extra configuration.
+- Schema changes ship as EF Core migrations in `Data/Migrations/`; see
+  "Migrations" in the root README for commands and rules.
+- User emails are unique at the database level (`EmailIndex` on
+  `NormalizedEmail`), not only through Identity's app-level check.
 - Entities implementing `ITimestamped` get `CreatedAt`/`UpdatedAt` set on save.
   `ExecuteUpdate`/`ExecuteDelete` bypass this, so set `UpdatedAt` yourself.
 
@@ -52,3 +56,14 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
 - Bodyless error statuses (e.g. unmatched routes) also return problem JSON.
+
+## CORS
+
+- Origins come from `Cors:AllowedOrigins` (a string array). Development
+  allows `http://localhost:3000` via `appsettings.Development.json`; in
+  production set `Cors__AllowedOrigins__0` (and `__1`, ...) as environment variables.
+- Credentials are allowed so the auth cookie is sent, so the origin list is
+  always explicit, never `*`.
+- `AllowAnyHeader()` echoes requested headers (including `X-Requested-With`).
+  Do not add `WithHeaders(...)` alongside it: that disables any-header and
+  blocks `Content-Type`.
