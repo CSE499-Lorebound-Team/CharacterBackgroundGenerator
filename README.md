@@ -68,7 +68,7 @@ CharacterBackgroundGenerator/
 │   ├── README.md          (API conventions)
 │   └── ...
 │
-├── api.Tests/             (xUnit tests for the API)
+├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
 ├── docs/project-board/    (roadmap and issue definitions)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
@@ -140,7 +140,7 @@ dotnet --version
 
 ## Docker Desktop
 
-Docker runs the local PostgreSQL database. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), start it, then verify:
+Docker runs the local PostgreSQL database and the throwaway database used by the automated API tests. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), start it, then verify:
 
 ```powershell
 docker compose version
@@ -561,7 +561,36 @@ Test the affected endpoint using:
 - another API client
 - the frontend application
 
-If automated tests are added later, they should also be run before submitting a Pull Request.
+## Automated API Tests
+
+The API has an xUnit test project in `api.Tests/`. Run all tests before submitting a Pull Request. From the repository root:
+
+```powershell
+dotnet test Lorebound.slnx
+```
+
+**Docker Desktop must be running.** Database tests start their own throwaway PostgreSQL 17 container through Testcontainers. It is separate from your `docker compose` database, which the tests never touch. The first run pulls the image and takes a minute or so; later runs take seconds.
+
+To use an existing PostgreSQL instead of a container, set `TEST_DB_CONNECTION`. Tests **delete all data** in that database, so its name must contain `test`, otherwise the run is refused:
+
+```powershell
+$env:TEST_DB_CONNECTION = "Host=localhost;Port=5432;Database=lorebound_test;Username=lorebound;Password=<password>"
+dotnet test Lorebound.slnx
+Remove-Item Env:TEST_DB_CONNECTION
+```
+
+### Writing tests
+
+| Test needs | Use |
+| --- | --- |
+| No database (JSON, errors, CORS, pure logic) | `IClassFixture<ApiFactory>` |
+| The real database | Inherit `PostgresTestBase` and add `[Collection(PostgresCollection.Name)]` |
+
+Database tests share one migrated database, and every test starts with empty tables. Helpers on `CustomWebApplicationFactory`:
+
+- `CreateUserAsync(email, displayName)` inserts a user.
+- `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth.
+- `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 
 ---
 
