@@ -351,3 +351,36 @@ Enforce the README rule "no direct commits to main" and require CI.
 
 ## Acceptance criteria
 - Direct push to `dev` is rejected; a PR with failing CI cannot merge.
+
+@@@ P0-15
+title: Local onboarding script (scripts/onboard.ps1)
+type: task
+area: devex
+phase: 0
+priority: P2
+size: S
+depends: P0-09
+@@@
+## Summary
+Onboarding is several manual steps (Docker, `.env`, compose, user-secrets, tools, migrations) and the easy ones to get wrong, like a password mismatch between `.env` and the user secret, fail with unclear errors. Add one idempotent PowerShell script that gets a developer from a fresh clone to a migrated local database.
+
+## Tasks
+- [ ] Add `scripts/onboard.ps1`, run from the repo root, with numbered steps and a clear success summary.
+- [ ] Check prerequisites: .NET SDK 10.x and Docker Desktop running (the daemon, not just the CLI).
+- [ ] If `.env` is missing, create it from `.env.example` with a random `POSTGRES_PASSWORD`. Never overwrite an existing `.env`.
+- [ ] `docker compose up -d` and wait until `lorebound-postgres` is healthy.
+- [ ] If `ConnectionStrings:DefaultConnection` is not set in user-secrets, set it from the `.env` values. Never overwrite an existing secret.
+- [ ] `dotnet tool restore`, `dotnet restore`, then `dotnet ef database update` (skippable with `-SkipDbUpdate`).
+- [ ] Friendly errors with a non-zero exit code: Docker not running, database not healthy, and "password authentication failed" pointing to README "Changing the database password".
+- [ ] README: make the script the primary setup path ("run after cloning, and again after pulling a schema change"), keeping the manual steps as a fallback.
+
+## Implementation details
+- Safe to re-run at any time; it only creates what is missing.
+- Local development only; CI (P0-10) and the test harness (P0-09) provision their own databases and do not use it.
+- PowerShell only for now; add `onboard.sh` when a teammate needs it.
+- If P0-09 adds new local prerequisites (e.g. Docker for Testcontainers), check them here too.
+
+## Acceptance criteria
+- On a fresh clone with Docker Desktop running, `./scripts/onboard.ps1` then `dotnet run` (in `api/`) gives `/api/health` `"database": "connected"`, with no other manual steps.
+- Running it a second time changes nothing and succeeds.
+- A mismatched password produces the README pointer and a non-zero exit code.
