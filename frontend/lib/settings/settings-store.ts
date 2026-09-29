@@ -20,7 +20,7 @@ const defaultSettings: Setting[] = [
       "A second campaign setting ready to be expanded.",
     entryCount: 12,
     updatedAt: new Date().toISOString(),
-    role: "GM",
+    role: "Player",
     isOwner: false,
   },
 ];

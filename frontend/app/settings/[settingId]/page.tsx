@@ -90,6 +90,7 @@ const filteredEntries =
       type: SettingEntry["type"];
       summary: string;
       content: string;
+      isGmOnly: boolean;
     }) {
       if (editingEntry) {
         const updated = updateEntry(
@@ -169,13 +170,15 @@ const filteredEntries =
           <div className="grid gap-4 lg:grid-cols-2">
             {filteredEntries.map((entry) => (
               <SettingEntryCard
-                key={entry.id}
-                name={entry.name}
-                type={entry.type}
-                description={entry.summary}
-                relationshipCount={entry.relationshipCount}
-                onEdit={() => handleEditEntry(entry)}
-              />
+              key={entry.id}
+              name={entry.name}
+              type={entry.type}
+              description={entry.summary}
+              relationshipCount={entry.relationshipCount}
+              isGmOnly={entry.isGmOnly}
+              canEdit={canManageSetting}
+              onEdit={() => handleEditEntry(entry)}
+            />
             ))}
           </div>
         ) : (
