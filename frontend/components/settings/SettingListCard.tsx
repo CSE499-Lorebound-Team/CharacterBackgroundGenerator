@@ -1,3 +1,9 @@
+import Link from "next/link";
+import {
+  BookOpen,
+  MoreHorizontal,
+} from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,19 +12,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { BookOpen, MoreHorizontal } from "lucide-react";
 
 type SettingListCardProps = {
+  id: string;
   name: string;
+  description: string;
   entryCount: number;
-  updatedText: string;
+  updatedAt: string;
 };
 
 export function SettingListCard({
+  id,
   name,
+  description,
   entryCount,
-  updatedText,
+  updatedAt,
 }: SettingListCardProps) {
+  const updatedText = new Date(updatedAt).toLocaleDateString();
+
   return (
     <Card className="transition-colors hover:border-primary/40">
       <CardHeader>
@@ -28,22 +39,41 @@ export function SettingListCard({
             <CardTitle>{name}</CardTitle>
           </div>
 
-          <Button variant="ghost" size="icon">
+          <Button
+            variant="ghost"
+            size="icon"
+          >
             <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Setting options</span>
+            <span className="sr-only">
+              Setting options
+            </span>
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-1 text-sm text-muted-foreground">
-        <p>{entryCount} entries</p>
-        <p>{updatedText}</p>
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        {description && (
+          <p className="line-clamp-2">
+            {description}
+          </p>
+        )}
+
+        <div>
+          <p>{entryCount} entries</p>
+          <p>Updated {updatedText}</p>
+        </div>
       </CardContent>
 
       <CardFooter>
-        <Button className="w-full">
-          Open Setting
-        </Button>
+      <Button
+        className="w-full"
+        nativeButton={false}
+        render={
+          <Link href={`/settings/${id}`} />
+        }
+      >
+        Open Setting
+      </Button>
       </CardFooter>
     </Card>
   );
