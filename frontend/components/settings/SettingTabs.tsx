@@ -1,24 +1,30 @@
 "use client";
 
+export type SettingTab =
+  | "Overview"
+  | "Nations"
+  | "Cities"
+  | "Cultures"
+  | "Religions"
+  | "Factions";
+
 type SettingTabsProps = {
-  activeTab?: string;
+  activeTab: SettingTab;
+  onTabChange: (tab: SettingTab) => void;
 };
 
-const tabs = [
+const tabs: SettingTab[] = [
   "Overview",
-  "Locations",
+  "Nations",
+  "Cities",
   "Cultures",
   "Religions",
   "Factions",
-  "Organizations",
-  "Professions",
-  "Social Classes",
-  "Historical Events",
-  "People",
 ];
 
 export function SettingTabs({
-  activeTab = "Overview",
+  activeTab,
+  onTabChange,
 }: SettingTabsProps) {
   return (
     <div className="overflow-x-auto border-b border-border">
@@ -30,6 +36,7 @@ export function SettingTabs({
             <button
               key={tab}
               type="button"
+              onClick={() => onTabChange(tab)}
               className={[
                 "border-b-2 px-3 py-2 text-sm font-medium transition-colors",
                 isActive

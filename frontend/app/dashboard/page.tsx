@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { QuickActions } from "@/components/dashboard/QuickActions";
@@ -6,7 +11,26 @@ import { CharacterCard } from "@/components/dashboard/CharacterCard";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { Button } from "@/components/ui/button";
 
+import { getSettings } from "@/lib/settings/settings-store";
+import type { Setting } from "@/lib/settings/types";
+
 export default function DashboardPage() {
+  const [settings, setSettings] = useState<Setting[]>([]);
+
+  useEffect(() => {
+    setSettings(getSettings());
+  }, []);
+
+  const recentSettings = useMemo(() => {
+    return [...settings]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() -
+          new Date(a.updatedAt).getTime()
+      )
+      .slice(0, 3);
+  }, [settings]);
+
   return (
     <AppShell>
       <PageHeader
@@ -25,24 +49,44 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               className="self-start sm:self-auto"
+              nativeButton={false}
+              render={<Link href="/settings" />}
             >
               View All Settings
             </Button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <SettingCard
-              name="Osepia"
-              entryCount={24}
-              updatedText="Updated 2 days ago"
-            />
+          {recentSettings.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {recentSettings.map((setting) => (
+                <SettingCard
+                  key={setting.id}
+                  id={setting.id}
+                  name={setting.name}
+                  entryCount={setting.entryCount}
+                  updatedAt={setting.updatedAt}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="border border-dashed border-border p-8 text-center">
+              <p className="font-medium">
+                No settings yet
+              </p>
 
-            <SettingCard
-              name="Campaign Setting 2"
-              entryCount={12}
-              updatedText="Updated 5 days ago"
-            />
-          </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create your first campaign setting to start building lore.
+              </p>
+
+              <Button
+                className="mt-4"
+                nativeButton={false}
+                render={<Link href="/settings" />}
+              >
+                Create Setting
+              </Button>
+            </div>
+          )}
         </section>
 
         <section className="space-y-4">
@@ -54,6 +98,8 @@ export default function DashboardPage() {
             <Button
               variant="ghost"
               className="self-start sm:self-auto"
+              nativeButton={false}
+              render={<Link href="/characters" />}
             >
               View All Characters
             </Button>

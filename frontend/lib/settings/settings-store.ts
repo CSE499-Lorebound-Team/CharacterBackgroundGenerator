@@ -10,6 +10,8 @@ const defaultSettings: Setting[] = [
       "A large campaign setting filled with competing nations, cultures, and ancient history.",
     entryCount: 24,
     updatedAt: new Date().toISOString(),
+    role: "GM",
+    isOwner: true,
   },
   {
     id: "campaign-setting-2",
@@ -18,6 +20,8 @@ const defaultSettings: Setting[] = [
       "A second campaign setting ready to be expanded.",
     entryCount: 12,
     updatedAt: new Date().toISOString(),
+    role: "Player",
+    isOwner: false,
   },
 ];
 
@@ -37,7 +41,13 @@ export function getSettings(): Setting[] {
     return defaultSettings;
   }
 
-  return JSON.parse(stored) as Setting[];
+  const settings = JSON.parse(stored) as Setting[];
+
+  return settings.map((setting) => ({
+    ...setting,
+    role: setting.role ?? "GM",
+    isOwner: setting.isOwner ?? true,
+  }));
 }
 
 export function getSetting(id: string): Setting | undefined {
@@ -56,6 +66,9 @@ export function createSetting(
     description,
     entryCount: 0,
     updatedAt: new Date().toISOString(),
+  
+    role: "GM",
+    isOwner: true,
   };
 
   window.localStorage.setItem(
