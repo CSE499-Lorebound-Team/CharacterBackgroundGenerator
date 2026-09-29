@@ -12,6 +12,11 @@ type SettingEntryCardProps = {
   type: string;
   description: string;
   relationshipCount: number;
+
+  isGmOnly?: boolean;
+  canEdit?: boolean;
+
+  onEdit?: () => void;
 };
 
 export function SettingEntryCard({
@@ -19,6 +24,9 @@ export function SettingEntryCard({
   type,
   description,
   relationshipCount,
+  isGmOnly = false,
+  canEdit = false,
+  onEdit,
 }: SettingEntryCardProps) {
   return (
     <Card className="transition-colors hover:border-primary/40">
@@ -26,9 +34,17 @@ export function SettingEntryCard({
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <CardTitle>{name}</CardTitle>
 
-          <span className="self-start rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-            {type}
-          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+              {type}
+            </span>
+
+            {isGmOnly && (
+              <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
+                GM Only
+              </span>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -43,9 +59,15 @@ export function SettingEntryCard({
       </CardContent>
 
       <CardFooter>
-        <Button variant="outline" className="w-full">
-          Edit Entry
-        </Button>
+        {canEdit && (
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={onEdit}
+          >
+            Edit Entry
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
