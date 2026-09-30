@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -8,25 +9,25 @@ import {
 } from "@/components/ui/card";
 
 type SettingEntryCardProps = {
+  id: string;
+  settingId: string;
+
   name: string;
   type: string;
   description: string;
   relationshipCount: number;
 
   isGmOnly?: boolean;
-  canEdit?: boolean;
-
-  onEdit?: () => void;
 };
 
 export function SettingEntryCard({
+  id,
+  settingId,
   name,
   type,
   description,
   relationshipCount,
   isGmOnly = false,
-  canEdit = false,
-  onEdit,
 }: SettingEntryCardProps) {
   return (
     <Card className="transition-colors hover:border-primary/40">
@@ -59,15 +60,18 @@ export function SettingEntryCard({
       </CardContent>
 
       <CardFooter>
-        {canEdit && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onEdit}
-          >
-            Edit Entry
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          className="w-full"
+          nativeButton={false}
+          render={
+            <Link
+              href={`/settings/${settingId}/entries/${id}`}
+            />
+          }
+        >
+          Open Article
+        </Button>
       </CardFooter>
     </Card>
   );

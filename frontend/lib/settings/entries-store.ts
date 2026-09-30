@@ -109,3 +109,32 @@ import type {
   
     return updated;
   }
+  export function getEntry(
+    id: string
+  ): SettingEntry | undefined {
+    return getAllEntries().find(
+      (entry) => entry.id === id
+    );
+  }
+  
+  export function deleteEntry(
+    id: string
+  ): boolean {
+    const entries = getAllEntries();
+  
+    const exists = entries.some(
+      (entry) => entry.id === id
+    );
+  
+    if (!exists) {
+      return false;
+    }
+  
+    saveEntries(
+      entries.filter(
+        (entry) => entry.id !== id
+      )
+    );
+  
+    return true;
+  }
