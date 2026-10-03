@@ -497,6 +497,17 @@ At minimum, make sure:
 - the browser console contains no unexpected errors
 - the API terminal contains no unexpected exceptions
 
+## Continuous Integration (CI)
+
+Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has two checks, both shown at the bottom of the PR:
+
+| Check | Runs |
+| --- | --- |
+| `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
+| `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
+
+Both must pass before merging. If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
+
 ---
 
 ## Frontend Testing
