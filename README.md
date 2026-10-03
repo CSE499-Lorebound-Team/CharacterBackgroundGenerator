@@ -230,11 +230,11 @@ Changes should only reach `main` after they have been tested and accepted.
 
 ## Development Branch
 
-`dev` is the shared integration branch used by the development team. It is also the repository's **default branch**, so a fresh clone checks it out and new Pull Requests target it automatically.
+`dev` is the shared integration branch used by the development team.
 
 Completed feature branches should be merged into `dev` through Pull Requests.
 
-Because `dev` is the default branch, a Pull Request whose description contains `Closes #N` (or `Fixes #N` / `Resolves #N`) closes issue N when it is merged, and the project board moves the card to **Done**. GitHub only does this for merges into the default branch.
+The repository's default branch stays `main`, so GitHub opens new Pull Requests against `main`: **always change the base branch to `dev`**. Also, GitHub only auto-closes issues (`Closes #N`) for merges into the default branch, so merging into `dev` does **not** close issues. Closing is a manual step (see [After a Pull Request Is Merged](#after-a-pull-request-is-merged)).
 
 ## Feature Branches
 
@@ -699,7 +699,7 @@ feature/your-feature-name
 
 Do not create a Pull Request into `main` unless the team specifically intends to create a stable/release version.
 
-In the description, add `Closes #N` for each board issue the PR completes so the issue closes on merge. Both CI checks (`api` and `frontend`) must pass.
+In the description, add `Closes #N` for each board issue the PR completes. This links the PR to the issue on the board; it does not close the issue, because the PR merges into `dev`, not the default branch. Both CI checks (`api` and `frontend`) must pass.
 
 Before requesting a merge, confirm:
 
@@ -745,7 +745,15 @@ git push
 
 # After a Pull Request Is Merged
 
-After your feature branch is merged into `dev`, update your local copy:
+After your feature branch is merged into `dev`, **close each issue the PR completed by hand**. Merges into `dev` do not close issues automatically, because the default branch is `main`. Add a comment saying what was done and naming the PR, for example:
+
+```powershell
+gh issue close 48 -R CSE499-Lorebound-Team/CharacterBackgroundGenerator -c "Done in <commit>, merged to dev via #<PR>. <What changed and how it was verified.>"
+```
+
+Or use **Close issue** on the issue page on GitHub. The project board then moves the card to **Done**.
+
+Then update your local copy:
 
 ```powershell
 git checkout dev

@@ -81,7 +81,7 @@ Total: **101 work items + 10 epics = 111 issues.**
 2. Branch from an up-to-date `dev`: `feature/<issue#>-short-slug` (`fix/` for bugs).
 3. Keep the PR to one issue. Put `Closes #<issue>` in the PR description.
 4. CI must pass; at least one teammate reviews.
-5. Merge into `dev` (never `main`). `dev` is the repository's default branch (decided in P0-12), so `Closes #N` closes the issue on merge and the card moves to **Done**. If an issue stays open, close it by hand with a comment naming the PR.
+5. Merge into `dev` (never `main`). The default branch stays `main` (decided in P0-12), so `Closes #N` links the PR but does **not** close the issue. After merging, close each issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
 6. Migrations: one per PR, announce schema changes to the team before merging.
 7. Found something new? Open an issue from the forms (Task, Bug, Feature); it is auto-added to this board.
 
@@ -96,7 +96,7 @@ Total: **101 work items + 10 epics = 111 issues.**
 - Each issue belongs to a **milestone** (its phase) and shows a parent **epic**.
 - Epics list children as a task list and (best effort) as native **sub-issues**.
 - **Blocked by** links appear in each issue's Dependencies section and (best effort) as native issue dependencies.
-- PRs link to issues with `Closes #N`.
+- PRs link to issues with `Closes #N` (issues are then closed by hand after the merge into `dev`; see Working agreement step 5).
 - The **Auto-add** workflow puts every new issue and PR on this board.
 
 ## Maintainers

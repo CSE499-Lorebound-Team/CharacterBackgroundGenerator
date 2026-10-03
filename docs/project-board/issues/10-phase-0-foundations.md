@@ -292,24 +292,25 @@ area: devex
 phase: 0
 priority: P1
 size: S
-labels: needs-decision
 depends:
 @@@
 ## Summary
 Team PRs merge into `dev`, but GitHub only auto-closes issues ("Closes #12") when the PR merges into the repository **default branch**. If the default is `main`, merged work leaves issues open and the project board never reaches Done.
 
-## Decision needed (pick one)
-1. **Set the default branch to `dev`** (simplest; `main` is updated only by release PRs). Recommended.
-2. Keep `main` default and add a workflow that closes issues referenced by PRs merged into `dev`.
+## Decision (2026-10-03): keep `main` as the default branch; close issues manually
+The team keeps `main` as the default branch and closes issues by hand after each merge into `dev`, with a comment naming the PR and commits. No settings change and no auto-close workflow. Documented in the README (Development Branch, Creating a Pull Request, After a Pull Request Is Merged) and the board working agreement.
+
+## Options considered
+1. Set the default branch to `dev` (not chosen).
+2. Keep `main` default and add an auto-close workflow (not chosen).
+3. **Keep `main` default and close issues manually** (chosen).
 
 ## Tasks
-- [ ] Decide and record the choice in the README.
-- [ ] Option 1: Settings, General, Default branch, switch to `dev`; update README clone/branch text.
-- [ ] Option 2: workflow on `pull_request` `closed` (merged, base `dev`) that parses `Closes #N` and closes those issues using `GITHUB_TOKEN` (`issues: write`).
-- [ ] Verify with a throwaway PR.
+- [x] Decide and record the choice in the README and board working agreement.
+- [x] Document the manual close step (README "After a Pull Request Is Merged").
 
 ## Acceptance criteria
-- Merging a PR containing `Closes #N` into `dev` closes issue N and moves the board item to Done.
+- The README and board working agreement state that the default branch stays `main`, PRs target `dev`, `Closes #N` only links, and issues are closed by hand after merge.
 
 @@@ P0-13
 title: Commit project-board docs, issue forms and PR template to dev
