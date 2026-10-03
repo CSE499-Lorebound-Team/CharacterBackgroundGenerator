@@ -171,7 +171,7 @@ The following are recommended but not required:
 Clone the repository from GitHub:
 
 ```powershell
-git clone https://github.com/Bugbear777/CharacterBackgroundGenerator.git
+git clone https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator.git
 ```
 
 Enter the project folder:
@@ -230,9 +230,11 @@ Changes should only reach `main` after they have been tested and accepted.
 
 ## Development Branch
 
-`dev` is the shared integration branch used by the development team.
+`dev` is the shared integration branch used by the development team. It is also the repository's **default branch**, so a fresh clone checks it out and new Pull Requests target it automatically.
 
 Completed feature branches should be merged into `dev` through Pull Requests.
+
+Because `dev` is the default branch, a Pull Request whose description contains `Closes #N` (or `Fixes #N` / `Resolves #N`) closes issue N when it is merged, and the project board moves the card to **Done**. GitHub only does this for merges into the default branch.
 
 ## Feature Branches
 
@@ -696,6 +698,8 @@ feature/your-feature-name
 ```
 
 Do not create a Pull Request into `main` unless the team specifically intends to create a stable/release version.
+
+In the description, add `Closes #N` for each board issue the PR completes so the issue closes on merge. Both CI checks (`api` and `frontend`) must pass.
 
 Before requesting a merge, confirm:
 
