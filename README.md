@@ -386,30 +386,27 @@ Run:
 dotnet run
 ```
 
-The terminal will display the addresses used by the API.
-
-For example:
+The terminal will display the address used by the API:
 
 ```text
-Now listening on: https://localhost:7001
-Now listening on: http://localhost:5001
+Now listening on: http://localhost:5110
 ```
 
-The exact port numbers may differ depending on your machine.
+The ports are fixed in `api/Properties/launchSettings.json`, so they are the same on every machine. To also listen on HTTPS (`https://localhost:7254`), run:
+
+```powershell
+dotnet run --launch-profile https
+```
 
 ## Test the API
 
-If the API contains the health endpoint, navigate to:
+Open the health endpoint in a browser:
 
 ```text
-https://localhost:<PORT>/api/health
+http://localhost:5110/api/health
 ```
 
-For example:
-
-```text
-https://localhost:7001/api/health
-```
+The requests in `api/Lorebound.Api.http` use the same address and can be sent from VS Code (REST Client extension) or Visual Studio.
 
 A successful response should look similar to:
 
@@ -471,7 +468,7 @@ http://localhost:3000
    | HTTP / JSON
    v
 ASP.NET Core API
-http(s)://localhost:<API PORT>
+http://localhost:5110
    |
    v
 Database
@@ -796,10 +793,10 @@ frontend/.env.local
 For example:
 
 ```env
-NEXT_PUBLIC_API_URL=https://localhost:7001
+NEXT_PUBLIC_API_URL=http://localhost:5110
 ```
 
-The exact API URL may differ on each developer's machine.
+This matches the API port in `api/Properties/launchSettings.json`. The API only accepts browser requests from `http://localhost:3000` (CORS, set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
 Files containing local secrets should not be committed.
 
@@ -1104,8 +1101,8 @@ Verify that:
 
 1. the API is running
 2. the frontend is running
-3. the configured API URL matches the port shown by `dotnet run`
-4. CORS is configured to allow the frontend
+3. `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is `http://localhost:5110`, the address shown by `dotnet run`
+4. the frontend runs on `http://localhost:3000`, the only origin CORS allows in development (`Cors:AllowedOrigins` in `api/appsettings.Development.json`)
 5. your local environment configuration is correct
 
 ---
