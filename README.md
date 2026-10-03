@@ -171,7 +171,7 @@ The following are recommended but not required:
 Clone the repository from GitHub:
 
 ```powershell
-git clone https://github.com/Bugbear777/CharacterBackgroundGenerator.git
+git clone https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator.git
 ```
 
 Enter the project folder:
@@ -233,6 +233,8 @@ Changes should only reach `main` after they have been tested and accepted.
 `dev` is the shared integration branch used by the development team.
 
 Completed feature branches should be merged into `dev` through Pull Requests.
+
+The repository's default branch stays `main`, so GitHub opens new Pull Requests against `main`: **always change the base branch to `dev`**. Also, GitHub only auto-closes issues (`Closes #N`) for merges into the default branch, so merging into `dev` does **not** close issues. Closing is a manual step (see [After a Pull Request Is Merged](#after-a-pull-request-is-merged)).
 
 ## Feature Branches
 
@@ -386,30 +388,27 @@ Run:
 dotnet run
 ```
 
-The terminal will display the addresses used by the API.
-
-For example:
+The terminal will display the address used by the API:
 
 ```text
-Now listening on: https://localhost:7001
-Now listening on: http://localhost:5001
+Now listening on: http://localhost:5110
 ```
 
-The exact port numbers may differ depending on your machine.
+The ports are fixed in `api/Properties/launchSettings.json`, so they are the same on every machine. To also listen on HTTPS (`https://localhost:7254`), run:
+
+```powershell
+dotnet run --launch-profile https
+```
 
 ## Test the API
 
-If the API contains the health endpoint, navigate to:
+Open the health endpoint in a browser:
 
 ```text
-https://localhost:<PORT>/api/health
+http://localhost:5110/api/health
 ```
 
-For example:
-
-```text
-https://localhost:7001/api/health
-```
+The requests in `api/Lorebound.Api.http` use the same address and can be sent from VS Code (REST Client extension) or Visual Studio.
 
 A successful response should look similar to:
 
@@ -471,7 +470,7 @@ http://localhost:3000
    | HTTP / JSON
    v
 ASP.NET Core API
-http(s)://localhost:<API PORT>
+http://localhost:5110
    |
    v
 Database
@@ -496,6 +495,17 @@ At minimum, make sure:
 - existing features still work
 - the browser console contains no unexpected errors
 - the API terminal contains no unexpected exceptions
+
+## Continuous Integration (CI)
+
+Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has two checks, both shown at the bottom of the PR:
+
+| Check | Runs |
+| --- | --- |
+| `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
+| `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
+
+Both must pass before merging. If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
 
 ---
 
@@ -689,6 +699,8 @@ feature/your-feature-name
 
 Do not create a Pull Request into `main` unless the team specifically intends to create a stable/release version.
 
+In the description, add `Closes #N` for each board issue the PR completes. This links the PR to the issue on the board; it does not close the issue, because the PR merges into `dev`, not the default branch. Both CI checks (`api` and `frontend`) must pass.
+
 Before requesting a merge, confirm:
 
 - the project builds
@@ -733,7 +745,15 @@ git push
 
 # After a Pull Request Is Merged
 
-After your feature branch is merged into `dev`, update your local copy:
+After your feature branch is merged into `dev`, **close each issue the PR completed by hand**. Merges into `dev` do not close issues automatically, because the default branch is `main`. Add a comment saying what was done and naming the PR, for example:
+
+```powershell
+gh issue close 48 -R CSE499-Lorebound-Team/CharacterBackgroundGenerator -c "Done in <commit>, merged to dev via #<PR>. <What changed and how it was verified.>"
+```
+
+Or use **Close issue** on the issue page on GitHub. The project board then moves the card to **Done**.
+
+Then update your local copy:
 
 ```powershell
 git checkout dev
@@ -785,10 +805,10 @@ frontend/.env.local
 For example:
 
 ```env
-NEXT_PUBLIC_API_URL=https://localhost:7001
+NEXT_PUBLIC_API_URL=http://localhost:5110
 ```
 
-The exact API URL may differ on each developer's machine.
+This matches the API port in `api/Properties/launchSettings.json`. The API only accepts browser requests from `http://localhost:3000` (CORS, set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
 Files containing local secrets should not be committed.
 
@@ -1093,8 +1113,8 @@ Verify that:
 
 1. the API is running
 2. the frontend is running
-3. the configured API URL matches the port shown by `dotnet run`
-4. CORS is configured to allow the frontend
+3. `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is `http://localhost:5110`, the address shown by `dotnet run`
+4. the frontend runs on `http://localhost:3000`, the only origin CORS allows in development (`Cors:AllowedOrigins` in `api/appsettings.Development.json`)
 5. your local environment configuration is correct
 
 ---

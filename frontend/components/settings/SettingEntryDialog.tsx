@@ -209,6 +209,27 @@ export function SettingEntryDialog({
               className="min-h-52"
             />
           </div>
+          <div className="flex items-start gap-3 border border-border p-4">
+            <input
+                id="gm-only"
+                type="checkbox"
+                checked={isGmOnly}
+                onChange={(event) =>
+                setIsGmOnly(event.target.checked)
+                }
+                className="mt-1 h-4 w-4"
+            />
+
+            <div>
+                <Label htmlFor="gm-only">
+                GM Only
+                </Label>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                Hide this lore entry from players.
+                </p>
+            </div>
+            </div>
 
           {error && (
             <p className="text-sm text-destructive">
@@ -233,27 +254,7 @@ export function SettingEntryDialog({
                 : "Add Entry"}
             </Button>
           </div>
-          <div className="flex items-start gap-3 border border-border p-4">
-            <input
-                id="gm-only"
-                type="checkbox"
-                checked={isGmOnly}
-                onChange={(event) =>
-                setIsGmOnly(event.target.checked)
-                }
-                className="mt-1 h-4 w-4"
-            />
-
-            <div>
-                <Label htmlFor="gm-only">
-                GM Only
-                </Label>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                Hide this lore entry from players.
-                </p>
-            </div>
-            </div>
+          
         </form>
       </DialogContent>
     </Dialog>

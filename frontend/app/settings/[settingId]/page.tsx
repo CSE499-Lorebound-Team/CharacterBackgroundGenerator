@@ -171,13 +171,13 @@ const filteredEntries =
             {filteredEntries.map((entry) => (
               <SettingEntryCard
               key={entry.id}
+              id={entry.id}
+              settingId={settingId}
               name={entry.name}
               type={entry.type}
               description={entry.summary}
               relationshipCount={entry.relationshipCount}
               isGmOnly={entry.isGmOnly}
-              canEdit={canManageSetting}
-              onEdit={() => handleEditEntry(entry)}
             />
             ))}
           </div>
