@@ -232,6 +232,17 @@ main
 
 Changes should only reach `main` after they have been tested and accepted.
 
+## Branch Protection
+
+`main` and `dev` are protected by the repository ruleset **Protect main and dev** (defined in `.github/rulesets/protect-main-and-dev.json`). It applies to everyone, including admins:
+
+- Direct pushes are rejected; every change arrives through a Pull Request.
+- The CI checks `api` and `frontend` must pass before merging.
+- All review conversations must be resolved before merging.
+- Force pushes and deleting the branch are blocked.
+
+Approvals are not required, so the author may merge their own Pull Request once CI is green. Merged feature branches are **not** deleted automatically; keep using your feature branch.
+
 ## Development Branch
 
 `dev` is the shared integration branch used by the development team.
@@ -509,7 +520,7 @@ Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHu
 | `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
 | `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
 
-Both must pass before merging. If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
+Both must pass before merging; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
 
 ---
 
