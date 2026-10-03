@@ -31,6 +31,7 @@ The application allows Game Masters to define information about their setting an
 - [After a Pull Request Is Merged](#after-a-pull-request-is-merged)
 - [Environment Configuration](#environment-configuration)
 - [Database Development](#database-development)
+  - [Quick Setup (Recommended)](#quick-setup-recommended)
   - [Changing the Database Password](#changing-the-database-password)
 - [Pulling New Dependencies](#pulling-new-dependencies)
 - [Common Development Workflow](#common-development-workflow)
@@ -74,6 +75,7 @@ CharacterBackgroundGenerator/
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
 ├── dotnet-tools.json      (pinned dotnet-ef version)
+├── scripts/onboard.ps1    (one-command local setup)
 ├── README.md
 └── .gitignore
 ```
@@ -197,6 +199,8 @@ Pull the latest changes:
 ```powershell
 git pull origin dev
 ```
+
+Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1` from the repository root (see [Database Development](#database-development)).
 
 You are now ready to begin development.
 
@@ -838,9 +842,25 @@ Do not place database passwords or private credentials into files committed to G
 
 # Database Development
 
-The API uses PostgreSQL 17, run locally with Docker Compose. Do this once after cloning.
+The API uses PostgreSQL 17, run locally with Docker Compose.
 
-## 1. Create your `.env` file
+## Quick setup (recommended)
+
+With Docker Desktop running, from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+```
+
+The script checks the .NET 10 SDK and Docker, creates `.env` with a random password if it is missing, starts the database, restores tools and packages, sets the connection-string user secret if it is missing, and applies migrations. It never overwrites an existing `.env` or user secret, so it is safe to re-run.
+
+**Run it after cloning, and again whenever you pull changes that add a migration.** Use `-SkipDbUpdate` to skip the migration step. If it stops with an error, it prints what to do next; the manual steps below do the same thing one at a time.
+
+## Manual setup
+
+Do this once after cloning if you are not using the script.
+
+### 1. Create your `.env` file
 
 From the repository root, copy the example and change `POSTGRES_PASSWORD`:
 
@@ -850,7 +870,7 @@ Copy-Item .env.example .env
 
 `.env` is git-ignored. Never commit it.
 
-## 2. Start the database
+### 2. Start the database
 
 From the repository root:
 
@@ -860,7 +880,7 @@ docker compose up -d
 
 This starts a `lorebound-postgres` container on port 5432 with data kept in the `lorebound-pgdata` volume. Check it with `docker compose ps`; stop it with `docker compose down` (add `-v` to also delete the data).
 
-## 3. Give the API the connection string
+### 3. Give the API the connection string
 
 The connection string is stored with .NET user secrets, outside the repository. From the `api/` folder, using the values from your `.env`:
 
@@ -870,7 +890,7 @@ dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Po
 
 Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead.
 
-## 4. Create the tables
+### 4. Create the tables
 
 From the `api/` folder:
 
@@ -881,7 +901,7 @@ dotnet ef database update
 
 This applies every migration in `api/Data/Migrations/`. Run it again whenever you pull changes that add a migration.
 
-## 5. Verify
+### 5. Verify
 
 Run the API (`dotnet run` in `api/`) and open `/api/health`. It should report `"database": "connected"`.
 
@@ -935,6 +955,12 @@ If another developer adds or changes .NET packages, run:
 ```powershell
 cd api
 dotnet restore
+```
+
+If the pull adds a database migration (new files in `api/Data/Migrations/`), re-run the onboarding script, or `dotnet ef database update` from `api/`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
 ```
 
 ---
