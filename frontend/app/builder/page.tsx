@@ -51,7 +51,7 @@ export default function BuilderPage() {
               </h2>
 
               <p className="mt-1 text-muted-foreground">
-                Choose the homeland that best fits your character's origin.
+                Choose the homeland that best fits your character&apos;s origin.
               </p>
             </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import {
   updateEntry,
 } from "@/lib/settings/entries-store";
 import { getSetting } from "@/lib/settings/settings-store";
+import { useIsClient } from "@/lib/use-is-client";
 
 import type {
   Setting,
@@ -32,31 +33,46 @@ export default function ArticlePage({
   params,
 }: ArticlePageProps) {
   const { settingId, entryId } = use(params);
+  const isClient = useIsClient();
 
+  // Remount once in the browser (and per article) so the content can read
+  // localStorage.
+  return (
+    <ArticleContent
+      key={`${isClient ? "client" : "server"}:${settingId}:${entryId}`}
+      settingId={settingId}
+      entryId={entryId}
+      loaded={isClient}
+    />
+  );
+}
+
+function ArticleContent({
+  settingId,
+  entryId,
+  loaded,
+}: {
+  settingId: string;
+  entryId: string;
+  loaded: boolean;
+}) {
   const router = useRouter();
 
-  const [setting, setSetting] = useState<Setting>();
-  const [entry, setEntry] = useState<SettingEntry>();
-  const [editOpen, setEditOpen] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    const foundSetting = getSetting(settingId);
-    const foundEntry = getEntry(entryId);
-
-    setSetting(foundSetting);
-
-    if (
-      foundEntry &&
-      foundEntry.settingId === settingId
-    ) {
-      setEntry(foundEntry);
-    } else {
-      setEntry(undefined);
+  const [setting] = useState<Setting | undefined>(() =>
+    loaded ? getSetting(settingId) : undefined
+  );
+  const [entry, setEntry] = useState<SettingEntry | undefined>(() => {
+    if (!loaded) {
+      return undefined;
     }
 
-    setLoaded(true);
-  }, [settingId, entryId]);
+    const foundEntry = getEntry(entryId);
+
+    return foundEntry && foundEntry.settingId === settingId
+      ? foundEntry
+      : undefined;
+  });
+  const [editOpen, setEditOpen] = useState(false);
 
   if (!loaded) {
     return (
