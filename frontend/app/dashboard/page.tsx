@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -13,13 +13,16 @@ import { Button } from "@/components/ui/button";
 
 import { getSettings } from "@/lib/settings/settings-store";
 import type { Setting } from "@/lib/settings/types";
+import { useIsClient } from "@/lib/use-is-client";
 
 export default function DashboardPage() {
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const isClient = useIsClient();
 
-  useEffect(() => {
-    setSettings(getSettings());
-  }, []);
+  // Settings live in localStorage, so they are read only in the browser.
+  const settings = useMemo<Setting[]>(
+    () => (isClient ? getSettings() : []),
+    [isClient]
+  );
 
   const recentSettings = useMemo(() => {
     return [...settings]

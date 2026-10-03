@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -21,6 +21,7 @@ import {
   getEntriesForSetting,
   updateEntry,
 } from "@/lib/settings/entries-store";
+import { useIsClient } from "@/lib/use-is-client";
 
 type SettingDetailPageProps = {
   params: Promise<{
@@ -32,8 +33,29 @@ export default function SettingDetailPage({
   params,
 }: SettingDetailPageProps) {
   const { settingId } = use(params);
+  const isClient = useIsClient();
 
-  const [setting, setSetting] = useState<Setting>();
+  // Remount once in the browser (and per setting) so the content can read
+  // localStorage.
+  return (
+    <SettingDetailContent
+      key={`${isClient ? "client" : "server"}:${settingId}`}
+      settingId={settingId}
+      isClient={isClient}
+    />
+  );
+}
+
+function SettingDetailContent({
+  settingId,
+  isClient,
+}: {
+  settingId: string;
+  isClient: boolean;
+}) {
+  const [setting] = useState<Setting | undefined>(() =>
+    isClient ? getSetting(settingId) : undefined
+  );
   const [activeTab, setActiveTab] = useState<SettingTab>("Overview");
   const tabTypeMap = {
     Nations: "Nation",
@@ -46,7 +68,9 @@ export default function SettingDetailPage({
   const canManageSetting =
   setting?.role === "GM";
 
-  const [entries, setEntries] = useState<SettingEntry[]>([]);
+  const [entries, setEntries] = useState<SettingEntry[]>(() =>
+    isClient ? getEntriesForSetting(settingId) : []
+  );
   const visibleEntries =
   setting?.role === "GM"
     ? entries
@@ -66,22 +90,8 @@ const filteredEntries =
 
   const [editingEntry, setEditingEntry] = useState<SettingEntry>();
 
-    useEffect(() => {
-      setSetting(getSetting(settingId));
-      setEntries(
-        getEntriesForSetting(settingId)
-      );
-    }, [settingId]);
-
     function handleAddEntry() {
       setEditingEntry(undefined);
-      setEntryDialogOpen(true);
-    }
-    
-    function handleEditEntry(
-      entry: SettingEntry
-    ) {
-      setEditingEntry(entry);
       setEntryDialogOpen(true);
     }
     

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -55,33 +55,40 @@ export function SettingEntryDialog({
   entry,
   onSave,
 }: SettingEntryDialogProps) {
+  // The Dialog stays mounted so its open/close animation plays. The form is
+  // keyed so its fields reset from `entry` whenever the dialog opens or
+  // closes, or the entry changes.
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <DialogContent className="sm:max-w-2xl">
+        <SettingEntryForm
+          key={`${open ? "open" : "closed"}:${entry?.id ?? "new"}`}
+          entry={entry}
+          onOpenChange={onOpenChange}
+          onSave={onSave}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SettingEntryForm({
+  onOpenChange,
+  entry,
+  onSave,
+}: Omit<SettingEntryDialogProps, "open">) {
   const isEditing = Boolean(entry);
 
-  const [name, setName] = useState("");
+  const [name, setName] = useState(entry?.name ?? "");
   const [type, setType] =
-    useState<SettingEntryType>("Nation");
-  const [summary, setSummary] = useState("");
-  const [content, setContent] = useState("");
+    useState<SettingEntryType>(entry?.type ?? "Nation");
+  const [summary, setSummary] = useState(entry?.summary ?? "");
+  const [content, setContent] = useState(entry?.content ?? "");
   const [error, setError] = useState<string>();
-  const [isGmOnly, setIsGmOnly] = useState(false);
-
-  useEffect(() => {
-    if (entry) {
-        setName(entry.name);
-        setType(entry.type);
-        setSummary(entry.summary);
-        setContent(entry.content);
-        setIsGmOnly(entry.isGmOnly);
-      } else {
-        setName("");
-        setType("Nation");
-        setSummary("");
-        setContent("");
-        setIsGmOnly(false);
-      }
-
-    setError(undefined);
-  }, [entry, open]);
+  const [isGmOnly, setIsGmOnly] = useState(entry?.isGmOnly ?? false);
 
   function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -110,11 +117,7 @@ export function SettingEntryDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <DialogContent className="sm:max-w-2xl">
+    <>
         <DialogHeader>
           <DialogTitle>
             {isEditing
@@ -256,7 +259,6 @@ export function SettingEntryDialog({
           </div>
           
         </form>
-      </DialogContent>
-    </Dialog>
+    </>
   );
 }
