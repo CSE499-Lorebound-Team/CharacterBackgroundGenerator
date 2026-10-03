@@ -384,3 +384,47 @@ Onboarding is several manual steps (Docker, `.env`, compose, user-secrets, tools
 - On a fresh clone with Docker Desktop running, `./scripts/onboard.ps1` then `dotnet run` (in `api/`) gives `/api/health` `"database": "connected"`, with no other manual steps.
 - Running it a second time changes nothing and succeeds.
 - A mismatched password produces the README pointer and a non-zero exit code.
+
+@@@ P0-16
+title: Frontend lint errors fail the CI frontend check
+type: bug
+area: frontend
+phase: 0
+priority: P1
+size: S
+depends:
+@@@
+## Summary
+`npm run lint` in `frontend/` fails with 6 errors (and 1 warning), all in pages merged in #158, #160 and #162. The new CI `frontend` check (P0-10, #52) runs lint, so it stays red on every PR until these are fixed. `npm run build` passes.
+
+## Steps to reproduce
+1. `cd frontend`
+2. `npm ci`
+3. `npm run lint`
+
+## Expected
+`npm run lint` exits 0 and the CI `frontend` check passes.
+
+## Errors
+| File | Line | Rule |
+| --- | --- | --- |
+| `app/builder/page.tsx` | 54 | `react/no-unescaped-entities` |
+| `app/dashboard/page.tsx` | 21 | `react-hooks/set-state-in-effect` |
+| `app/settings/page.tsx` | 25 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/page.tsx` | 70 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/entries/[entryId]/page.tsx` | 47 | `react-hooks/set-state-in-effect` |
+| `components/settings/SettingEntryDialog.tsx` | 70 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/page.tsx` | 81 | warning: `@typescript-eslint/no-unused-vars` |
+
+## Tasks
+- [ ] Escape the quote/apostrophe in `builder/page.tsx` (e.g. `&apos;` or `{"'"}`).
+- [ ] Replace the `setState`-in-`useEffect` patterns (see https://react.dev/learn/you-might-not-need-an-effect): read from the local stores during render or with a lazy `useState(() => ...)` initializer, and for `SettingEntryDialog` reset form state by giving the dialog a `key` tied to the entry instead of syncing in an effect.
+- [ ] Remove the unused variable.
+- [ ] Do not disable the rules to get a pass.
+
+## Implementation details
+- These pages will be rewired to the API in Phase 9; keep the fixes minimal.
+
+## Acceptance criteria
+- `npm run lint` exits 0 locally and the CI `frontend` check is green.
+
