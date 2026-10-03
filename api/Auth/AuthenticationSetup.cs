@@ -1,0 +1,91 @@
+using Lorebound.Api.Data;
+using Lorebound.Api.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Lorebound.Api.Auth;
+
+public static class AuthenticationSetup
+{
+  public const string CookieName = "lorebound.auth";
+
+  /// <summary>
+  /// Registers ASP.NET Core Identity with a cookie scheme only. The API never
+  /// issues bearer or refresh tokens, so do not add MapIdentityApi or
+  /// AddIdentityApiEndpoints: their login endpoint can return tokens in the
+  /// JSON body.
+  /// </summary>
+  public static IServiceCollection AddLoreboundAuthentication(
+      this IServiceCollection services,
+      IConfiguration configuration)
+  {
+    // Missing config fails safe: confirmation is required unless a config
+    // file (appsettings.Development.json) turns it off.
+    var requireConfirmedEmail =
+        configuration.GetValue("Auth:RequireConfirmedEmail", defaultValue: true);
+
+    services
+        .AddIdentityCore<ApplicationUser>(options =>
+        {
+          // Length over complexity: no forced digit, case or symbol rules.
+          options.Password.RequiredLength = 10;
+          options.Password.RequireDigit = false;
+          options.Password.RequireLowercase = false;
+          options.Password.RequireUppercase = false;
+          options.Password.RequireNonAlphanumeric = false;
+
+          options.User.RequireUniqueEmail = true;
+
+          options.Lockout.AllowedForNewUsers = true;
+          options.Lockout.MaxFailedAccessAttempts = 5;
+          options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+
+          options.SignIn.RequireConfirmedEmail = requireConfirmedEmail;
+        })
+        .AddEntityFrameworkStores<LoreboundDbContext>()
+        .AddSignInManager()
+        .AddDefaultTokenProviders();
+
+    services
+        .AddAuthentication(IdentityConstants.ApplicationScheme)
+        .AddIdentityCookies();
+
+    services.ConfigureApplicationCookie(options =>
+    {
+      options.Cookie.Name = CookieName;
+      options.Cookie.HttpOnly = true;
+      options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+      options.Cookie.SameSite = SameSiteMode.Lax;
+      options.ExpireTimeSpan = TimeSpan.FromDays(14);
+      options.SlidingExpiration = true;
+
+      // An API has no login page to redirect to.
+      options.Events.OnRedirectToLogin = context =>
+          WriteProblemAsync(context, StatusCodes.Status401Unauthorized, "Unauthorized");
+      options.Events.OnRedirectToAccessDenied = context =>
+          WriteProblemAsync(context, StatusCodes.Status403Forbidden, "Forbidden");
+    });
+
+    services.AddAuthorization();
+
+    return services;
+  }
+
+  private static async Task WriteProblemAsync(
+      RedirectContext<CookieAuthenticationOptions> context,
+      int status,
+      string title)
+  {
+    var httpContext = context.HttpContext;
+    httpContext.Response.StatusCode = status;
+
+    var problemDetails = httpContext.RequestServices.GetRequiredService<IProblemDetailsService>();
+    await problemDetails.WriteAsync(new ProblemDetailsContext
+    {
+      HttpContext = httpContext,
+      ProblemDetails = new ProblemDetails { Status = status, Title = title },
+    });
+  }
+}

@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
+using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
 using Lorebound.Api.Errors;
 using Microsoft.EntityFrameworkCore;
@@ -59,19 +60,22 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<LoreboundDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+// Identity with the httpOnly lorebound.auth cookie; no tokens anywhere.
+builder.Services.AddLoreboundAuthentication(builder.Configuration);
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
-// Bodyless error statuses (unmatched routes, and 401/403 once auth lands in
-// P1-01) also become problem+json.
+// Bodyless error statuses (e.g. unmatched routes) also become problem+json.
+// The auth cookie writes its own 401/403 problem bodies.
 app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
 
-// TODO(P1-01): app.UseAuthentication() and app.UseAuthorization() go here,
-// after CORS and before endpoints are mapped.
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
 {

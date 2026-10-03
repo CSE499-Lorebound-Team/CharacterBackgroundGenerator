@@ -67,3 +67,19 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 - `AllowAnyHeader()` echoes requested headers (including `X-Requested-With`).
   Do not add `WithHeaders(...)` alongside it: that disables any-header and
   blocks `Content-Type`.
+
+## Authentication
+
+- ASP.NET Core Identity with a **cookie only** (`Auth/AuthenticationSetup.cs`).
+  The API never returns bearer or refresh tokens, so never call
+  `MapIdentityApi`/`AddIdentityApiEndpoints` (their `/login` can return tokens
+  in the body; `AuthenticationTests` fails if those routes appear).
+- Cookie `lorebound.auth`: `HttpOnly`, `Secure`, `SameSite=Lax`, 14-day sliding
+  expiry when persistent, session cookie otherwise.
+- Unauthenticated requests to protected endpoints get **401** problem JSON and
+  forbidden ones **403**; the API never redirects to a login page.
+- Passwords: at least 10 characters, no forced digit/case/symbol rules. Emails
+  are unique. Five failed sign-ins lock an account for 15 minutes.
+- `Auth:RequireConfirmedEmail` controls whether sign-in needs a confirmed
+  email: `false` in `appsettings.Development.json`, `true` everywhere else
+  (and `true` if the key is missing).

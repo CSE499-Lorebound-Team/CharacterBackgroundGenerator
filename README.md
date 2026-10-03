@@ -613,8 +613,8 @@ Remove-Item Env:TEST_DB_CONNECTION
 
 Database tests share one migrated database, and every test starts with empty tables. Helpers on `CustomWebApplicationFactory`:
 
-- `CreateUserAsync(email, displayName)` inserts a user.
-- `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth.
+- `CreateUserAsync(email, displayName, password)` creates a confirmed user through `UserManager` (password defaults to `CustomWebApplicationFactory.DefaultPassword`).
+- `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 
 ---
