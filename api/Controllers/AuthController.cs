@@ -180,6 +180,66 @@ public class AuthController : ControllerBase
     return NoContent();
   }
 
+  /// <summary>
+  /// Emails a password reset link. Always 204; the link goes only to an
+  /// existing account whose email is confirmed, since that proves the inbox
+  /// belongs to the account.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("forgot-password")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+  {
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is { EmailConfirmed: true })
+    {
+      var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+      await _emailSender.SendPasswordResetLinkAsync(
+          user, user.Email!, _links.ResetPassword(user.Email!, token));
+    }
+
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Sets a new password with the email and code from the reset link. Identity
+  /// changes the security stamp, which ends the user's other sessions and
+  /// makes the code single-use.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("reset-password")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+  {
+    const string invalidResetLink = "This reset link is invalid or has expired.";
+
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is null || !EmailCodes.TryDecode(request.Code!, out var token))
+    {
+      return InvalidLink(invalidResetLink);
+    }
+
+    var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword!);
+    if (result.Succeeded)
+    {
+      return NoContent();
+    }
+
+    if (result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken)))
+    {
+      return InvalidLink(invalidResetLink);
+    }
+
+    // Only password policy errors remain.
+    foreach (var error in result.Errors)
+    {
+      ModelState.AddModelError(nameof(ResetPasswordRequest.NewPassword), error.Description);
+    }
+
+    return ValidationProblem(ModelState);
+  }
+
   private IActionResult InvalidLink(string detail) =>
       Problem(
           statusCode: StatusCodes.Status400BadRequest,

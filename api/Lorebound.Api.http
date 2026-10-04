@@ -38,3 +38,18 @@ Content-Type: application/json
 { "email": "player@example.com" }
 
 ###
+
+POST {{HostAddress}}/api/auth/forgot-password
+Content-Type: application/json
+
+{ "email": "player@example.com" }
+
+###
+
+# email and code come from the [dev email] reset link in the API log.
+POST {{HostAddress}}/api/auth/reset-password
+Content-Type: application/json
+
+{ "email": "player@example.com", "code": "<code>", "newPassword": "a brand new passphrase" }
+
+###

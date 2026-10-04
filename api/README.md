@@ -78,6 +78,9 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   expiry when persistent, session cookie otherwise.
 - Unauthenticated requests to protected endpoints get **401** problem JSON and
   forbidden ones **403**; the API never redirects to a login page.
+- The cookie's security stamp is checked against the database on every request
+  (Identity's default is every 30 minutes), so a password reset signs the user
+  out everywhere at once. Tests on `ApiFactory` (no database) turn this off.
 - Passwords: at least 10 characters, no forced digit/case/symbol rules. Emails
   are unique. Five failed sign-ins lock an account for 15 minutes.
 - `Auth:RequireConfirmedEmail` controls whether sign-in needs a confirmed
@@ -95,6 +98,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 | `POST /api/auth/logout` (signed in) | **204**; `Set-Cookie` expires the auth cookie (same name and path as at sign-in) | **401** when not signed in |
 | `POST /api/auth/confirm-email` `{ userId, code }` | **204**; the email is confirmed | **400** "This confirmation link is invalid or has already been used." for an unknown user, a malformed or wrong code, or an already-confirmed account (so a code works once) |
 | `POST /api/auth/resend-confirmation` `{ email }` | **204** always; a new link is sent only to an unconfirmed account | **400** only for a missing or malformed email |
+| `POST /api/auth/forgot-password` `{ email }` | **204** always; a reset link is sent only to an existing account with a **confirmed** email | **400** only for a missing or malformed email |
+| `POST /api/auth/reset-password` `{ email, code, newPassword }` | **204**; the password changes and the user's other sessions end | **400** "This reset link is invalid or has expired." for an unknown email, a malformed, wrong or used code; **400** keyed by `NewPassword` for a weak password |
 
 - `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
 - An unknown email still runs a password hash check, so the response time

@@ -57,6 +57,13 @@ public static class AuthenticationSetup
         .AddAuthentication(IdentityConstants.ApplicationScheme)
         .AddIdentityCookies();
 
+    // Check the cookie's security stamp against the database on every
+    // request (default: every 30 minutes), so a password reset ends the
+    // user's other sessions immediately. Costs one user lookup per signed-in
+    // request.
+    services.Configure<SecurityStampValidatorOptions>(options =>
+        options.ValidationInterval = TimeSpan.Zero);
+
     services.ConfigureApplicationCookie(options =>
     {
       options.Cookie.Name = CookieName;
