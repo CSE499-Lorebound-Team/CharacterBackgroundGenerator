@@ -1,7 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
+using Lorebound.Api.Auth;
+using Lorebound.Api.Models;
 using Lorebound.Api.Tests.TestSupport;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Lorebound.Api.Tests.Auth;
 
@@ -89,6 +94,55 @@ public class RegisterTests : PostgresTestBase
     var body = await response.Content.ReadAsStringAsync();
     Assert.Contains("Could not register with these details.", body);
     Assert.DoesNotContain("taken", body, StringComparison.OrdinalIgnoreCase);
+  }
+
+  [Fact]
+  public async Task Registration_emails_a_confirmation_link_when_confirmation_is_required()
+  {
+    var client = Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient();
+
+    var response = await RegisterAsync(client, "new@example.com");
+
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    var id = (await JsonAssert.ReadJsonAsync(response)).GetProperty("id").GetGuid();
+
+    var email = Assert.Single(Factory.Emails.Sent);
+    Assert.Equal(EmailKind.ConfirmationLink, email.Kind);
+    Assert.Equal("new@example.com", email.To);
+    Assert.Equal(id, email.UserId);
+
+    // The emailed code really confirms the account.
+    var link = new Uri(email.Content);
+    Assert.Equal("http://localhost:3000/confirm-email", link.GetLeftPart(UriPartial.Path));
+    var query = QueryHelpers.ParseQuery(link.Query);
+    Assert.Equal(id.ToString(), query["userId"].ToString());
+    Assert.True(EmailCodes.TryDecode(query["code"].ToString(), out var token));
+
+    using var scope = Factory.Services.CreateScope();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+    var user = await userManager.FindByIdAsync(id.ToString());
+    Assert.True((await userManager.ConfirmEmailAsync(user!, token)).Succeeded);
+  }
+
+  [Fact]
+  public async Task Confirmation_link_is_sent_even_when_confirmation_is_off()
+  {
+    var response = await RegisterAsync(Factory.CreateCookieClient(), "new@example.com");
+
+    Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    var email = Assert.Single(Factory.Emails.Sent);
+    Assert.Equal(EmailKind.ConfirmationLink, email.Kind);
+  }
+
+  [Fact]
+  public async Task No_email_is_sent_for_a_taken_email()
+  {
+    await Factory.CreateUserAsync("taken@example.com");
+    var client = Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient();
+
+    await RegisterAsync(client, "taken@example.com");
+
+    Assert.Empty(Factory.Emails.Sent);
   }
 
   [Theory]
