@@ -18,14 +18,8 @@ public static class AuthenticationSetup
   /// JSON body.
   /// </summary>
   public static IServiceCollection AddLoreboundAuthentication(
-      this IServiceCollection services,
-      IConfiguration configuration)
+      this IServiceCollection services)
   {
-    // Missing config fails safe: confirmation is required unless a config
-    // file (appsettings.Development.json) turns it off.
-    var requireConfirmedEmail =
-        configuration.GetValue("Auth:RequireConfirmedEmail", defaultValue: true);
-
     services
         .AddIdentityCore<ApplicationUser>(options =>
         {
@@ -37,16 +31,27 @@ public static class AuthenticationSetup
           options.Password.RequireNonAlphanumeric = false;
 
           options.User.RequireUniqueEmail = true;
+          // The username is the email; the default character allowlist
+          // rejects valid addresses such as o'brien@example.com.
+          options.User.AllowedUserNameCharacters = string.Empty;
 
           options.Lockout.AllowedForNewUsers = true;
           options.Lockout.MaxFailedAccessAttempts = 5;
           options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-
-          options.SignIn.RequireConfirmedEmail = requireConfirmedEmail;
         })
         .AddEntityFrameworkStores<LoreboundDbContext>()
         .AddSignInManager()
         .AddDefaultTokenProviders();
+
+    // Read when the options are first used, not now, so every config source
+    // (including test overrides added at build time) is seen. Missing config
+    // fails safe: confirmation is required unless a config file
+    // (appsettings.Development.json) turns it off.
+    services
+        .AddOptions<IdentityOptions>()
+        .Configure<IConfiguration>((options, configuration) =>
+            options.SignIn.RequireConfirmedEmail =
+                configuration.GetValue("Auth:RequireConfirmedEmail", defaultValue: true));
 
     services
         .AddAuthentication(IdentityConstants.ApplicationScheme)

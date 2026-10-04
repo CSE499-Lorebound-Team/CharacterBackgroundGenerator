@@ -4,3 +4,11 @@ GET {{HostAddress}}/api/health
 Accept: application/json
 
 ###
+
+POST {{HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{ "email": "player@example.com", "password": "correct horse battery", "displayName": "Player" }
+
+###
+

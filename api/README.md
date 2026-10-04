@@ -83,3 +83,12 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 - `Auth:RequireConfirmedEmail` controls whether sign-in needs a confirmed
   email: `false` in `appsettings.Development.json`, `true` everywhere else
   (and `true` if the key is missing).
+- Emails are used as the Identity username, so any valid address is accepted
+  (the default username character allowlist is turned off).
+
+### Endpoints
+
+| Endpoint | Success | Failures |
+| --- | --- | --- |
+| `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
+

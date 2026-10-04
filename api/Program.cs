@@ -61,7 +61,7 @@ builder.Services.AddDbContext<LoreboundDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 // Identity with the httpOnly lorebound.auth cookie; no tokens anywhere.
-builder.Services.AddLoreboundAuthentication(builder.Configuration);
+builder.Services.AddLoreboundAuthentication();
 
 var app = builder.Build();
 
