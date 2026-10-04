@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 
 namespace Lorebound.Api.Tests.TestSupport;
 
@@ -12,7 +13,12 @@ public enum EmailKind
 }
 
 /// <param name="Content">The link, or the code for a reset code.</param>
-public record SentEmail(EmailKind Kind, Guid UserId, string To, string Content);
+public record SentEmail(EmailKind Kind, Guid UserId, string To, string Content)
+{
+  /// <summary>A query parameter of the link, e.g. Param("code").</summary>
+  public string Param(string name) =>
+      QueryHelpers.ParseQuery(new Uri(Content).Query)[name].ToString();
+}
 
 /// <summary>
 /// Records emails instead of sending them, so tests can read the link.

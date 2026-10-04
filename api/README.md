@@ -93,6 +93,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 | `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in. Always emails a confirmation link (`Auth:RequireConfirmedEmail` only decides whether login needs it) | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
 | `POST /api/auth/login` `{ email, password, rememberMe }` | **200** `{ id, email, displayName }` plus `Set-Cookie` | **401** "Invalid email or password." for a wrong password, an unknown email or an unconfirmed email alike; **423** when locked out, with `Retry-After` and `retryAfterSeconds` |
 | `POST /api/auth/logout` (signed in) | **204**; `Set-Cookie` expires the auth cookie (same name and path as at sign-in) | **401** when not signed in |
+| `POST /api/auth/confirm-email` `{ userId, code }` | **204**; the email is confirmed | **400** "This confirmation link is invalid or has already been used." for an unknown user, a malformed or wrong code, or an already-confirmed account (so a code works once) |
+| `POST /api/auth/resend-confirmation` `{ email }` | **204** always; a new link is sent only to an unconfirmed account | **400** only for a missing or malformed email |
 
 - `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
 - An unknown email still runs a password hash check, so the response time

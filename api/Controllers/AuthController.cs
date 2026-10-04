@@ -134,6 +134,58 @@ public class AuthController : ControllerBase
     return NoContent();
   }
 
+  /// <summary>
+  /// Confirms an email with the userId and code from the emailed link. An
+  /// unknown user, a malformed or wrong code, and an already-confirmed account
+  /// all get the same 400, so a code cannot be reused.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("confirm-email")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+  {
+    var user = await _userManager.FindByIdAsync(request.UserId!.Value.ToString());
+
+    // Identity would accept the same code twice, so a confirmed account is
+    // treated as a used link.
+    if (user is null
+        || user.EmailConfirmed
+        || !EmailCodes.TryDecode(request.Code!, out var token)
+        || !(await _userManager.ConfirmEmailAsync(user, token)).Succeeded)
+    {
+      return InvalidLink("This confirmation link is invalid or has already been used.");
+    }
+
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Sends a fresh confirmation link. Always 204, whether the email is
+  /// unknown, already confirmed or sent to, so it reveals nothing.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("resend-confirmation")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequest request)
+  {
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is { EmailConfirmed: false })
+    {
+      var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+      await _emailSender.SendConfirmationLinkAsync(
+          user, user.Email!, _links.ConfirmEmail(user.Id, token));
+    }
+
+    return NoContent();
+  }
+
+  private IActionResult InvalidLink(string detail) =>
+      Problem(
+          statusCode: StatusCodes.Status400BadRequest,
+          title: "Bad Request",
+          detail: detail);
+
   private void BurnPasswordCheck(string password) =>
       _userManager.PasswordHasher.VerifyHashedPassword(
           new ApplicationUser(), DummyPasswordHash.Value, password);
