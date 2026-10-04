@@ -1,3 +1,4 @@
+using Lorebound.Api.Auth;
 using Lorebound.Api.Dtos.Auth;
 using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
@@ -25,17 +26,23 @@ public class AuthController : ControllerBase
   private readonly SignInManager<ApplicationUser> _signInManager;
   private readonly TimeProvider _timeProvider;
   private readonly ILogger<AuthController> _logger;
+  private readonly IEmailSender<ApplicationUser> _emailSender;
+  private readonly FrontendLinks _links;
 
   public AuthController(
       UserManager<ApplicationUser> userManager,
       SignInManager<ApplicationUser> signInManager,
       TimeProvider timeProvider,
-      ILogger<AuthController> logger)
+      ILogger<AuthController> logger,
+      IEmailSender<ApplicationUser> emailSender,
+      FrontendLinks links)
   {
     _userManager = userManager;
     _signInManager = signInManager;
     _timeProvider = timeProvider;
     _logger = logger;
+    _emailSender = emailSender;
+    _links = links;
   }
 
   /// <summary>
@@ -62,11 +69,12 @@ public class AuthController : ControllerBase
       return RegistrationFailed(result.Errors);
     }
 
-    if (_userManager.Options.SignIn.RequireConfirmedEmail)
-    {
-      // TODO(P1-05): generate the confirmation token and send the link via
-      // IEmailSender<ApplicationUser>.
-    }
+    // Sent even when sign-in does not require confirmation (Development), so
+    // the confirm flow can be exercised locally; Auth:RequireConfirmedEmail
+    // only gates login.
+    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+    await _emailSender.SendConfirmationLinkAsync(
+        user, email, _links.ConfirmEmail(user.Id, token));
 
     return StatusCode(StatusCodes.Status201Created, user.ToRegisteredUserDto());
   }

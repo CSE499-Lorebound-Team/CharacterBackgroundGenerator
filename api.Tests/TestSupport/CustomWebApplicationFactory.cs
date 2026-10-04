@@ -28,10 +28,18 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     // Test-only controllers (routes under /test), e.g. a protected route to
     // prove a login cookie authenticates.
     builder.ConfigureServices(services =>
-        services
-            .AddControllers()
-            .AddApplicationPart(typeof(CustomWebApplicationFactory).Assembly));
+    {
+      services
+          .AddControllers()
+          .AddApplicationPart(typeof(CustomWebApplicationFactory).Assembly);
+
+      // One shared instance, so copies made with WithConfig record here too.
+      services.AddSingleton<IEmailSender<ApplicationUser>>(Emails);
+    });
   }
+
+  /// <summary>Emails the API "sent" during the current test.</summary>
+  public TestEmailSender Emails { get; } = new();
 
   public const string DefaultPassword = "correct horse battery";
 

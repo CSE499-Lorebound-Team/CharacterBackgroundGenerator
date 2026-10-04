@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
+using Lorebound.Api.Email;
 using Lorebound.Api.Errors;
 using Microsoft.EntityFrameworkCore;
 
@@ -62,6 +63,7 @@ builder.Services.AddDbContext<LoreboundDbContext>(options =>
 
 // Identity with the httpOnly lorebound.auth cookie; no tokens anywhere.
 builder.Services.AddLoreboundAuthentication();
+builder.Services.AddLoreboundEmail(builder.Environment);
 
 var app = builder.Build();
 
