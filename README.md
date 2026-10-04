@@ -614,9 +614,10 @@ Remove-Item Env:TEST_DB_CONNECTION
 Database tests share one migrated database, and every test starts with empty tables. Helpers on `CustomWebApplicationFactory`:
 
 - `CreateUserAsync(email, displayName, password)` creates a confirmed user through `UserManager` (password defaults to `CustomWebApplicationFactory.DefaultPassword`).
+- `CreateSignedInClientAsync(email, displayName)` creates a confirmed user, signs it in through `POST /api/auth/login`, and returns `(Client, User)`; the client keeps the auth cookie.
 - `WithConfig(key, value)` (on any factory) returns a copy with one config value overridden, e.g. `Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient()`.
 - `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
-- The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client.
+- The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client. Every endpoint requires sign-in by default, so a new test-only controller that should be public needs `[AllowAnonymous]`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 - `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.
 
@@ -902,7 +903,7 @@ The connection string is stored with .NET user secrets, outside the repository. 
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=lorebound;Username=lorebound;Password=<POSTGRES_PASSWORD from .env>"
 ```
 
-Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links).
+Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
 
 ### 4. Create the tables
 

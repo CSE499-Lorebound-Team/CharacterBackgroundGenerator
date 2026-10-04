@@ -2,9 +2,11 @@ using Lorebound.Api.Auth;
 using Lorebound.Api.Dtos.Auth;
 using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
+using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Lorebound.Api.Controllers;
 
@@ -49,6 +51,7 @@ public class AuthController : ControllerBase
   /// Creates an account. Does not sign the user in and returns no token.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("register")]
   [ProducesResponseType<RegisteredUserDto>(StatusCodes.Status201Created)]
   [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -85,6 +88,7 @@ public class AuthController : ControllerBase
   /// same 401 so the response does not reveal which accounts exist.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("login")]
   [ProducesResponseType<AuthUserDto>(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -133,6 +137,120 @@ public class AuthController : ControllerBase
     await _signInManager.SignOutAsync();
     return NoContent();
   }
+
+  /// <summary>
+  /// Confirms an email with the userId and code from the emailed link. An
+  /// unknown user, a malformed or wrong code, and an already-confirmed account
+  /// all get the same 400, so a code cannot be reused.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("confirm-email")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<IActionResult> ConfirmEmail(ConfirmEmailRequest request)
+  {
+    var user = await _userManager.FindByIdAsync(request.UserId!.Value.ToString());
+
+    // Identity would accept the same code twice, so a confirmed account is
+    // treated as a used link.
+    if (user is null
+        || user.EmailConfirmed
+        || !EmailCodes.TryDecode(request.Code!, out var token)
+        || !(await _userManager.ConfirmEmailAsync(user, token)).Succeeded)
+    {
+      return InvalidLink("This confirmation link is invalid or has already been used.");
+    }
+
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Sends a fresh confirmation link. Always 204, whether the email is
+  /// unknown, already confirmed or sent to, so it reveals nothing.
+  /// </summary>
+  [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
+  [HttpPost("resend-confirmation")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequest request)
+  {
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is { EmailConfirmed: false })
+    {
+      var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+      await _emailSender.SendConfirmationLinkAsync(
+          user, user.Email!, _links.ConfirmEmail(user.Id, token));
+    }
+
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Emails a password reset link. Always 204; the link goes only to an
+  /// existing account whose email is confirmed, since that proves the inbox
+  /// belongs to the account.
+  /// </summary>
+  [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
+  [HttpPost("forgot-password")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
+  {
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is { EmailConfirmed: true })
+    {
+      var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+      await _emailSender.SendPasswordResetLinkAsync(
+          user, user.Email!, _links.ResetPassword(user.Email!, token));
+    }
+
+    return NoContent();
+  }
+
+  /// <summary>
+  /// Sets a new password with the email and code from the reset link. Identity
+  /// changes the security stamp, which ends the user's other sessions and
+  /// makes the code single-use.
+  /// </summary>
+  [AllowAnonymous]
+  [HttpPost("reset-password")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<IActionResult> ResetPassword(ResetPasswordRequest request)
+  {
+    const string invalidResetLink = "This reset link is invalid or has expired.";
+
+    var user = await _userManager.FindByEmailAsync(request.Email!.Trim());
+    if (user is null || !EmailCodes.TryDecode(request.Code!, out var token))
+    {
+      return InvalidLink(invalidResetLink);
+    }
+
+    var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword!);
+    if (result.Succeeded)
+    {
+      return NoContent();
+    }
+
+    if (result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken)))
+    {
+      return InvalidLink(invalidResetLink);
+    }
+
+    // Only password policy errors remain.
+    foreach (var error in result.Errors)
+    {
+      ModelState.AddModelError(nameof(ResetPasswordRequest.NewPassword), error.Description);
+    }
+
+    return ValidationProblem(ModelState);
+  }
+
+  private IActionResult InvalidLink(string detail) =>
+      Problem(
+          statusCode: StatusCodes.Status400BadRequest,
+          title: "Bad Request",
+          detail: detail);
 
   private void BurnPasswordCheck(string password) =>
       _userManager.PasswordHasher.VerifyHashedPassword(
