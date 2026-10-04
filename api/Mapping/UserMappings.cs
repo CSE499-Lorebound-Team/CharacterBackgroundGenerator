@@ -10,4 +10,9 @@ public static class UserMappings
       user.Email!,
       user.DisplayName,
       user.EmailConfirmed);
+
+  public static AuthUserDto ToAuthUserDto(this ApplicationUser user) => new(
+      user.Id,
+      user.Email!,
+      user.DisplayName);
 }

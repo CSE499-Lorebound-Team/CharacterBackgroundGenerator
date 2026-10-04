@@ -12,3 +12,10 @@ Content-Type: application/json
 
 ###
 
+# Sets the lorebound.auth cookie (Secure: use the https profile in a browser).
+POST {{HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "player@example.com", "password": "correct horse battery", "rememberMe": false }
+
+###
