@@ -90,10 +90,33 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 
 | Endpoint | Success | Failures |
 | --- | --- | --- |
-| `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
+| `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in. Always emails a confirmation link (`Auth:RequireConfirmedEmail` only decides whether login needs it) | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
 | `POST /api/auth/login` `{ email, password, rememberMe }` | **200** `{ id, email, displayName }` plus `Set-Cookie` | **401** "Invalid email or password." for a wrong password, an unknown email or an unconfirmed email alike; **423** when locked out, with `Retry-After` and `retryAfterSeconds` |
+| `POST /api/auth/logout` (signed in) | **204**; `Set-Cookie` expires the auth cookie (same name and path as at sign-in) | **401** when not signed in |
 
 - `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
 - An unknown email still runs a password hash check, so the response time
   does not reveal which emails are registered.
 - Never log passwords or emails; log the user id.
+
+## Email
+
+- Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
+  registered in `Email/EmailSetup.cs`.
+- **Development** uses `ConsoleEmailSender`: it logs each link (with the user
+  id, not the email) so you can click it from the API terminal. Look for
+  `[dev email]`.
+- **Everywhere else** uses `UnconfiguredEmailSender`, which throws "No email
+  provider is configured" rather than silently dropping mail. To send real
+  email, implement `IEmailSender<ApplicationUser>` for the chosen provider,
+  read its secrets from environment variables, and register it in
+  `EmailSetup` in place of `UnconfiguredEmailSender`.
+- Links point at frontend pages, built by `FrontendLinks` from
+  `App:FrontendBaseUrl` (`http://localhost:3000` in Development; set
+  `App__FrontendBaseUrl` elsewhere):
+  - `/confirm-email?userId=<id>&code=<code>`
+  - `/reset-password?email=<email>&code=<code>`
+- `code` is the Identity token Base64Url-encoded (`EmailCodes.Encode`). An
+  endpoint that receives it decodes with `EmailCodes.TryDecode`, which returns
+  false for a malformed code (answer 400). It is a single-use link parameter,
+  not a session token, so the frontend posts it straight back and never stores it.

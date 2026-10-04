@@ -1,3 +1,4 @@
+using Lorebound.Api.Auth;
 using Lorebound.Api.Dtos.Auth;
 using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
@@ -9,7 +10,6 @@ namespace Lorebound.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-[AllowAnonymous]
 public class AuthController : ControllerBase
 {
   private const string InvalidCredentialsDetail = "Invalid email or password.";
@@ -26,22 +26,29 @@ public class AuthController : ControllerBase
   private readonly SignInManager<ApplicationUser> _signInManager;
   private readonly TimeProvider _timeProvider;
   private readonly ILogger<AuthController> _logger;
+  private readonly IEmailSender<ApplicationUser> _emailSender;
+  private readonly FrontendLinks _links;
 
   public AuthController(
       UserManager<ApplicationUser> userManager,
       SignInManager<ApplicationUser> signInManager,
       TimeProvider timeProvider,
-      ILogger<AuthController> logger)
+      ILogger<AuthController> logger,
+      IEmailSender<ApplicationUser> emailSender,
+      FrontendLinks links)
   {
     _userManager = userManager;
     _signInManager = signInManager;
     _timeProvider = timeProvider;
     _logger = logger;
+    _emailSender = emailSender;
+    _links = links;
   }
 
   /// <summary>
   /// Creates an account. Does not sign the user in and returns no token.
   /// </summary>
+  [AllowAnonymous]
   [HttpPost("register")]
   [ProducesResponseType<RegisteredUserDto>(StatusCodes.Status201Created)]
   [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -62,11 +69,12 @@ public class AuthController : ControllerBase
       return RegistrationFailed(result.Errors);
     }
 
-    if (_userManager.Options.SignIn.RequireConfirmedEmail)
-    {
-      // TODO(P1-05): generate the confirmation token and send the link via
-      // IEmailSender<ApplicationUser>.
-    }
+    // Sent even when sign-in does not require confirmation (Development), so
+    // the confirm flow can be exercised locally; Auth:RequireConfirmedEmail
+    // only gates login.
+    var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
+    await _emailSender.SendConfirmationLinkAsync(
+        user, email, _links.ConfirmEmail(user.Id, token));
 
     return StatusCode(StatusCodes.Status201Created, user.ToRegisteredUserDto());
   }
@@ -76,6 +84,7 @@ public class AuthController : ControllerBase
   /// summary; wrong password, unknown email and unconfirmed email all get the
   /// same 401 so the response does not reveal which accounts exist.
   /// </summary>
+  [AllowAnonymous]
   [HttpPost("login")]
   [ProducesResponseType<AuthUserDto>(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -110,6 +119,19 @@ public class AuthController : ControllerBase
     }
 
     return InvalidCredentials();
+  }
+
+  /// <summary>
+  /// Signs out by expiring the auth cookie (same name and path as at sign-in).
+  /// </summary>
+  [Authorize]
+  [HttpPost("logout")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+  public async Task<IActionResult> Logout()
+  {
+    await _signInManager.SignOutAsync();
+    return NoContent();
   }
 
   private void BurnPasswordCheck(string password) =>

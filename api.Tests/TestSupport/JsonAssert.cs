@@ -20,6 +20,12 @@ public static class JsonAssert
     return root;
   }
 
+  public static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
+  {
+    using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    return json.RootElement.Clone();
+  }
+
   public static async Task<JsonElement> ReadProblemAsync(HttpResponseMessage response)
   {
     Assert.Equal(
