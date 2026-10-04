@@ -127,3 +127,19 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   endpoint that receives it decodes with `EmailCodes.TryDecode`, which returns
   false for a malformed code (answer 400). It is a single-use link parameter,
   not a session token, so the frontend posts it straight back and never stores it.
+
+## Rate limiting
+
+- Policy `auth` (`Security/RateLimitingSetup.cs`): a fixed window of **10
+  requests per minute per client IP**, shared by login, register,
+  forgot-password and resend-confirmation (`[EnableRateLimiting(RateLimitingSetup.AuthPolicy)]`).
+  Other endpoints are not limited.
+- Over the limit: **429** problem JSON with a `Retry-After` header and
+  `retryAfterSeconds`. Login lockout is separate and returns 423.
+- Limits come from `RateLimiting:Auth:PermitLimit` and `WindowSeconds`. The
+  test factory raises the limit because every in-memory client shares one
+  partition; `RateLimitTests` sets it back to 10 with `WithConfig`.
+- Behind a reverse proxy, the client IP comes from `X-Forwarded-For`, trusted
+  only from loopback and the IPs in `ForwardedHeaders:KnownProxies` (set
+  `ForwardedHeaders__KnownProxies__0`, ...). Without that, every request
+  would appear to come from the proxy and share one limit.

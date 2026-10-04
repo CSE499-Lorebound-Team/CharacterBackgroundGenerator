@@ -2,9 +2,11 @@ using Lorebound.Api.Auth;
 using Lorebound.Api.Dtos.Auth;
 using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
+using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Lorebound.Api.Controllers;
 
@@ -49,6 +51,7 @@ public class AuthController : ControllerBase
   /// Creates an account. Does not sign the user in and returns no token.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("register")]
   [ProducesResponseType<RegisteredUserDto>(StatusCodes.Status201Created)]
   [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -85,6 +88,7 @@ public class AuthController : ControllerBase
   /// same 401 so the response does not reveal which accounts exist.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("login")]
   [ProducesResponseType<AuthUserDto>(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -165,6 +169,7 @@ public class AuthController : ControllerBase
   /// unknown, already confirmed or sent to, so it reveals nothing.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("resend-confirmation")]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
   public async Task<IActionResult> ResendConfirmation(ResendConfirmationRequest request)
@@ -186,6 +191,7 @@ public class AuthController : ControllerBase
   /// belongs to the account.
   /// </summary>
   [AllowAnonymous]
+  [EnableRateLimiting(RateLimitingSetup.AuthPolicy)]
   [HttpPost("forgot-password")]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
   public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)

@@ -4,6 +4,7 @@ using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
 using Lorebound.Api.Email;
 using Lorebound.Api.Errors;
+using Lorebound.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -64,10 +65,14 @@ builder.Services.AddDbContext<LoreboundDbContext>(options =>
 // Identity with the httpOnly lorebound.auth cookie; no tokens anywhere.
 builder.Services.AddLoreboundAuthentication();
 builder.Services.AddLoreboundEmail(builder.Environment);
+builder.Services.AddLoreboundRateLimiting();
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+// First, so everything after sees the real client IP and scheme behind a
+// trusted proxy (see RateLimitingSetup).
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 // Bodyless error statuses (e.g. unmatched routes) also become problem+json.
 // The auth cookie writes its own 401/403 problem bodies.
@@ -75,6 +80,9 @@ app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
+// After CORS (so 429s carry CORS headers) and before authentication, so a
+// throttled request costs no database lookups.
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();

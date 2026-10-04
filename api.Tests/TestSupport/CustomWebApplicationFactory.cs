@@ -25,6 +25,10 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
   {
     builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
 
+    // Every test client shares one IP partition, so lift the auth rate limit;
+    // RateLimitTests restores it with WithConfig.
+    builder.UseSetting("RateLimiting:Auth:PermitLimit", "100000");
+
     // Test-only controllers (routes under /test), e.g. a protected route to
     // prove a login cookie authenticates.
     builder.ConfigureServices(services =>
