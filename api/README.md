@@ -56,6 +56,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
 - Bodyless error statuses (e.g. unmatched routes) also return problem JSON.
+  An unmatched route is 404 when signed in but 401 when anonymous, because
+  the fallback authorization policy also covers requests with no endpoint.
 
 ## CORS
 
@@ -76,6 +78,17 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   in the body; `AuthenticationTests` fails if those routes appear).
 - Cookie `lorebound.auth`: `HttpOnly`, `Secure`, `SameSite=Lax`, 14-day sliding
   expiry when persistent, session cookie otherwise.
+- **Secure by default:** a fallback policy requires a signed-in user on every
+  endpoint. Mark public actions `[AllowAnonymous]` (minimal endpoints:
+  `.AllowAnonymous()`). Today only `/api/health`, the anonymous `/api/auth`
+  actions and the Development OpenAPI document are public;
+  `FallbackPolicyTests` lists them, so adding one is a deliberate change.
+  Never put `[AllowAnonymous]` on a controller class: it overrides
+  `[Authorize]` on every action.
+- Inject `ICurrentUser` (`UserId`, `Email`, `DisplayName`) to get the signed-in
+  user; do not read claims directly. It throws `UnauthorizedAccessException`
+  when nobody is signed in. The display name is a cookie claim added by
+  `LoreboundClaimsPrincipalFactory` and refreshed on every request.
 - Unauthenticated requests to protected endpoints get **401** problem JSON and
   forbidden ones **403**; the API never redirects to a login page.
 - The cookie's security stamp is checked against the database on every request

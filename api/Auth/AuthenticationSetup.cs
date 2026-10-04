@@ -2,6 +2,7 @@ using Lorebound.Api.Data;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -41,7 +42,8 @@ public static class AuthenticationSetup
         })
         .AddEntityFrameworkStores<LoreboundDbContext>()
         .AddSignInManager()
-        .AddDefaultTokenProviders();
+        .AddDefaultTokenProviders()
+        .AddClaimsPrincipalFactory<LoreboundClaimsPrincipalFactory>();
 
     // Read when the options are first used, not now, so every config source
     // (including test overrides added at build time) is seen. Missing config
@@ -80,7 +82,17 @@ public static class AuthenticationSetup
           WriteProblemAsync(context, StatusCodes.Status403Forbidden, "Forbidden");
     });
 
-    services.AddAuthorization();
+    // Secure by default: every endpoint needs a signed-in user unless it is
+    // marked [AllowAnonymous] (or .AllowAnonymous() for minimal endpoints).
+    // Requests that match no endpoint also get 401 when anonymous.
+    services
+        .AddAuthorizationBuilder()
+        .SetFallbackPolicy(new AuthorizationPolicyBuilder()
+            .RequireAuthenticatedUser()
+            .Build());
+
+    services.AddHttpContextAccessor();
+    services.AddScoped<ICurrentUser, CurrentUser>();
 
     return services;
   }

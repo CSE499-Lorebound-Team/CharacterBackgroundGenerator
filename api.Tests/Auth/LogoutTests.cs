@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Json;
 using Lorebound.Api.Auth;
 using Lorebound.Api.Tests.TestSupport;
 
@@ -15,15 +14,8 @@ public class LogoutTests : PostgresTestBase
   {
   }
 
-  private async Task<HttpClient> SignedInClientAsync()
-  {
-    await Factory.CreateUserAsync(Email);
-    var client = Factory.CreateCookieClient();
-    var login = await client.PostAsJsonAsync("/api/auth/login",
-        new { email = Email, password = CustomWebApplicationFactory.DefaultPassword });
-    Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-    return client;
-  }
+  private async Task<HttpClient> SignedInClientAsync() =>
+      (await Factory.CreateSignedInClientAsync(Email)).Client;
 
   [Fact]
   public async Task Logout_returns_204_and_ends_the_session()

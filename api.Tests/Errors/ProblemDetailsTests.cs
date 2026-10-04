@@ -65,11 +65,24 @@ public class ProblemDetailsTests : IClassFixture<ApiFactory>
   }
 
   [Fact]
-  public async Task Unmatched_route_returns_problem_json()
+  public async Task Unmatched_route_returns_404_problem_json_when_signed_in()
   {
-    var response = await _factory.CreateClient().GetAsync("/api/does-not-exist");
+    var client = _factory.CreateCookieClient();
+    await client.PostAsync("/test/auth/sign-in", null);
+
+    var response = await client.GetAsync("/api/does-not-exist");
 
     Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    await ReadProblemAsync(response);
+  }
+
+  [Fact]
+  public async Task Unmatched_route_returns_401_problem_json_when_anonymous()
+  {
+    // The fallback policy also covers requests that match no endpoint.
+    var response = await _factory.CreateClient().GetAsync("/api/does-not-exist");
+
+    Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     await ReadProblemAsync(response);
   }
 
