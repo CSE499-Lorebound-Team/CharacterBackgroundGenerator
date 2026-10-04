@@ -24,18 +24,14 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
   protected override void ConfigureWebHost(IWebHostBuilder builder)
   {
     builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
-  }
 
-  /// <summary>
-  /// A client that stores and resends cookies like a browser, for cookie auth.
-  /// It uses https because the auth cookie is Secure and is not resent over http.
-  /// </summary>
-  public HttpClient CreateCookieClient() =>
-      CreateClient(new WebApplicationFactoryClientOptions
-      {
-        BaseAddress = new Uri("https://localhost"),
-        HandleCookies = true,
-      });
+    // Test-only controllers (routes under /test), e.g. a protected route to
+    // prove a login cookie authenticates.
+    builder.ConfigureServices(services =>
+        services
+            .AddControllers()
+            .AddApplicationPart(typeof(CustomWebApplicationFactory).Assembly));
+  }
 
   public const string DefaultPassword = "correct horse battery";
 

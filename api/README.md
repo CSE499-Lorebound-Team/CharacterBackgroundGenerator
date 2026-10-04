@@ -83,3 +83,17 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 - `Auth:RequireConfirmedEmail` controls whether sign-in needs a confirmed
   email: `false` in `appsettings.Development.json`, `true` everywhere else
   (and `true` if the key is missing).
+- Emails are used as the Identity username, so any valid address is accepted
+  (the default username character allowlist is turned off).
+
+### Endpoints
+
+| Endpoint | Success | Failures |
+| --- | --- | --- |
+| `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
+| `POST /api/auth/login` `{ email, password, rememberMe }` | **200** `{ id, email, displayName }` plus `Set-Cookie` | **401** "Invalid email or password." for a wrong password, an unknown email or an unconfirmed email alike; **423** when locked out, with `Retry-After` and `retryAfterSeconds` |
+
+- `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
+- An unknown email still runs a password hash check, so the response time
+  does not reveal which emails are registered.
+- Never log passwords or emails; log the user id.
