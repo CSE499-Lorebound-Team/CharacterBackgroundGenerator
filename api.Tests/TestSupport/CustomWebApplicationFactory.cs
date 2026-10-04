@@ -1,6 +1,7 @@
 using Lorebound.Api.Data;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,34 +28,45 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
   /// <summary>
   /// A client that stores and resends cookies like a browser, for cookie auth.
+  /// It uses https because the auth cookie is Secure and is not resent over http.
   /// </summary>
   public HttpClient CreateCookieClient() =>
-      CreateClient(new WebApplicationFactoryClientOptions { HandleCookies = true });
+      CreateClient(new WebApplicationFactoryClientOptions
+      {
+        BaseAddress = new Uri("https://localhost"),
+        HandleCookies = true,
+      });
+
+  public const string DefaultPassword = "correct horse battery";
 
   /// <summary>
-  /// Inserts a user directly. It has no password until Identity is registered
-  /// (P1-01); switch this to UserManager then.
+  /// Creates a confirmed user through UserManager, so Identity's password
+  /// policy and unique-email check apply. Throws if Identity rejects it.
   /// </summary>
   public async Task<ApplicationUser> CreateUserAsync(
       string email = "player@example.com",
-      string displayName = "Player")
+      string displayName = "Player",
+      string password = DefaultPassword)
   {
     using var scope = Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<LoreboundDbContext>();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
     var user = new ApplicationUser
     {
-      Id = Guid.NewGuid(),
       UserName = email,
-      NormalizedUserName = email.ToUpperInvariant(),
       Email = email,
-      NormalizedEmail = email.ToUpperInvariant(),
+      EmailConfirmed = true,
       DisplayName = displayName,
-      SecurityStamp = Guid.NewGuid().ToString(),
     };
 
-    db.Users.Add(user);
-    await db.SaveChangesAsync();
+    var result = await userManager.CreateAsync(user, password);
+    if (!result.Succeeded)
+    {
+      throw new InvalidOperationException(
+          "Identity rejected the test user: " +
+          string.Join("; ", result.Errors.Select(error => error.Description)));
+    }
+
     return user;
   }
 

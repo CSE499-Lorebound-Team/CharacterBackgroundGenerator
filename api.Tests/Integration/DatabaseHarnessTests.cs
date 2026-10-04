@@ -1,5 +1,8 @@
+using Lorebound.Api.Models;
 using Lorebound.Api.Tests.TestSupport;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 
 namespace Lorebound.Api.Tests.Integration;
@@ -24,12 +27,43 @@ public class DatabaseHarnessTests : PostgresTestBase
   }
 
   [Fact]
+  public async Task CreateUserAsync_sets_a_password_identity_accepts()
+  {
+    var user = await Factory.CreateUserAsync();
+
+    using var scope = Factory.Services.CreateScope();
+    var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+    Assert.True(await userManager.CheckPasswordAsync(
+        user, CustomWebApplicationFactory.DefaultPassword));
+  }
+
+  [Fact]
+  public async Task Password_shorter_than_10_characters_is_rejected()
+  {
+    await Assert.ThrowsAsync<InvalidOperationException>(() =>
+        Factory.CreateUserAsync(password: "123456789"));
+  }
+
+  [Fact]
   public async Task Duplicate_email_is_rejected_by_the_database()
   {
     await Factory.CreateUserAsync("same@example.com");
 
+    // Bypass UserManager, whose own unique-email check would reject it first.
     var error = await Assert.ThrowsAsync<DbUpdateException>(() =>
-        Factory.CreateUserAsync("SAME@example.com", "Someone Else"));
+        Factory.WithDbAsync(db =>
+        {
+          db.Users.Add(new ApplicationUser
+          {
+            UserName = "other",
+            NormalizedUserName = "OTHER",
+            Email = "SAME@example.com",
+            NormalizedEmail = "SAME@EXAMPLE.COM",
+            DisplayName = "Someone Else",
+          });
+          return db.SaveChangesAsync();
+        }));
 
     var postgres = Assert.IsType<PostgresException>(error.InnerException);
     Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
