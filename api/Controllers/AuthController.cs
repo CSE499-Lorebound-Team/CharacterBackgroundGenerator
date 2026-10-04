@@ -9,7 +9,6 @@ namespace Lorebound.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-[AllowAnonymous]
 public class AuthController : ControllerBase
 {
   private const string InvalidCredentialsDetail = "Invalid email or password.";
@@ -42,6 +41,7 @@ public class AuthController : ControllerBase
   /// <summary>
   /// Creates an account. Does not sign the user in and returns no token.
   /// </summary>
+  [AllowAnonymous]
   [HttpPost("register")]
   [ProducesResponseType<RegisteredUserDto>(StatusCodes.Status201Created)]
   [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -76,6 +76,7 @@ public class AuthController : ControllerBase
   /// summary; wrong password, unknown email and unconfirmed email all get the
   /// same 401 so the response does not reveal which accounts exist.
   /// </summary>
+  [AllowAnonymous]
   [HttpPost("login")]
   [ProducesResponseType<AuthUserDto>(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -110,6 +111,19 @@ public class AuthController : ControllerBase
     }
 
     return InvalidCredentials();
+  }
+
+  /// <summary>
+  /// Signs out by expiring the auth cookie (same name and path as at sign-in).
+  /// </summary>
+  [Authorize]
+  [HttpPost("logout")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+  public async Task<IActionResult> Logout()
+  {
+    await _signInManager.SignOutAsync();
+    return NoContent();
   }
 
   private void BurnPasswordCheck(string password) =>

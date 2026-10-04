@@ -19,3 +19,7 @@ Content-Type: application/json
 { "email": "player@example.com", "password": "correct horse battery", "rememberMe": false }
 
 ###
+
+POST {{HostAddress}}/api/auth/logout
+
+###
