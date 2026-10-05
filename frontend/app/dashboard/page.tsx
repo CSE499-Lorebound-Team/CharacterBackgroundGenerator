@@ -14,9 +14,7 @@ import { Button } from "@/components/ui/button";
 
 import { getSettings } from "@/lib/settings/settings-store";
 import type { Setting } from "@/lib/settings/types";
-import { useIsClient } from "@/lib/use-is-client";
 
-<<<<<<< HEAD
 import { getCharacters } from "@/lib/characters/characters-store";
 import type { Character } from "@/lib/characters/types";
 
@@ -36,14 +34,6 @@ export default function DashboardPage() {
       isClient
         ? getCharacters()
         : [],
-=======
-export default function DashboardPage() {
-  const isClient = useIsClient();
-
-  // Settings live in localStorage, so they are read only in the browser.
-  const settings = useMemo<Setting[]>(
-    () => (isClient ? getSettings() : []),
->>>>>>> origin/dev
     [isClient]
   );
 
