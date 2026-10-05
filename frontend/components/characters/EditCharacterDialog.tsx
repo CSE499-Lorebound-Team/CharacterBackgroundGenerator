@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  useEffect,
   useState,
 } from "react";
 
@@ -26,19 +25,19 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 import { getSettings } from "@/lib/settings/settings-store";
-
-import type {
-  Setting,
-} from "@/lib/settings/types";
+import type { Setting } from "@/lib/settings/types";
 
 import type {
   Character,
   CharacterStatus,
 } from "@/lib/characters/types";
 
+import { useIsClient } from "@/lib/use-is-client";
+
 type EditCharacterDialogProps = {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange:
+    (open: boolean) => void;
 
   character: Character;
 
@@ -57,38 +56,54 @@ export function EditCharacterDialog({
   character,
   onSave,
 }: EditCharacterDialogProps) {
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <DialogContent className="sm:max-w-2xl">
+        <EditCharacterForm
+          key={`${open ? "open" : "closed"}:${character.id}`}
+          character={character}
+          onOpenChange={onOpenChange}
+          onSave={onSave}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditCharacterForm({
+  character,
+  onOpenChange,
+  onSave,
+}: Omit<
+  EditCharacterDialogProps,
+  "open"
+>) {
+  const isClient = useIsClient();
+
+  const settings: Setting[] =
+    isClient
+      ? getSettings()
+      : [];
+
   const [name, setName] =
-    useState("");
+    useState(character.name);
 
   const [settingId, setSettingId] =
-    useState("");
+    useState(character.settingId);
 
   const [status, setStatus] =
-    useState<CharacterStatus>("Draft");
+    useState<CharacterStatus>(
+      character.status
+    );
 
   const [backstory, setBackstory] =
-    useState("");
-
-  const [settings, setSettings] =
-    useState<Setting[]>([]);
+    useState(character.backstory);
 
   const [error, setError] =
     useState<string>();
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSettings(getSettings());
-
-    setName(character.name);
-    setSettingId(character.settingId);
-    setStatus(character.status);
-    setBackstory(character.backstory);
-
-    setError(undefined);
-  }, [open, character]);
 
   function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -127,152 +142,146 @@ export function EditCharacterDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            Edit Character
-          </DialogTitle>
+    <>
+      <DialogHeader>
+        <DialogTitle>
+          Edit Character
+        </DialogTitle>
 
-          <DialogDescription>
-            Update this character&apos;s
-            basic information and
-            backstory.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogDescription>
+          Update this character&apos;s
+          basic information and backstory.
+        </DialogDescription>
+      </DialogHeader>
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="character-name">
-              Character Name
-            </Label>
+      <form
+        onSubmit={handleSubmit}
+        className="space-y-5"
+      >
+        <div className="space-y-2">
+          <Label htmlFor="character-name">
+            Character Name
+          </Label>
 
-            <Input
-              id="character-name"
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value
+          <Input
+            id="character-name"
+            value={name}
+            onChange={(event) =>
+              setName(
+                event.target.value
+              )
+            }
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>
+            Campaign Setting
+          </Label>
+
+          <Select
+            value={settingId}
+            onValueChange={(value) =>
+              setSettingId(
+                value ?? ""
+              )
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue>
+                {settings.find(
+                  (setting) =>
+                    setting.id ===
+                    settingId
+                )?.name ??
+                  "Choose a setting"}
+              </SelectValue>
+            </SelectTrigger>
+
+            <SelectContent>
+              {settings.map(
+                (setting) => (
+                  <SelectItem
+                    key={setting.id}
+                    value={setting.id}
+                  >
+                    {setting.name}
+                  </SelectItem>
                 )
-              }
-            />
-          </div>
+              )}
+            </SelectContent>
+          </Select>
+        </div>
 
-          <div className="space-y-2">
-            <Label>
-              Campaign Setting
-            </Label>
+        <div className="space-y-2">
+          <Label>
+            Status
+          </Label>
 
-            <Select
-              value={settingId}
-              onValueChange={(value) =>
-                setSettingId(
-                  value ?? ""
-                )
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {settings.find(
-                    (setting) =>
-                      setting.id ===
-                      settingId
-                  )?.name ??
-                    "Choose a setting"}
-                </SelectValue>
-              </SelectTrigger>
+          <Select
+            value={status}
+            onValueChange={(value) =>
+              setStatus(
+                value as CharacterStatus
+              )
+            }
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue />
+            </SelectTrigger>
 
-              <SelectContent>
-                {settings.map(
-                  (setting) => (
-                    <SelectItem
-                      key={setting.id}
-                      value={setting.id}
-                    >
-                      {setting.name}
-                    </SelectItem>
-                  )
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+            <SelectContent>
+              <SelectItem value="Draft">
+                Draft
+              </SelectItem>
 
-          <div className="space-y-2">
-            <Label>
-              Status
-            </Label>
+              <SelectItem value="Complete">
+                Complete
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-            <Select
-              value={status}
-              onValueChange={(value) =>
-                setStatus(
-                  value as CharacterStatus
-                )
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
+        <div className="space-y-2">
+          <Label htmlFor="backstory">
+            Backstory
+          </Label>
 
-              <SelectContent>
-                <SelectItem value="Draft">
-                  Draft
-                </SelectItem>
+          <Textarea
+            id="backstory"
+            value={backstory}
+            onChange={(event) =>
+              setBackstory(
+                event.target.value
+              )
+            }
+            placeholder="Write this character's backstory..."
+            className="min-h-52"
+          />
+        </div>
 
-                <SelectItem value="Complete">
-                  Complete
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        {error && (
+          <p className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
-          <div className="space-y-2">
-            <Label htmlFor="backstory">
-              Backstory
-            </Label>
+        <div className="flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              onOpenChange(false)
+            }
+          >
+            Cancel
+          </Button>
 
-            <Textarea
-              id="backstory"
-              value={backstory}
-              onChange={(event) =>
-                setBackstory(
-                  event.target.value
-                )
-              }
-              placeholder="Write this character's backstory..."
-              className="min-h-52"
-            />
-          </div>
-
-          {error && (
-            <p className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                onOpenChange(false)
-              }
-            >
-              Cancel
-            </Button>
-
-            <Button type="submit">
-              Save Changes
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          <Button type="submit">
+            Save Changes
+          </Button>
+        </div>
+      </form>
+    </>
   );
 }

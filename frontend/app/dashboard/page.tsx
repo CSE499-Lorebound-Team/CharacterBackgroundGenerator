@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
+import { useIsClient } from "@/lib/use-is-client";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -18,11 +19,23 @@ import { getCharacters } from "@/lib/characters/characters-store";
 import type { Character } from "@/lib/characters/types";
 
 export default function DashboardPage() {
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const isClient = useIsClient();
 
-  useEffect(() => {
-    setSettings(getSettings());
-  }, []);
+  const settings = useMemo<Setting[]>(
+    () =>
+      isClient
+        ? getSettings()
+        : [],
+    [isClient]
+  );
+
+  const characters = useMemo<Character[]>(
+    () =>
+      isClient
+        ? getCharacters()
+        : [],
+    [isClient]
+  );
 
   const recentSettings = useMemo(() => {
     return [...settings]
@@ -34,12 +47,6 @@ export default function DashboardPage() {
       .slice(0, 3);
   }, [settings]);
 
-  const [characters, setCharacters] = useState<Character[]>([]);
-
-  useEffect(() => {
-    setCharacters(getCharacters());
-  }, []);
-  
   const recentCharacters = useMemo(() => {
     return [...characters]
       .sort(

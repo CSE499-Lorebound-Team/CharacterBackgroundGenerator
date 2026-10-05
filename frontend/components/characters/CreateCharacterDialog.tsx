@@ -2,7 +2,6 @@
 
 import {
   FormEvent,
-  useEffect,
   useState,
 } from "react";
 
@@ -27,6 +26,8 @@ import {
 import { getSettings } from "@/lib/settings/settings-store";
 import type { Setting } from "@/lib/settings/types";
 
+import { useIsClient } from "@/lib/use-is-client";
+
 type CreateCharacterDialogProps = {
   open: boolean;
   onOpenChange:
@@ -45,27 +46,22 @@ export function CreateCharacterDialog({
   onCreate,
 }: CreateCharacterDialogProps) {
   const [name, setName] =
-    useState("");
+  useState("");
 
-  const [
-    selectedSettingId,
-    setSelectedSettingId,
-  ] = useState("");
+const [
+  selectedSettingId,
+  setSelectedSettingId,
+] = useState("");
 
-  const [settings, setSettings] =
-    useState<Setting[]>([]);
+const [error, setError] =
+  useState<string>();
 
-  const [error, setError] =
-    useState<string>();
+const isClient = useIsClient();
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    setSettings(getSettings());
-    setError(undefined);
-  }, [open]);
+const settings: Setting[] =
+  isClient
+    ? getSettings()
+    : [];
 
   function handleSubmit(
     event: FormEvent<HTMLFormElement>

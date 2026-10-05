@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -24,44 +20,46 @@ import type {
   CharacterStatus,
 } from "@/lib/characters/types";
 
+import { useIsClient } from "@/lib/use-is-client";
+
 type CharacterFilter =
   | "All"
   | CharacterStatus;
 
 export default function CharactersPage() {
-  const [
-    characters,
-    setCharacters,
-  ] = useState<Character[]>([]);
+  const isClient = useIsClient();
+
+  return (
+    <CharactersPageContent
+      key={isClient ? "client" : "server"}
+      isClient={isClient}
+    />
+  );
+}
+
+function CharactersPageContent({
+  isClient,
+}: {
+  isClient: boolean;
+}) {
+  const [characters, setCharacters] =
+    useState<Character[]>(() =>
+      isClient ? getCharacters() : []
+    );
 
   const [search, setSearch] =
     useState("");
 
-  const [
-    filter,
-    setFilter,
-  ] =
-    useState<CharacterFilter>(
-      "All"
-    );
+  const [filter, setFilter] =
+    useState<CharacterFilter>("All");
 
-  const [
-    createOpen,
-    setCreateOpen,
-  ] = useState(false);
-
-  useEffect(() => {
-    setCharacters(
-      getCharacters()
-    );
-  }, []);
+  const [createOpen, setCreateOpen] =
+    useState(false);
 
   const filteredCharacters =
     useMemo(() => {
       const query =
-        search
-          .trim()
-          .toLowerCase();
+        search.trim().toLowerCase();
 
       return characters.filter(
         (character) => {
@@ -76,8 +74,7 @@ export default function CharactersPage() {
 
           const matchesFilter =
             filter === "All" ||
-            character.status ===
-              filter;
+            character.status === filter;
 
           return (
             matchesSearch &&
@@ -103,12 +100,10 @@ export default function CharactersPage() {
         settingName
       );
 
-    setCharacters(
-      (current) => [
-        ...current,
-        character,
-      ]
-    );
+    setCharacters((current) => [
+      ...current,
+      character,
+    ]);
   }
 
   return (
@@ -160,25 +155,18 @@ export default function CharactersPage() {
           ))}
         </div>
 
-        {filteredCharacters.length >
-        0 ? (
+        {filteredCharacters.length > 0 ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {filteredCharacters.map(
               (character) => (
                 <CharacterListCard
-                  key={
-                    character.id
-                  }
+                  key={character.id}
                   id={character.id}
-                  name={
-                    character.name
-                  }
+                  name={character.name}
                   settingName={
                     character.settingName
                   }
-                  status={
-                    character.status
-                  }
+                  status={character.status}
                 />
               )
             )}
@@ -190,9 +178,8 @@ export default function CharactersPage() {
             </p>
 
             <p className="mt-2 text-sm text-muted-foreground">
-              Create a character to
-              begin building their
-              background.
+              Create a character to begin
+              building their background.
             </p>
 
             <Button
@@ -210,9 +197,7 @@ export default function CharactersPage() {
 
       <CreateCharacterDialog
         open={createOpen}
-        onOpenChange={
-          setCreateOpen
-        }
+        onOpenChange={setCreateOpen}
         onCreate={handleCreate}
       />
     </AppShell>

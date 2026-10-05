@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -11,9 +11,8 @@ import {
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { Button } from "@/components/ui/button";
-
 import { EditCharacterDialog } from "@/components/characters/EditCharacterDialog";
+import { Button } from "@/components/ui/button";
 
 import {
   deleteCharacter,
@@ -23,6 +22,7 @@ import {
 
 import type { Character } from "@/lib/characters/types";
 
+import { useIsClient } from "@/lib/use-is-client";
 
 type CharacterDetailPageProps = {
   params: Promise<{
@@ -34,25 +34,35 @@ export default function CharacterDetailPage({
   params,
 }: CharacterDetailPageProps) {
   const { characterId } = use(params);
+  const isClient = useIsClient();
 
-  const [editOpen, setEditOpen] =
-  useState(false);
+  return (
+    <CharacterDetailContent
+      key={`${isClient ? "client" : "server"}:${characterId}`}
+      characterId={characterId}
+      loaded={isClient}
+    />
+  );
+}
 
+function CharacterDetailContent({
+  characterId,
+  loaded,
+}: {
+  characterId: string;
+  loaded: boolean;
+}) {
   const router = useRouter();
 
   const [character, setCharacter] =
-    useState<Character>();
-
-  const [loaded, setLoaded] =
-    useState(false);
-
-  useEffect(() => {
-    setCharacter(
-      getCharacter(characterId)
+    useState<Character | undefined>(() =>
+      loaded
+        ? getCharacter(characterId)
+        : undefined
     );
 
-    setLoaded(true);
-  }, [characterId]);
+  const [editOpen, setEditOpen] =
+    useState(false);
 
   if (!loaded) {
     return (
@@ -80,9 +90,7 @@ export default function CharacterDetailPage({
             className="mt-6"
             variant="outline"
             nativeButton={false}
-            render={
-              <Link href="/characters" />
-            }
+            render={<Link href="/characters" />}
           >
             Back to Characters
           </Button>
@@ -105,16 +113,17 @@ export default function CharacterDetailPage({
         currentCharacter.id,
         data
       );
-  
+
     if (updated) {
       setCharacter(updated);
     }
   }
 
   function handleDelete() {
-    const confirmed = window.confirm(
-      `Delete "${currentCharacter.name}"? This cannot be undone.`
-    );
+    const confirmed =
+      window.confirm(
+        `Delete "${currentCharacter.name}"? This cannot be undone.`
+      );
 
     if (!confirmed) {
       return;
@@ -189,6 +198,7 @@ export default function CharacterDetailPage({
                 }
               >
                 <WandSparkles className="h-4 w-4" />
+
                 {currentCharacter.status ===
                 "Draft"
                   ? "Continue Builder"
@@ -197,8 +207,10 @@ export default function CharacterDetailPage({
 
               <Button
                 variant="outline"
-                onClick={() => setEditOpen(true)}
-                >
+                onClick={() =>
+                  setEditOpen(true)
+                }
+              >
                 <Pencil className="h-4 w-4" />
                 Edit Character
               </Button>
@@ -248,11 +260,13 @@ export default function CharacterDetailPage({
             </h2>
 
             <Button
-                variant="ghost"
-                onClick={() => setEditOpen(true)}
-                >
-                <Pencil className="h-4 w-4" />
-                Edit
+              variant="ghost"
+              onClick={() =>
+                setEditOpen(true)
+              }
+            >
+              <Pencil className="h-4 w-4" />
+              Edit
             </Button>
           </div>
 
@@ -275,17 +289,12 @@ export default function CharacterDetailPage({
           </h2>
 
           <p className="mt-2 text-sm text-muted-foreground">
-            Homeland, culture, relationships,
-            profession, life events, and other
-            builder choices will appear here.
+            Homeland, culture,
+            relationships, profession,
+            life events, and other builder
+            choices will appear here.
           </p>
         </section>
-        <EditCharacterDialog
-            open={editOpen}
-            onOpenChange={setEditOpen}
-            character={currentCharacter}
-            onSave={handleSave}
-            />
 
         <footer className="border-t border-border pt-6 text-sm text-muted-foreground">
           <p>
@@ -296,6 +305,13 @@ export default function CharacterDetailPage({
           </p>
         </footer>
       </div>
+
+      <EditCharacterDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        character={currentCharacter}
+        onSave={handleSave}
+      />
     </AppShell>
   );
 }

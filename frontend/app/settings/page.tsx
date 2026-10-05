@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -15,15 +15,30 @@ import {
   getSettings,
 } from "@/lib/settings/settings-store";
 import type { Setting } from "@/lib/settings/types";
+import { useIsClient } from "@/lib/use-is-client";
 
 export default function SettingsPage() {
-  const [settings, setSettings] = useState<Setting[]>([]);
+  const isClient = useIsClient();
+
+  // Remount once in the browser so the content can read localStorage.
+  return (
+    <SettingsPageContent
+      key={isClient ? "client" : "server"}
+      isClient={isClient}
+    />
+  );
+}
+
+function SettingsPageContent({
+  isClient,
+}: {
+  isClient: boolean;
+}) {
+  const [settings, setSettings] = useState<Setting[]>(() =>
+    isClient ? getSettings() : []
+  );
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
-
-  useEffect(() => {
-    setSettings(getSettings());
-  }, []);
 
   const filteredSettings = useMemo(() => {
     const query = search.trim().toLowerCase();
