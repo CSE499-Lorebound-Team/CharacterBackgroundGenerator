@@ -292,24 +292,25 @@ area: devex
 phase: 0
 priority: P1
 size: S
-labels: needs-decision
 depends:
 @@@
 ## Summary
 Team PRs merge into `dev`, but GitHub only auto-closes issues ("Closes #12") when the PR merges into the repository **default branch**. If the default is `main`, merged work leaves issues open and the project board never reaches Done.
 
-## Decision needed (pick one)
-1. **Set the default branch to `dev`** (simplest; `main` is updated only by release PRs). Recommended.
-2. Keep `main` default and add a workflow that closes issues referenced by PRs merged into `dev`.
+## Decision (2026-10-03): keep `main` as the default branch; close issues manually
+The team keeps `main` as the default branch and closes issues by hand after each merge into `dev`, with a comment naming the PR and commits. No settings change and no auto-close workflow. Documented in the README (Development Branch, Creating a Pull Request, After a Pull Request Is Merged) and the board working agreement.
+
+## Options considered
+1. Set the default branch to `dev` (not chosen).
+2. Keep `main` default and add an auto-close workflow (not chosen).
+3. **Keep `main` default and close issues manually** (chosen).
 
 ## Tasks
-- [ ] Decide and record the choice in the README.
-- [ ] Option 1: Settings, General, Default branch, switch to `dev`; update README clone/branch text.
-- [ ] Option 2: workflow on `pull_request` `closed` (merged, base `dev`) that parses `Closes #N` and closes those issues using `GITHUB_TOKEN` (`issues: write`).
-- [ ] Verify with a throwaway PR.
+- [x] Decide and record the choice in the README and board working agreement.
+- [x] Document the manual close step (README "After a Pull Request Is Merged").
 
 ## Acceptance criteria
-- Merging a PR containing `Closes #N` into `dev` closes issue N and moves the board item to Done.
+- The README and board working agreement state that the default branch stays `main`, PRs target `dev`, `Closes #N` only links, and issues are closed by hand after merge.
 
 @@@ P0-13
 title: Commit project-board docs, issue forms and PR template to dev
@@ -343,11 +344,17 @@ depends: P0-10
 ## Summary
 Enforce the README rule "no direct commits to main" and require CI.
 
+## Decision (2026-10-03)
+Repository ruleset **Protect main and dev** (`.github/rulesets/protect-main-and-dev.json`), no bypass actors:
+- Require a pull request with **0 approvals** (authors merge their own PRs; deviates from the original 1-approval task).
+- Required status checks `api` and `frontend`.
+- Require conversation resolution; block force pushes and deletions.
+- "Automatically delete head branches" stays **off** so long-lived feature branches are kept (deviates from the original task).
+
 ## Tasks
-- [ ] Ruleset or branch protection for `main` and `dev`: require pull request, at least 1 approval, required status checks `api` and `frontend`, block force pushes and deletions.
-- [ ] Enable "Automatically delete head branches".
-- [ ] Require conversation resolution before merge.
-- [ ] Allow admin bypass only for the repo owner (optional).
+- [ ] Create the ruleset from the JSON file after the lint fix (P0-16) is merged so `dev` is green.
+- [ ] Verify: a direct push to `dev` is rejected; a PR with a failing check cannot merge.
+- [ ] Document the rules in the README (Branch Protection) and the board working agreement.
 
 ## Acceptance criteria
 - Direct push to `dev` is rejected; a PR with failing CI cannot merge.
@@ -384,3 +391,47 @@ Onboarding is several manual steps (Docker, `.env`, compose, user-secrets, tools
 - On a fresh clone with Docker Desktop running, `./scripts/onboard.ps1` then `dotnet run` (in `api/`) gives `/api/health` `"database": "connected"`, with no other manual steps.
 - Running it a second time changes nothing and succeeds.
 - A mismatched password produces the README pointer and a non-zero exit code.
+
+@@@ P0-16
+title: Frontend lint errors fail the CI frontend check
+type: bug
+area: frontend
+phase: 0
+priority: P1
+size: S
+depends:
+@@@
+## Summary
+`npm run lint` in `frontend/` fails with 6 errors (and 1 warning), all in pages merged in #158, #160 and #162. The new CI `frontend` check (P0-10, #52) runs lint, so it stays red on every PR until these are fixed. `npm run build` passes.
+
+## Steps to reproduce
+1. `cd frontend`
+2. `npm ci`
+3. `npm run lint`
+
+## Expected
+`npm run lint` exits 0 and the CI `frontend` check passes.
+
+## Errors
+| File | Line | Rule |
+| --- | --- | --- |
+| `app/builder/page.tsx` | 54 | `react/no-unescaped-entities` |
+| `app/dashboard/page.tsx` | 21 | `react-hooks/set-state-in-effect` |
+| `app/settings/page.tsx` | 25 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/page.tsx` | 70 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/entries/[entryId]/page.tsx` | 47 | `react-hooks/set-state-in-effect` |
+| `components/settings/SettingEntryDialog.tsx` | 70 | `react-hooks/set-state-in-effect` |
+| `app/settings/[settingId]/page.tsx` | 81 | warning: `@typescript-eslint/no-unused-vars` |
+
+## Tasks
+- [ ] Escape the quote/apostrophe in `builder/page.tsx` (e.g. `&apos;` or `{"'"}`).
+- [ ] Replace the `setState`-in-`useEffect` patterns (see https://react.dev/learn/you-might-not-need-an-effect): read from the local stores during render or with a lazy `useState(() => ...)` initializer, and for `SettingEntryDialog` reset form state by giving the dialog a `key` tied to the entry instead of syncing in an effect.
+- [ ] Remove the unused variable.
+- [ ] Do not disable the rules to get a pass.
+
+## Implementation details
+- These pages will be rewired to the API in Phase 9; keep the fixes minimal.
+
+## Acceptance criteria
+- `npm run lint` exits 0 locally and the CI `frontend` check is green.
+

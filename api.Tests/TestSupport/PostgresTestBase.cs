@@ -2,7 +2,8 @@ namespace Lorebound.Api.Tests.TestSupport;
 
 /// <summary>
 /// Base for tests that need the real database. Each test starts with empty
-/// tables. Subclasses must also be marked
+/// tables and no recorded emails (<see cref="CustomWebApplicationFactory.Emails"/>).
+/// Subclasses must also be marked
 /// <c>[Collection(PostgresCollection.Name)]</c> so they share one container.
 /// </summary>
 public abstract class PostgresTestBase : IAsyncLifetime
@@ -16,7 +17,11 @@ public abstract class PostgresTestBase : IAsyncLifetime
 
   protected CustomWebApplicationFactory Factory => Fixture.Factory;
 
-  public Task InitializeAsync() => Fixture.ResetAsync();
+  public Task InitializeAsync()
+  {
+    Factory.Emails.Clear();
+    return Fixture.ResetAsync();
+  }
 
   public Task DisposeAsync() => Task.CompletedTask;
 }

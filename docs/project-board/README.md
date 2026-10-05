@@ -48,7 +48,7 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 
 | Phase | Epic goal | Issues |
 |---|---|---|
-| 0 Foundations | Identity-ready model, timestamps, conventions, DB config, migration, tests, CI, branch rules, onboarding script | 15 |
+| 0 Foundations | Identity-ready model, timestamps, conventions, DB config, migration, tests, CI, branch rules, onboarding script, lint fixes | 16 |
 | 1 Authentication | Cookie-only auth, register/login/logout, email flows, rate limits, CSRF, `/users/me` | 13 |
 | 2 Settings CRUD | Membership model, access helper, settings CRUD, cascade fix | 9 |
 | 3 Sharing | Invite codes, accept, members, leave/remove | 8 |
@@ -59,7 +59,7 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 | 8 Dashboard and Polish | Dashboard, seed data, OpenAPI, perf, security review | 7 |
 | 9 Frontend Integration | Auth pages, API client, replace mocks, e2e | 17 |
 
-Total: **100 work items + 10 epics = 110 issues.**
+Total: **101 work items + 10 epics = 111 issues.**
 
 ## Critical path
 
@@ -80,8 +80,8 @@ Total: **100 work items + 10 epics = 110 issues.**
 1. Pick a **Ready** issue, assign yourself, move it to **In Progress**.
 2. Branch from an up-to-date `dev`: `feature/<issue#>-short-slug` (`fix/` for bugs).
 3. Keep the PR to one issue. Put `Closes #<issue>` in the PR description.
-4. CI must pass; at least one teammate reviews.
-5. Merge into `dev` (never `main`). `Closes #N` does **not** auto-close issues for PRs merged into `dev`, because it isn't the default branch (fix tracked in P0-12). Until then, close the issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
+4. CI (`api` and `frontend`) must pass and review conversations must be resolved; branch protection on `main` and `dev` enforces both (P0-14). A teammate review is encouraged but not required.
+5. Merge into `dev` (never `main`). The default branch stays `main` (decided in P0-12), so `Closes #N` links the PR but does **not** close the issue. After merging, close each issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
 6. Migrations: one per PR, announce schema changes to the team before merging.
 7. Found something new? Open an issue from the forms (Task, Bug, Feature); it is auto-added to this board.
 
@@ -96,7 +96,7 @@ Total: **100 work items + 10 epics = 110 issues.**
 - Each issue belongs to a **milestone** (its phase) and shows a parent **epic**.
 - Epics list children as a task list and (best effort) as native **sub-issues**.
 - **Blocked by** links appear in each issue's Dependencies section and (best effort) as native issue dependencies.
-- PRs link to issues with `Closes #N`.
+- PRs link to issues with `Closes #N` (issues are then closed by hand after the merge into `dev`; see Working agreement step 5).
 - The **Auto-add** workflow puts every new issue and PR on this board.
 
 ## Maintainers

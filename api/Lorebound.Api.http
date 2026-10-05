@@ -4,3 +4,52 @@ GET {{HostAddress}}/api/health
 Accept: application/json
 
 ###
+
+POST {{HostAddress}}/api/auth/register
+Content-Type: application/json
+
+{ "email": "player@example.com", "password": "correct horse battery", "displayName": "Player" }
+
+###
+
+# Sets the lorebound.auth cookie (Secure: use the https profile in a browser).
+POST {{HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "player@example.com", "password": "correct horse battery", "rememberMe": false }
+
+###
+
+POST {{HostAddress}}/api/auth/logout
+
+###
+
+# userId and code come from the [dev email] link in the API log.
+POST {{HostAddress}}/api/auth/confirm-email
+Content-Type: application/json
+
+{ "userId": "<userId>", "code": "<code>" }
+
+###
+
+POST {{HostAddress}}/api/auth/resend-confirmation
+Content-Type: application/json
+
+{ "email": "player@example.com" }
+
+###
+
+POST {{HostAddress}}/api/auth/forgot-password
+Content-Type: application/json
+
+{ "email": "player@example.com" }
+
+###
+
+# email and code come from the [dev email] reset link in the API log.
+POST {{HostAddress}}/api/auth/reset-password
+Content-Type: application/json
+
+{ "email": "player@example.com", "code": "<code>", "newPassword": "a brand new passphrase" }
+
+###
