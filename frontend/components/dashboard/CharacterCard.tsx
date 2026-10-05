@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { UserRound } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -6,15 +9,16 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { UserRound } from "lucide-react";
 
 type CharacterCardProps = {
+  id: string;
   name: string;
   settingName: string;
   status: "Draft" | "Complete";
 };
 
 export function CharacterCard({
+  id,
   name,
   settingName,
   status,
@@ -47,8 +51,17 @@ export function CharacterCard({
       </CardContent>
 
       <CardFooter>
-        <Button variant="outline" className="w-full">
-          {status === "Draft" ? "Continue" : "View"}
+        <Button
+          variant="outline"
+          className="w-full"
+          nativeButton={false}
+          render={
+            <Link href={`/characters/${id}`} />
+          }
+        >
+          {status === "Draft"
+            ? "Continue"
+            : "View"}
         </Button>
       </CardFooter>
     </Card>

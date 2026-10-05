@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button";
 import { getSettings } from "@/lib/settings/settings-store";
 import type { Setting } from "@/lib/settings/types";
 
+import { getCharacters } from "@/lib/characters/characters-store";
+import type { Character } from "@/lib/characters/types";
+
 export default function DashboardPage() {
   const [settings, setSettings] = useState<Setting[]>([]);
 
@@ -30,6 +33,22 @@ export default function DashboardPage() {
       )
       .slice(0, 3);
   }, [settings]);
+
+  const [characters, setCharacters] = useState<Character[]>([]);
+
+  useEffect(() => {
+    setCharacters(getCharacters());
+  }, []);
+  
+  const recentCharacters = useMemo(() => {
+    return [...characters]
+      .sort(
+        (a, b) =>
+          new Date(b.updatedAt).getTime() -
+          new Date(a.updatedAt).getTime()
+      )
+      .slice(0, 3);
+  }, [characters]);
 
   return (
     <AppShell>
@@ -105,19 +124,37 @@ export default function DashboardPage() {
             </Button>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <CharacterCard
-              name="Theron Vale"
-              settingName="Osepia"
-              status="Draft"
-            />
+          {recentCharacters.length > 0 ? (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {recentCharacters.map((character) => (
+                <CharacterCard
+                  key={character.id}
+                  id={character.id}
+                  name={character.name}
+                  settingName={character.settingName}
+                  status={character.status}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="border border-dashed border-border p-8 text-center">
+              <p className="font-medium">
+                No characters yet
+              </p>
 
-            <CharacterCard
-              name="Character Name"
-              settingName="Campaign Setting 2"
-              status="Complete"
-            />
-          </div>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Create your first character to begin building their background.
+              </p>
+
+              <Button
+                className="mt-4"
+                nativeButton={false}
+                render={<Link href="/characters" />}
+              >
+                Create Character
+              </Button>
+            </div>
+          )}
         </section>
 
         <RecentActivity
