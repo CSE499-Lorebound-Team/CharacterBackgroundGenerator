@@ -53,3 +53,19 @@ Content-Type: application/json
 { "email": "player@example.com", "code": "<code>", "newPassword": "a brand new passphrase" }
 
 ###
+
+### Update setting
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>
+Content-Type: application/json
+X-Requested-With: Lorebound
+
+{
+  "name": "Osepia Revised",
+  "description": "Updated setting description."
+}
+
+### Delete setting
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>
+X-Requested-With: Lorebound
