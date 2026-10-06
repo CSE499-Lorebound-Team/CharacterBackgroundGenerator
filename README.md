@@ -31,6 +31,7 @@ The application allows Game Masters to define information about their setting an
 - [After a Pull Request Is Merged](#after-a-pull-request-is-merged)
 - [Environment Configuration](#environment-configuration)
 - [Database Development](#database-development)
+  - [Quick Setup (Recommended)](#quick-setup-recommended)
   - [Changing the Database Password](#changing-the-database-password)
 - [Pulling New Dependencies](#pulling-new-dependencies)
 - [Common Development Workflow](#common-development-workflow)
@@ -74,6 +75,7 @@ CharacterBackgroundGenerator/
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
 ├── dotnet-tools.json      (pinned dotnet-ef version)
+├── scripts/onboard.ps1    (one-command local setup)
 ├── README.md
 └── .gitignore
 ```
@@ -198,6 +200,8 @@ Pull the latest changes:
 git pull origin dev
 ```
 
+Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1` from the repository root (see [Database Development](#database-development)).
+
 You are now ready to begin development.
 
 ---
@@ -227,6 +231,17 @@ main
 `main` represents the stable version of the project.
 
 Changes should only reach `main` after they have been tested and accepted.
+
+## Branch Protection
+
+`main` and `dev` are protected by the repository ruleset **Protect main and dev** (defined in `.github/rulesets/protect-main-and-dev.json`). It applies to everyone, including admins:
+
+- Direct pushes are rejected; every change arrives through a Pull Request.
+- The CI checks `api` and `frontend` must pass before merging.
+- All review conversations must be resolved before merging.
+- Force pushes and deleting the branch are blocked.
+
+Approvals are not required, so the author may merge their own Pull Request once CI is green. Merged feature branches are **not** deleted automatically; keep using your feature branch.
 
 ## Development Branch
 
@@ -505,7 +520,7 @@ Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHu
 | `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
 | `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
 
-Both must pass before merging. If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
+Both must pass before merging; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
 
 ---
 
@@ -598,9 +613,13 @@ Remove-Item Env:TEST_DB_CONNECTION
 
 Database tests share one migrated database, and every test starts with empty tables. Helpers on `CustomWebApplicationFactory`:
 
-- `CreateUserAsync(email, displayName)` inserts a user.
-- `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth.
+- `CreateUserAsync(email, displayName, password)` creates a confirmed user through `UserManager` (password defaults to `CustomWebApplicationFactory.DefaultPassword`).
+- `CreateSignedInClientAsync(email, displayName)` creates a confirmed user, signs it in through `POST /api/auth/login`, and returns `(Client, User)`; the client keeps the auth cookie.
+- `WithConfig(key, value)` (on any factory) returns a copy with one config value overridden, e.g. `Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient()`.
+- `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
+- The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client. Every endpoint requires sign-in by default, so a new test-only controller that should be public needs `[AllowAnonymous]`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
+- `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.
 
 ---
 
@@ -838,9 +857,25 @@ Do not place database passwords or private credentials into files committed to G
 
 # Database Development
 
-The API uses PostgreSQL 17, run locally with Docker Compose. Do this once after cloning.
+The API uses PostgreSQL 17, run locally with Docker Compose.
 
-## 1. Create your `.env` file
+## Quick setup (recommended)
+
+With Docker Desktop running, from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+```
+
+The script checks the .NET 10 SDK and Docker, creates `.env` with a random password if it is missing, starts the database, restores tools and packages, sets the connection-string user secret if it is missing, and applies migrations. It never overwrites an existing `.env` or user secret, so it is safe to re-run.
+
+**Run it after cloning, and again whenever you pull changes that add a migration.** Use `-SkipDbUpdate` to skip the migration step. If it stops with an error, it prints what to do next; the manual steps below do the same thing one at a time.
+
+## Manual setup
+
+Do this once after cloning if you are not using the script.
+
+### 1. Create your `.env` file
 
 From the repository root, copy the example and change `POSTGRES_PASSWORD`:
 
@@ -850,7 +885,7 @@ Copy-Item .env.example .env
 
 `.env` is git-ignored. Never commit it.
 
-## 2. Start the database
+### 2. Start the database
 
 From the repository root:
 
@@ -860,7 +895,7 @@ docker compose up -d
 
 This starts a `lorebound-postgres` container on port 5432 with data kept in the `lorebound-pgdata` volume. Check it with `docker compose ps`; stop it with `docker compose down` (add `-v` to also delete the data).
 
-## 3. Give the API the connection string
+### 3. Give the API the connection string
 
 The connection string is stored with .NET user secrets, outside the repository. From the `api/` folder, using the values from your `.env`:
 
@@ -868,9 +903,9 @@ The connection string is stored with .NET user secrets, outside the repository. 
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=lorebound;Username=lorebound;Password=<POSTGRES_PASSWORD from .env>"
 ```
 
-Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead.
+Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
 
-## 4. Create the tables
+### 4. Create the tables
 
 From the `api/` folder:
 
@@ -881,7 +916,7 @@ dotnet ef database update
 
 This applies every migration in `api/Data/Migrations/`. Run it again whenever you pull changes that add a migration.
 
-## 5. Verify
+### 5. Verify
 
 Run the API (`dotnet run` in `api/`) and open `/api/health`. It should report `"database": "connected"`.
 
@@ -935,6 +970,12 @@ If another developer adds or changes .NET packages, run:
 ```powershell
 cd api
 dotnet restore
+```
+
+If the pull adds a database migration (new files in `api/Data/Migrations/`), re-run the onboarding script, or `dotnet ef database update` from `api/`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
 ```
 
 ---

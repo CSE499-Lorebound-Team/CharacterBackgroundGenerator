@@ -80,7 +80,7 @@ Total: **101 work items + 10 epics = 111 issues.**
 1. Pick a **Ready** issue, assign yourself, move it to **In Progress**.
 2. Branch from an up-to-date `dev`: `feature/<issue#>-short-slug` (`fix/` for bugs).
 3. Keep the PR to one issue. Put `Closes #<issue>` in the PR description.
-4. CI must pass; at least one teammate reviews.
+4. CI (`api` and `frontend`) must pass and review conversations must be resolved; branch protection on `main` and `dev` enforces both (P0-14). A teammate review is encouraged but not required.
 5. Merge into `dev` (never `main`). The default branch stays `main` (decided in P0-12), so `Closes #N` links the PR but does **not** close the issue. After merging, close each issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
 6. Migrations: one per PR, announce schema changes to the team before merging.
 7. Found something new? Open an issue from the forms (Task, Bug, Feature); it is auto-added to this board.

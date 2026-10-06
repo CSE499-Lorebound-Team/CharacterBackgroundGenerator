@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -19,8 +20,15 @@ public class ApiFactory : WebApplicationFactory<Program>
     builder.UseSetting("ConnectionStrings:DefaultConnection", UnusedConnectionString);
 
     builder.ConfigureServices(services =>
-        services
-            .AddControllers()
-            .AddApplicationPart(typeof(ApiFactory).Assembly));
+    {
+      services
+          .AddControllers()
+          .AddApplicationPart(typeof(ApiFactory).Assembly);
+
+      // The security stamp check looks the user up in the database on every
+      // request; there is none here, and /test/auth/sign-in users are made up.
+      services.Configure<SecurityStampValidatorOptions>(options =>
+          options.ValidationInterval = TimeSpan.FromDays(365));
+    });
   }
 }

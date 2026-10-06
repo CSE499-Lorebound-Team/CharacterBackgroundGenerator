@@ -21,4 +21,7 @@ public class CampaignSetting : ITimestamped
   public DateTimeOffset CreatedAt { get; set; }
 
   public DateTimeOffset UpdatedAt { get; set; }
+
+  public ICollection<SettingMembership> Memberships { get; set; }
+    = new List<SettingMembership>();
 }

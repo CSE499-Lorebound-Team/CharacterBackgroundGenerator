@@ -197,6 +197,35 @@ namespace Lorebound.Api.Data.Migrations
                     b.ToTable("SettingEntryRelationships");
                 });
 
+            modelBuilder.Entity("Lorebound.Api.Models.SettingMembership", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignSettingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CampaignSettingId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("SettingMemberships");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
                 {
                     b.Property<Guid>("Id")
@@ -376,6 +405,25 @@ namespace Lorebound.Api.Data.Migrations
                     b.Navigation("TargetEntry");
                 });
 
+            modelBuilder.Entity("Lorebound.Api.Models.SettingMembership", b =>
+                {
+                    b.HasOne("Lorebound.Api.Models.CampaignSetting", "CampaignSetting")
+                        .WithMany("Memberships")
+                        .HasForeignKey("CampaignSettingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lorebound.Api.Models.ApplicationUser", "User")
+                        .WithMany("SettingMemberships")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CampaignSetting");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", null)
@@ -430,11 +478,15 @@ namespace Lorebound.Api.Data.Migrations
             modelBuilder.Entity("Lorebound.Api.Models.ApplicationUser", b =>
                 {
                     b.Navigation("CampaignSettings");
+
+                    b.Navigation("SettingMemberships");
                 });
 
             modelBuilder.Entity("Lorebound.Api.Models.CampaignSetting", b =>
                 {
                     b.Navigation("Entries");
+
+                    b.Navigation("Memberships");
 
                     b.Navigation("Relationships");
                 });

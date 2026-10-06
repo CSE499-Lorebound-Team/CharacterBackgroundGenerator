@@ -34,3 +34,15 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Lint (required by CI)
+
+`npm run lint` must pass with no errors; the CI `frontend` check runs it on every Pull Request. Fix lint problems instead of disabling rules.
+
+## Reading localStorage in pages
+
+Until pages are wired to the API (Phase 9), settings and entries live in `localStorage` (`lib/settings/*-store.ts`). Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
+
+- Use `useIsClient()` from `lib/use-is-client.ts`, which is `false` during server rendering and hydration and `true` in the browser.
+- Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/settings/page.tsx`.
+- To reset a form from props, give the form a `key` (see `components/settings/SettingEntryDialog.tsx`) rather than syncing state in an effect.

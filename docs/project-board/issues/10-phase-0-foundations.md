@@ -344,11 +344,17 @@ depends: P0-10
 ## Summary
 Enforce the README rule "no direct commits to main" and require CI.
 
+## Decision (2026-10-03)
+Repository ruleset **Protect main and dev** (`.github/rulesets/protect-main-and-dev.json`), no bypass actors:
+- Require a pull request with **0 approvals** (authors merge their own PRs; deviates from the original 1-approval task).
+- Required status checks `api` and `frontend`.
+- Require conversation resolution; block force pushes and deletions.
+- "Automatically delete head branches" stays **off** so long-lived feature branches are kept (deviates from the original task).
+
 ## Tasks
-- [ ] Ruleset or branch protection for `main` and `dev`: require pull request, at least 1 approval, required status checks `api` and `frontend`, block force pushes and deletions.
-- [ ] Enable "Automatically delete head branches".
-- [ ] Require conversation resolution before merge.
-- [ ] Allow admin bypass only for the repo owner (optional).
+- [ ] Create the ruleset from the JSON file after the lint fix (P0-16) is merged so `dev` is green.
+- [ ] Verify: a direct push to `dev` is rejected; a PR with a failing check cannot merge.
+- [ ] Document the rules in the README (Branch Protection) and the board working agreement.
 
 ## Acceptance criteria
 - Direct push to `dev` is rejected; a PR with failing CI cannot merge.

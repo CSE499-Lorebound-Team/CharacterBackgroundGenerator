@@ -24,6 +24,9 @@ public class LoreboundDbContext
 
   public DbSet<SettingEntry> SettingEntries => Set<SettingEntry>();
 
+  public DbSet<SettingMembership> SettingMemberships
+    => Set<SettingMembership>();
+
   public DbSet<SettingEntryRelationship> SettingEntryRelationships
       => Set<SettingEntryRelationship>();
 
@@ -78,6 +81,30 @@ public class LoreboundDbContext
         .WithMany(entry => entry.IncomingRelationships)
         .HasForeignKey(relationship => relationship.TargetEntryId)
         .OnDelete(DeleteBehavior.Restrict);
+        
+    modelBuilder.Entity<SettingMembership>(membership =>
+    {
+      membership
+          .HasOne(m => m.CampaignSetting)
+          .WithMany(setting => setting.Memberships)
+          .HasForeignKey(m => m.CampaignSettingId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      membership
+          .HasOne(m => m.User)
+          .WithMany(user => user.SettingMemberships)
+          .HasForeignKey(m => m.UserId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      membership
+          .HasIndex(m => new
+          {
+            m.CampaignSettingId,
+            m.UserId
+          })
+          .IsUnique();
+    });
+        
   }
 
   // ExecuteUpdate/ExecuteDelete bypass these overrides; bulk updates must
