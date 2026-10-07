@@ -71,16 +71,16 @@ public class LoreboundDbContext
         .HasForeignKey(relationship => relationship.CampaignSettingId);
 
     modelBuilder.Entity<SettingEntryRelationship>()
-        .HasOne(relationship => relationship.SourceEntry)
-        .WithMany(entry => entry.OutgoingRelationships)
-        .HasForeignKey(relationship => relationship.SourceEntryId)
-        .OnDelete(DeleteBehavior.Restrict);
+    .HasOne(relationship => relationship.SourceEntry)
+    .WithMany(entry => entry.OutgoingRelationships)
+    .HasForeignKey(relationship => relationship.SourceEntryId)
+    .OnDelete(DeleteBehavior.NoAction);
 
     modelBuilder.Entity<SettingEntryRelationship>()
         .HasOne(relationship => relationship.TargetEntry)
         .WithMany(entry => entry.IncomingRelationships)
         .HasForeignKey(relationship => relationship.TargetEntryId)
-        .OnDelete(DeleteBehavior.Restrict);
+        .OnDelete(DeleteBehavior.NoAction);
         
     modelBuilder.Entity<SettingMembership>(membership =>
     {
