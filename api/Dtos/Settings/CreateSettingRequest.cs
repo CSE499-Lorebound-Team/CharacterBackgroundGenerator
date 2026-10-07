@@ -7,5 +7,5 @@ public record CreateSettingRequest(
     [StringLength(100, MinimumLength = 1)]
     string Name,
 
-    [StringLength(1000)]
+    [StringLength(2000)]
     string? Description);
