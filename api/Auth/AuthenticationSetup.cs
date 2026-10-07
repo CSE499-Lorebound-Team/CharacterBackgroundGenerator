@@ -93,6 +93,7 @@ public static class AuthenticationSetup
 
     services.AddHttpContextAccessor();
     services.AddScoped<ICurrentUser, CurrentUser>();
+    services.AddScoped<ISettingAccess, SettingAccess>();
 
     return services;
   }

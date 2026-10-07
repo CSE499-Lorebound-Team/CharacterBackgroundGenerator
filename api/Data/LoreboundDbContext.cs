@@ -94,7 +94,7 @@ public class LoreboundDbContext
           .HasOne(m => m.User)
           .WithMany(user => user.SettingMemberships)
           .HasForeignKey(m => m.UserId)
-          .OnDelete(DeleteBehavior.Cascade);
+          .OnDelete(DeleteBehavior.Restrict);
 
       membership
           .HasIndex(m => new
