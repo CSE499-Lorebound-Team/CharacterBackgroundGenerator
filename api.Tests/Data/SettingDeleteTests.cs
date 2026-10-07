@@ -19,7 +19,7 @@ public class SettingDeleteTests
 
   [Fact]
   public async Task Deleting_setting_with_entries_and_relationships_succeeds()
-  {
+    {
     await _postgres.ResetAsync();
 
     using var scope =
@@ -31,62 +31,73 @@ public class SettingDeleteTests
 
     var user = new ApplicationUser
     {
-      Id = Guid.NewGuid(),
-      UserName = "owner@example.com",
-      NormalizedUserName = "OWNER@EXAMPLE.COM",
-      Email = "owner@example.com",
-      NormalizedEmail = "OWNER@EXAMPLE.COM",
-      DisplayName = "Setting Owner",
-      SecurityStamp = Guid.NewGuid().ToString(),
+        Id = Guid.NewGuid(),
+        UserName = "owner@example.com",
+        NormalizedUserName = "OWNER@EXAMPLE.COM",
+        Email = "owner@example.com",
+        NormalizedEmail = "OWNER@EXAMPLE.COM",
+        DisplayName = "Setting Owner",
+        SecurityStamp = Guid.NewGuid().ToString(),
     };
 
     var setting = new CampaignSetting
     {
-      Id = Guid.NewGuid(),
-      Name = "Test Setting",
-      OwnerUserId = user.Id,
-      Owner = user,
+        Id = Guid.NewGuid(),
+        Name = "Test Setting",
+        OwnerUserId = user.Id,
+        Owner = user,
     };
 
     var firstEntry = new SettingEntry
     {
-      Id = Guid.NewGuid(),
-      CampaignSettingId = setting.Id,
-      CampaignSetting = setting,
-      Name = "First Entry",
-      EntryType = SettingEntryType.Location,
+        Id = Guid.NewGuid(),
+        CampaignSettingId = setting.Id,
+        CampaignSetting = setting,
+        Name = "First Entry",
+        EntryType = SettingEntryType.Location,
     };
 
     var secondEntry = new SettingEntry
     {
-      Id = Guid.NewGuid(),
-      CampaignSettingId = setting.Id,
-      CampaignSetting = setting,
-      Name = "Second Entry",
-      EntryType = SettingEntryType.Location,
+        Id = Guid.NewGuid(),
+        CampaignSettingId = setting.Id,
+        CampaignSetting = setting,
+        Name = "Second Entry",
+        EntryType = SettingEntryType.Location,
     };
 
     var relationship = new SettingEntryRelationship
     {
-      Id = Guid.NewGuid(),
-      CampaignSettingId = setting.Id,
-      CampaignSetting = setting,
-      SourceEntryId = firstEntry.Id,
-      SourceEntry = firstEntry,
-      TargetEntryId = secondEntry.Id,
-      TargetEntry = secondEntry,
-      RelationshipType = "ConnectedTo",
+        Id = Guid.NewGuid(),
+        CampaignSettingId = setting.Id,
+        CampaignSetting = setting,
+        SourceEntryId = firstEntry.Id,
+        SourceEntry = firstEntry,
+        TargetEntryId = secondEntry.Id,
+        TargetEntry = secondEntry,
+        RelationshipType = "ConnectedTo",
     };
 
     db.Users.Add(user);
     db.CampaignSettings.Add(setting);
+
     db.SettingEntries.AddRange(
         firstEntry,
         secondEntry);
+
     db.SettingEntryRelationships.Add(
         relationship);
 
     await db.SaveChangesAsync();
+
+    var relationships =
+        await db.SettingEntryRelationships
+            .Where(item =>
+                item.CampaignSettingId == setting.Id)
+            .ToListAsync();
+
+    db.SettingEntryRelationships.RemoveRange(
+        relationships);
 
     db.CampaignSettings.Remove(setting);
 
@@ -108,5 +119,5 @@ public class SettingDeleteTests
             .AnyAsync(item =>
                 item.CampaignSettingId ==
                 setting.Id));
-  }
+    }
 }

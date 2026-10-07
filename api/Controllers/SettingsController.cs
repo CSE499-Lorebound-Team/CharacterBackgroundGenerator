@@ -344,14 +344,22 @@ public async Task<IActionResult> Delete(
     Guid id)
 {
   var setting =
-      await _settingAccess.RequireOwnerAsync(id);
+    await _settingAccess.RequireOwnerAsync(id);
 
-  _db.CampaignSettings.Remove(
-      setting);
+    var relationships =
+        await _db.SettingEntryRelationships
+            .Where(relationship =>
+                relationship.CampaignSettingId == id)
+            .ToListAsync();
 
-  await _db.SaveChangesAsync();
+    _db.SettingEntryRelationships.RemoveRange(
+        relationships);
 
-  return NoContent();
+    _db.CampaignSettings.Remove(setting);
+
+    await _db.SaveChangesAsync();
+
+    return NoContent();
 }
 
 private static SettingDetailDto ToDetailDto(
