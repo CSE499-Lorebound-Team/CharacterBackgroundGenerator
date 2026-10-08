@@ -132,6 +132,30 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   does not reveal which emails are registered.
 - Never log passwords or emails; log the user id.
 
+## Setting access
+
+`ISettingAccess` (`Auth/SettingAccess.cs`) is the one place that decides what
+the signed-in user may do in a setting. Every endpoint that reads or changes
+setting data calls it **before** touching that data; `SettingAccessConventionTests`
+fails if a controller routed under `api/settings` does not inject it.
+
+| Method | Owner | GameMaster | Player | Non-member or missing setting |
+| --- | --- | --- | --- | --- |
+| `GetRoleAsync(id)` | `GameMaster` | `GameMaster` | `Player` | `null` |
+| `RequireMemberAsync(id)` | setting | setting | setting | 404 |
+| `RequireGameMasterAsync(id)` | setting | setting | 403 | 404 |
+| `RequireOwnerAsync(id)` | setting | 403 | 403 | 404 |
+| `VisibleToCurrentUser()` | included | included | included | excluded |
+
+- A non-member gets **404**, not 403, so nobody can probe which setting ids
+  exist. A member without the needed role gets **403**.
+- The owner always counts as a GameMaster, even if their membership row were
+  missing.
+- Each check is one database query. The returned setting is tracked, so an
+  endpoint can change it and call `SaveChangesAsync`.
+- Use `VisibleToCurrentUser()` as the starting point of every settings list
+  query, never `db.CampaignSettings` directly.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
