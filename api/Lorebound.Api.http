@@ -78,3 +78,16 @@ Content-Type: application/json
 
 DELETE {{HostAddress}}/api/settings/<SETTING_ID>
 X-Requested-With: Lorebound
+
+# Needs the cookie from a login above.
+GET {{HostAddress}}/api/users/me
+
+###
+
+PUT {{HostAddress}}/api/users/me
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "displayName": "Renamed Player" }
+
+###

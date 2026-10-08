@@ -21,12 +21,12 @@ public class LogoutTests : PostgresTestBase
   public async Task Logout_returns_204_and_ends_the_session()
   {
     var client = await SignedInClientAsync();
-    Assert.Equal(HttpStatusCode.NoContent, (await client.GetAsync("/test/auth/protected")).StatusCode);
+    Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/api/users/me")).StatusCode);
 
     var response = await client.PostAsync("/api/auth/logout", null);
 
     Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-    Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/test/auth/protected")).StatusCode);
+    Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/users/me")).StatusCode);
   }
 
   [Fact]
