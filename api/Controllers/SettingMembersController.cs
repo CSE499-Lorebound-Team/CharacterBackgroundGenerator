@@ -10,22 +10,26 @@ using Microsoft.EntityFrameworkCore;
 namespace Lorebound.Api.Controllers;
 
 /// <summary>
-/// Who belongs to a setting (P3-06). Any member can see the list; only the
-/// owner changes roles, so there are no co-owners. Other GameMasters can
-/// still manage invites and remove Players (P3-07).
+/// Who belongs to a setting: list and role change (P3-06), remove and leave
+/// (P3-07). Any member can see the list; only the owner changes roles, so
+/// there are no co-owners. Other GameMasters can still manage invites and
+/// remove Players.
 /// </summary>
 [ApiController]
 [Route("api/settings/{settingId:guid}/members")]
 public class SettingMembersController : ControllerBase
 {
   private readonly LoreboundDbContext _db;
+  private readonly ICurrentUser _currentUser;
   private readonly ISettingAccess _settingAccess;
 
   public SettingMembersController(
       LoreboundDbContext db,
+      ICurrentUser currentUser,
       ISettingAccess settingAccess)
   {
     _db = db;
+    _currentUser = currentUser;
     _settingAccess = settingAccess;
   }
 
@@ -109,5 +113,73 @@ public class SettingMembersController : ControllerBase
         membership.Role,
         isOwner,
         membership.JoinedAt));
+  }
+
+  /// <summary>
+  /// Removes a member, or lets a member leave (their own userId). Any member
+  /// but the owner may leave; GameMasters remove Players; only the owner
+  /// removes a GameMaster; nobody removes the owner. Takes effect at once:
+  /// the next request from the removed user gets 404 on the setting. Their
+  /// characters are kept (read-only, P6-10).
+  /// </summary>
+  [HttpDelete("{userId:guid}")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<IActionResult> Remove(
+      Guid settingId,
+      Guid userId,
+      CancellationToken cancellationToken)
+  {
+    var setting = await _settingAccess.RequireMemberAsync(settingId, cancellationToken);
+    var callerId = _currentUser.UserId;
+    var callerIsOwner = callerId == setting.OwnerUserId;
+
+    if (userId == callerId)
+    {
+      if (callerIsOwner)
+      {
+        throw new ConflictException(
+            "The owner cannot leave the setting. Delete the setting instead.");
+      }
+    }
+    else
+    {
+      // Checked before looking at the target, so a Player learns nothing
+      // about who else belongs.
+      var callerRole = callerIsOwner
+          ? SettingRole.GameMaster
+          : await _settingAccess.GetRoleAsync(settingId, cancellationToken);
+
+      if (callerRole != SettingRole.GameMaster)
+      {
+        throw new ForbiddenException("Game Master access is required to remove members.");
+      }
+    }
+
+    var membership = await _db.SettingMemberships
+        .SingleOrDefaultAsync(
+            m => m.CampaignSettingId == settingId && m.UserId == userId,
+            cancellationToken)
+        ?? throw new NotFoundException("Member not found.");
+
+    if (userId != callerId)
+    {
+      if (userId == setting.OwnerUserId)
+      {
+        throw new ForbiddenException("The owner cannot be removed.");
+      }
+
+      if (membership.Role == SettingRole.GameMaster && !callerIsOwner)
+      {
+        throw new ForbiddenException("Only the owner can remove a Game Master.");
+      }
+    }
+
+    _db.SettingMemberships.Remove(membership);
+    await _db.SaveChangesAsync(cancellationToken);
+
+    return NoContent();
   }
 }

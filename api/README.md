@@ -246,12 +246,14 @@ these rules.
 
 ### Members
 
-`SettingMembersController`; `SettingMembersTests` asserts this table.
+`SettingMembersController`; `SettingMembersTests` asserts this table and
+`MemberRemovalTests` the removal one below.
 
 | Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/settings/{sid}/members` | 401 | 404 | 200 | 200 | 200 |
 | `PATCH /api/settings/{sid}/members/{userId}` `{ role }` | 401 | 404 | 403 | 403 | **200** |
+| `DELETE /api/settings/{sid}/members/{userId}` | 401 | 404 | leave only | leave, remove Players | remove anyone but self |
 
 - `GET` returns `PagedResult<MemberDto>`, each `{ userId, displayName, role,
   isOwner, joinedAt }`: the owner first, then GameMasters, then Players,
@@ -263,6 +265,29 @@ these rules.
   has is a no-op 200. The owner cannot be demoted (**409**); a `userId` that
   is not a member of this setting is 404; a missing or unknown role
   (`GameMaster` and `Player` only) is 400.
+
+#### Removing a member or leaving
+
+`DELETE /api/settings/{sid}/members/{userId}` does both: with your own
+`userId` you leave, otherwise you remove someone. **204** on success.
+`MemberRemovalTests` asserts this table (rows: who calls; columns: whom).
+
+| Caller \ target | Self (leave) | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- |
+| Player | **204** | 403 | 403 | 403 |
+| GameMaster | **204** | **204** | 403 | 403 |
+| Owner | 409 | **204** | **204** | n/a |
+
+- Anonymous is 401 and a non-member caller 404, as everywhere.
+- The **owner can never leave or be removed**; leaving answers 409 "Delete
+  the setting instead".
+- A Player is refused (403) before the target is looked up, so they cannot
+  probe who belongs. For a GameMaster or the owner, a `userId` that is not a
+  member is 404 (so removing twice is 404 the second time).
+- Removal is immediate: the user's next request gets 404 on the setting and
+  it drops out of their settings list. Their account and any invites they
+  created stay, and they can rejoin with a new invite. Characters are not
+  deleted; P6-10 makes them read-only.
 
 ## Email
 
