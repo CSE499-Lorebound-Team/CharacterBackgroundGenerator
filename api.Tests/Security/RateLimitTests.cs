@@ -85,7 +85,7 @@ public class RateLimitTests : PostgresTestBase
         .Select(endpoint => endpoint.RoutePattern.RawText)
         .Order();
 
-    Assert.Equal(["api/invites/{code}"], limited);
+    Assert.Equal(["api/invites/{code}", "api/invites/{code}/accept"], limited);
   }
 
   // Signs in on a client of the limited factory (one login: the auth counter,

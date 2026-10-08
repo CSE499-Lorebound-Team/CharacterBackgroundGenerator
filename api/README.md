@@ -216,11 +216,13 @@ joins as a **Player**. Only GameMasters see or manage codes.
 ### Joining by code
 
 The joining side works by code, not setting id (`InvitesController`, routes
-under `api/invites`). `InvitePreviewTests` asserts these rules.
+under `api/invites`). `InvitePreviewTests` and `InviteAcceptTests` assert
+these rules.
 
 | Endpoint | Anonymous | Any signed-in user, usable code | Unusable code |
 | --- | --- | --- | --- |
 | `GET /api/invites/{code}` | 401 | 200 `{ settingName, gmDisplayName, alreadyMember }` | 404 |
+| `POST /api/invites/{code}/accept` | 401 | 200 `{ settingId, myRole }` | 404 |
 
 - **Every unusable code gets the identical 404** ("Invite not found."):
   unknown, malformed, expired, revoked or used up, for members and
@@ -232,6 +234,14 @@ under `api/invites`). `InvitePreviewTests` asserts these rules.
 - `gmDisplayName` is the owner's display name. `alreadyMember` is true for
   the owner and any member. Emails are never returned.
 - Previewing never changes the invite (`useCount` stays the same).
+- Accepting adds a `Player` membership and adds 1 to `useCount`, in one
+  transaction. A user who already belongs (owner, GameMaster or Player) gets
+  200 with their current role and uses nothing, so retries are safe.
+- Race-safe: the use is taken by one `UPDATE ... WHERE` the invite is still
+  usable, so parallel accepts of a last use admit exactly one user and the
+  rest get 404. A second parallel accept by the same user hits the unique
+  membership index before taking a use and is answered as already-member.
+  The `CK_SettingInvites_UseCount` check is the last line of defence.
 - Rate limited by the `invites` policy (see Rate limiting).
 
 ## Email
@@ -262,7 +272,7 @@ under `api/invites`). `InvitePreviewTests` asserts these rules.
   requests per minute per client IP**, shared by login, register,
   forgot-password and resend-confirmation (`[EnableRateLimiting(RateLimitingSetup.AuthPolicy)]`).
 - Policy `invites`: the same limit with its **own counter**, on the
-  endpoints that look up an invite code (`GET /api/invites/{code}`), so
+  endpoints that look up an invite code (preview and accept), so
   guessing codes is slow and does not spend the caller's login attempts.
 - Other endpoints are not limited.
 - Over the limit: **429** problem JSON with a `Retry-After` header and
