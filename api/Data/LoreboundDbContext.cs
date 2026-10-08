@@ -1,4 +1,5 @@
 using Lorebound.Api.Models;
+using Lorebound.Api.Sharing;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -29,6 +30,8 @@ public class LoreboundDbContext
 
   public DbSet<SettingEntryRelationship> SettingEntryRelationships
       => Set<SettingEntryRelationship>();
+
+  public DbSet<SettingInvite> SettingInvites => Set<SettingInvite>();
 
   protected override void ConfigureConventions(
       ModelConfigurationBuilder configurationBuilder)
@@ -104,7 +107,43 @@ public class LoreboundDbContext
           })
           .IsUnique();
     });
-        
+
+    modelBuilder.Entity<SettingInvite>(invite =>
+    {
+      invite.Property(i => i.Code)
+          .IsRequired()
+          .HasMaxLength(InviteCodes.Length);
+
+      invite.HasIndex(i => i.Code).IsUnique();
+
+      invite.HasIndex(i => i.CampaignSettingId);
+
+      invite
+          .HasOne(i => i.CampaignSetting)
+          .WithMany(setting => setting.Invites)
+          .HasForeignKey(i => i.CampaignSettingId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Like memberships, a user who created invites cannot be hard-deleted
+      // (see P6-11).
+      invite
+          .HasOne(i => i.CreatedBy)
+          .WithMany()
+          .HasForeignKey(i => i.CreatedByUserId)
+          .OnDelete(DeleteBehavior.Restrict);
+
+      // Accepting increments UseCount with a bulk update (P3-05); the
+      // database refuses one that would go past MaxUses.
+      invite.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_SettingInvites_UseCount",
+            "\"UseCount\" >= 0 AND (\"MaxUses\" IS NULL OR \"UseCount\" <= \"MaxUses\")");
+        table.HasCheckConstraint(
+            "CK_SettingInvites_MaxUses",
+            "\"MaxUses\" IS NULL OR \"MaxUses\" > 0");
+      });
+    });
   }
 
   // ExecuteUpdate/ExecuteDelete bypass these overrides; bulk updates must

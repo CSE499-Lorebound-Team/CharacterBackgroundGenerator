@@ -26,6 +26,13 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `GameMaster` row too, so create both together and never remove or demote the
   owner's row. Deleting a setting deletes its memberships; a user who still
   has memberships cannot be deleted.
+- A `SettingInvite` is a 10-character Crockford base32 code (`Sharing/InviteCodes.cs`,
+  no `I L O U`), unique across all settings. Accepting one always grants
+  `Player`. Codes are stored in plain text so a GM can re-share them; they are
+  unguessable and revocable (`RevokedAt`; rows are never deleted while the
+  setting exists). Check constraints keep `MaxUses` positive and `UseCount`
+  between 0 and `MaxUses`. Deleting a setting deletes its invites; a user who
+  created invites cannot be deleted.
 
 ## DTOs
 
@@ -173,6 +180,38 @@ and `SettingsListTests` assert every cell, so change them together.
 - `GET /api/settings?role=gm` lists settings where I am owner or GameMaster;
   `role=player` those where I am a Player; any other value is 400.
 - Deleting a setting removes its entries, relationships and memberships.
+
+### Invite endpoints
+
+A GameMaster shares a setting by creating an invite code; whoever accepts it
+joins as a **Player**. Only GameMasters see or manage codes.
+`InviteCreateTests` and `InviteManagementTests` assert this table.
+
+| Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- | --- |
+| `POST /api/settings/{sid}/invites` | 401 | 404 | 403 | **201** | **201** |
+| `GET /api/settings/{sid}/invites` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{sid}/invites/{id}` | 401 | 404 | 403 | **204** | **204** |
+
+- Body (optional) `{ expiresInDays?, maxUses? }`: `expiresInDays` 1-90,
+  default 7; `maxUses` 1-100, default unlimited. Out of range is 400 keyed by
+  the field.
+- Response `InviteDto`: `{ id, code, joinUrl, status, expiresAt, maxUses,
+  useCount, revokedAt, createdAt }`. `joinUrl` is
+  `{App:FrontendBaseUrl}/join/{code}`, built by `FrontendLinks.JoinSetting`.
+- `status` is `Active`, `Expired`, `Revoked` or `Exhausted`, computed by
+  `InviteRules.StatusAt` (revoked wins over expired, which wins over exhausted).
+  `InviteRules.IsActiveAt` is the same rule as a query filter; use these two
+  rather than re-deriving validity.
+- A setting may have at most **20 active** invites (not revoked, not expired,
+  uses left); the 21st is **409**. It is a soft cap: two simultaneous
+  creates can both pass it.
+- A code collision on insert is retried with a new code (up to 3 attempts).
+- `GET` returns `PagedResult<InviteDto>` of every invite (all statuses),
+  newest first.
+- `DELETE` is a soft revoke: it sets `revokedAt` and keeps the row, so the
+  invite stays listed as `Revoked`. Revoking again is a no-op 204 that keeps
+  the first `revokedAt`. An invite id from another setting is 404.
 
 ## Email
 
