@@ -32,13 +32,14 @@ type SettingEntryDialogProps = {
 
   entry?: SettingEntry;
 
+  /** Returns an error message to keep the dialog open, e.g. a duplicate name. */
   onSave: (entry: {
     name: string;
     type: SettingEntryType;
     summary: string;
     content: string;
     isGmOnly: boolean;
-  }) => void;
+  }) => string | void;
 };
 
 const entryTypes: SettingEntryType[] = [
@@ -105,13 +106,18 @@ function SettingEntryForm({
       return;
     }
 
-    onSave({
+    const saveError = onSave({
         name: name.trim(),
         type,
         summary: summary.trim(),
         content: content.trim(),
         isGmOnly,
       });
+
+    if (saveError) {
+      setError(saveError);
+      return;
+    }
 
     onOpenChange(false);
   }

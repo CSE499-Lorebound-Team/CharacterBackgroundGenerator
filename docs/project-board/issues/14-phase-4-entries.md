@@ -150,3 +150,32 @@ Secret lore must never leak.
 
 ## Acceptance criteria
 - Tests pass in CI.
+
+@@@ P4-08
+title: Frontend entry screens: secrecy leak, duplicate names, dead search, fake counts
+type: bug
+area: frontend
+phase: 4
+priority: P1
+size: S
+depends: P4-07
+@@@
+## Summary
+A browser walkthrough of the frontend (mock data) after Phase 4 found entry screens that break the rules the API now enforces, plus count and label bugs.
+
+## Steps to reproduce
+1. On a setting, add a Nation "Valmere", then another Nation "valmere": both are saved.
+2. Type in **Search entries...**: the list does not change.
+3. The dashboard and `/settings` show hard-coded entry counts (24, 12).
+4. As a Player, open a GM-only article's URL: "Article not available / You do not have access" confirms it exists.
+5. One item reads "1 entries" / "1 relationships".
+
+## Tasks
+- [ ] Wire `EntrySearch`: filter by name, summary and article text, ignoring case.
+- [ ] Reject a duplicate name of the same type in a setting, ignoring case and excluding the entry being edited; keep the dialog open.
+- [ ] Compute `entryCount` from stored entries; Players do not count GM-only entries.
+- [ ] Show a Player the same "Article not found" for a GM-only article as for a missing one.
+- [ ] Singular labels: "1 entry", "1 relationship".
+
+## Acceptance criteria
+- The screens behave as the API does (409 duplicate, 404 for hidden entries, visibility-aware counts), verified in the browser with no console errors.
