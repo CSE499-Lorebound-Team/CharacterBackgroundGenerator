@@ -2,9 +2,12 @@ using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
 using Lorebound.Api.Dtos.Common;
 using Lorebound.Api.Dtos.Entries;
+using Lorebound.Api.Errors;
+using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Lorebound.Api.Controllers;
 
@@ -18,6 +21,8 @@ namespace Lorebound.Api.Controllers;
 [Route("api/settings/{settingId:guid}/entries")]
 public class SettingEntriesController : ControllerBase
 {
+  private const string UniqueNameIndex = "IX_SettingEntries_CampaignSettingId_EntryType_Name";
+
   private readonly LoreboundDbContext _db;
   private readonly ISettingAccess _settingAccess;
 
@@ -97,4 +102,81 @@ public class SettingEntriesController : ControllerBase
 
     return Ok(new PagedResult<EntryListItemDto>(items, pageQuery.Page, pageQuery.PageSize, totalCount));
   }
+
+  /// <summary>
+  /// Adds an entry. GameMasters only. The name is trimmed and must be unique
+  /// per type within the setting, ignoring case (409 otherwise).
+  /// </summary>
+  [HttpPost]
+  [ProducesResponseType<SettingEntryDto>(StatusCodes.Status201Created)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<ActionResult<SettingEntryDto>> Create(
+      Guid settingId,
+      CreateEntryRequest request,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var entry = new SettingEntry
+    {
+      Id = Guid.NewGuid(),
+      CampaignSettingId = settingId,
+      Name = request.Name.Trim(),
+      EntryType = request.EntryType!.Value,
+      Description = NormalizeDescription(request.Description),
+      IsGmOnly = request.IsGmOnly,
+    };
+
+    _db.SettingEntries.Add(entry);
+    await SaveUniqueAsync(entry, cancellationToken);
+
+    return Created(
+        $"/api/settings/{settingId}/entries/{entry.Id}",
+        entry.ToDto(SettingRole.GameMaster));
+  }
+
+  /// <summary>
+  /// Saves <paramref name="entry"/>, answering 409 when another entry of the
+  /// same setting and type already has its name (ignoring case). Checked up
+  /// front for the common case; the unique index catches a concurrent save.
+  /// </summary>
+  private async Task SaveUniqueAsync(
+      SettingEntry entry,
+      CancellationToken cancellationToken)
+  {
+    // Name is citext, so this comparison ignores case.
+    var taken = await _db.SettingEntries.AnyAsync(
+        other => other.CampaignSettingId == entry.CampaignSettingId
+            && other.EntryType == entry.EntryType
+            && other.Name == entry.Name
+            && other.Id != entry.Id,
+        cancellationToken);
+
+    if (taken)
+    {
+      throw DuplicateName(entry.EntryType);
+    }
+
+    try
+    {
+      await _db.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException error) when (error.InnerException is PostgresException
+    {
+      SqlState: PostgresErrorCodes.UniqueViolation,
+      ConstraintName: UniqueNameIndex,
+    })
+    {
+      throw DuplicateName(entry.EntryType);
+    }
+  }
+
+  private static ConflictException DuplicateName(SettingEntryType entryType) =>
+      new($"A {entryType} with this name already exists in this setting.");
+
+  private static string? NormalizeDescription(string? description) =>
+      string.IsNullOrWhiteSpace(description) ? null : description.Trim();
 }

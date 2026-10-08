@@ -311,6 +311,7 @@ another entry's relationships.
 | Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/settings/{sid}/entries` | 401 | 404 | 200, no GM-only | 200 | 200 |
+| `POST /api/settings/{sid}/entries` | 401 | 404 | 403 | **201** | **201** |
 
 - `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
   `search` (case-insensitive substring of name or description; `%` and `_`
@@ -322,6 +323,14 @@ another entry's relationships.
   `gmOnly=true` gives a Player an empty page.
 - `relationshipCount` counts relationships in both directions whose **other**
   entry the caller can see.
+- `POST` body `{ name, entryType, description?, isGmOnly? }`: `name` 1-120
+  characters (trimmed), `entryType` a defined type name, `description` up to
+  4000 (blank becomes `null`), `isGmOnly` defaults to `false`. Invalid is 400
+  keyed by the field. A name already used by an entry of the **same type**
+  in the setting, ignoring case, is **409** (the unique index also catches
+  concurrent creates). Returns **201** `SettingEntryDto` `{ id,
+  campaignSettingId, name, description, entryType, isGmOnly, createdAt,
+  updatedAt }` with a `Location` header.
 
 ## Email
 

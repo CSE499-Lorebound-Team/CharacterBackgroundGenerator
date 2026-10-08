@@ -177,3 +177,18 @@ X-Requested-With: Lorebound
 GET {{HostAddress}}/api/settings/<SETTING_ID>/entries?type=Location&search=tower&page=1&pageSize=20
 
 ###
+
+### Create an entry (GameMaster)
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/entries
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers.",
+  "isGmOnly": false
+}
+
+###
