@@ -137,3 +137,17 @@ POST {{HostAddress}}/api/invites/<CODE>/accept
 X-Requested-With: Lorebound
 
 ###
+
+### List members (any member)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/members
+
+### Change a member's role (owner only)
+
+PATCH {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "role": "GameMaster" }
+
+###
