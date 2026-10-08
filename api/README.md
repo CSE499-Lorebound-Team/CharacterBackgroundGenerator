@@ -20,6 +20,12 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `NormalizedEmail`), not only through Identity's app-level check.
 - Entities implementing `ITimestamped` get `CreatedAt`/`UpdatedAt` set on save.
   `ExecuteUpdate`/`ExecuteDelete` bypass this, so set `UpdatedAt` yourself.
+- Access to a setting is a `SettingMembership` row (`GameMaster` or `Player`),
+  one per (setting, user), enforced by a unique index. `JoinedAt` defaults to
+  the save time. The owner (`CampaignSetting.OwnerUserId`) **always** has a
+  `GameMaster` row too, so create both together and never remove or demote the
+  owner's row. Deleting a setting deletes its memberships; a user who still
+  has memberships cannot be deleted.
 
 ## DTOs
 
