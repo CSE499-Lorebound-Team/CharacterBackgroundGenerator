@@ -43,6 +43,27 @@ import type {
     );
   }
   
+  // Same rule as the API (409): a name may appear once per type in a
+  // setting, ignoring case. Returns an error message, or undefined if free.
+  export function duplicateNameError(
+    settingId: string,
+    type: SettingEntryType,
+    name: string,
+    exceptId?: string
+  ): string | undefined {
+    const taken = getAllEntries().some(
+      (entry) =>
+        entry.settingId === settingId &&
+        entry.type === type &&
+        entry.id !== exceptId &&
+        entry.name.toLowerCase() === name.toLowerCase()
+    );
+
+    return taken
+      ? `A ${type} with this name already exists in this setting.`
+      : undefined;
+  }
+
   export function createEntry(
     settingId: string,
     data: {

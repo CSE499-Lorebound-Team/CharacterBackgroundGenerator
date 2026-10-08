@@ -52,14 +52,14 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 | 1 Authentication | Cookie-only auth, register/login/logout, email flows, rate limits, CSRF, `/users/me` | 13 |
 | 2 Settings CRUD | Membership model, access helper, settings CRUD, cascade fix | 9 |
 | 3 Sharing | Invite codes, accept, members, leave/remove | 8 |
-| 4 Setting Entries | Entries CRUD, `IsGmOnly` secrecy, search | 7 |
+| 4 Setting Entries | Entries CRUD, `IsGmOnly` secrecy, search | 8 |
 | 5 Entry Relationships | Typed links, constraints, vocabulary decision | 6 |
 | 6 Characters | Character models, CRUD, read-only rule, account deletion | 12 |
 | 7 Builder Support | Step catalog, narrowed options, choices, complete | 6 |
 | 8 Dashboard and Polish | Dashboard, seed data, OpenAPI, perf, security review | 7 |
 | 9 Frontend Integration | Auth pages, API client, replace mocks, e2e | 17 |
 
-Total: **101 work items + 10 epics = 111 issues.**
+Total: **102 work items + 10 epics = 112 issues.**
 
 ## Critical path
 

@@ -55,7 +55,8 @@ export function SettingEntryCard({
         </p>
 
         <p className="text-xs text-muted-foreground">
-          {relationshipCount} relationships
+          {relationshipCount}{" "}
+          {relationshipCount === 1 ? "relationship" : "relationships"}
         </p>
       </CardContent>
 

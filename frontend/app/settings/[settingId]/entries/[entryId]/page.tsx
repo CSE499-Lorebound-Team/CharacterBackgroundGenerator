@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 
 import {
   deleteEntry,
+  duplicateNameError,
   getEntry,
   updateEntry,
 } from "@/lib/settings/entries-store";
@@ -84,7 +85,12 @@ function ArticleContent({
     );
   }
 
-  if (!setting || !entry) {
+  // A Player gets the same "not found" for a GM-only entry as for a missing
+  // one, so they cannot tell that secret lore exists (the API answers 404).
+  const hiddenFromPlayer =
+    setting?.role === "Player" && entry?.isGmOnly;
+
+  if (!setting || !entry || hiddenFromPlayer) {
     return (
       <AppShell>
         <div className="py-16 text-center">
@@ -117,36 +123,6 @@ function ArticleContent({
   const canManageSetting =
     currentSetting.role === "GM";
 
-    if (
-        currentSetting.role === "Player" &&
-        currentEntry.isGmOnly
-      ) {
-    return (
-      <AppShell>
-        <div className="py-16 text-center">
-          <h1 className="text-2xl font-semibold">
-            Article not available
-          </h1>
-
-          <p className="mt-2 text-muted-foreground">
-            You do not have access to this lore article.
-          </p>
-
-          <Button
-            className="mt-6"
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link href={`/settings/${settingId}`} />
-            }
-          >
-            Back to Setting
-          </Button>
-        </div>
-      </AppShell>
-    );
-  }
-
   function handleSave(data: {
     name: string;
     type: SettingEntry["type"];
@@ -154,6 +130,17 @@ function ArticleContent({
     content: string;
     isGmOnly: boolean;
   }) {
+    const duplicate = duplicateNameError(
+      settingId,
+      data.type,
+      data.name,
+      currentEntry.id
+    );
+
+    if (duplicate) {
+      return duplicate;
+    }
+
     const updated = updateEntry(
       currentEntry.id,
       data

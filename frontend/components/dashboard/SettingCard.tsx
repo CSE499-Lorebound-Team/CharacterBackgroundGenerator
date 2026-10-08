@@ -35,7 +35,7 @@ export function SettingCard({
       </CardHeader>
 
       <CardContent className="space-y-1 text-sm text-muted-foreground">
-        <p>{entryCount} entries</p>
+        <p>{entryCount} {entryCount === 1 ? "entry" : "entries"}</p>
         <p>Updated {updatedText}</p>
       </CardContent>
 
