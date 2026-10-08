@@ -108,6 +108,72 @@ public class InviteAcceptTests : PostgresTestBase
         .CountAsync(m => m.UserId == world.UserIds[Caller.NonMember])));
   }
 
+  // Found by the smoke run: the retry of an accept that used the last use
+  // (double click, reload) must not turn into a 404.
+  [Fact]
+  public async Task Accepting_again_after_using_the_last_use_is_still_200()
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var invite = (await world.AddInvitesAsync(1, i => i.MaxUses = 1))[0];
+
+    var first = await world[Caller.NonMember].PostAsync(Url(invite.Code), null);
+    var retry = await world[Caller.NonMember].PostAsync(Url(invite.Code), null);
+
+    Assert.Equal(HttpStatusCode.OK, first.StatusCode);
+    Assert.Equal(HttpStatusCode.OK, retry.StatusCode);
+    var body = await JsonAssert.ReadJsonAsync(retry);
+    Assert.Equal(world.SettingId, body.GetProperty("settingId").GetGuid());
+    Assert.Equal("Player", body.GetProperty("myRole").GetString());
+    Assert.Equal(1, await UseCountAsync(invite.Id));
+  }
+
+  /// <summary>
+  /// Membership is checked before validity: a member of the code's setting
+  /// gets 200 whatever state the code is in, and nothing changes. They
+  /// already belong, so this tells them nothing new.
+  /// </summary>
+  [Theory]
+  [InlineData("expired")]
+  [InlineData("revoked")]
+  [InlineData("exhausted")]
+  public async Task Member_gets_200_even_for_an_unusable_code_of_their_setting(string state)
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var now = DateTimeOffset.UtcNow;
+    var invite = (await world.AddInvitesAsync(1, i =>
+    {
+      switch (state)
+      {
+        case "expired": i.ExpiresAt = now.AddSeconds(-1); break;
+        case "revoked": i.RevokedAt = now; break;
+        default: i.MaxUses = 1; i.UseCount = 1; break;
+      }
+    }))[0];
+    var useCount = invite.UseCount;
+
+    var response = await world[Caller.Player].PostAsync(Url(invite.Code), null);
+
+    Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    Assert.Equal("Player", (await JsonAssert.ReadJsonAsync(response)).GetProperty("myRole").GetString());
+    Assert.Equal(useCount, await UseCountAsync(invite.Id));
+  }
+
+  // The relaxation is only for the code's own setting: a member of another
+  // setting is a non-member here and still gets the identical 404.
+  [Fact]
+  public async Task Member_of_another_setting_still_gets_404_for_an_unusable_code()
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var krynnId = await world.CreateSettingAsync("Krynn");
+    var revoked = (await world.AddInvitesAsync(1, i => i.RevokedAt = DateTimeOffset.UtcNow, krynnId))[0];
+
+    var response = await world[Caller.Player].PostAsync(Url(revoked.Code), null);
+
+    Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    Assert.False(await Factory.WithDbAsync(db => db.SettingMemberships
+        .AnyAsync(m => m.CampaignSettingId == krynnId && m.UserId == world.UserIds[Caller.Player])));
+  }
+
   [Fact]
   public async Task Code_is_read_leniently()
   {

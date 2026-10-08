@@ -68,7 +68,10 @@ public class InvitesController : ControllerBase
   /// <summary>
   /// Joins the setting as a Player and uses up one use of the invite. A user
   /// who already belongs gets 200 with their current role and uses nothing,
-  /// so retrying (a double click, a reload) is safe.
+  /// so retrying (a double click, a reload) is safe. Membership is checked
+  /// before validity, so the retry of an accept that took the last use is
+  /// still 200; a member learns nothing new from it. Everyone else gets the
+  /// identical 404 for an unusable code.
   /// </summary>
   [HttpPost("{code}/accept")]
   [ProducesResponseType<AcceptInviteResponse>(StatusCodes.Status200OK)]
@@ -80,10 +83,11 @@ public class InvitesController : ControllerBase
   {
     var userId = _currentUser.UserId;
 
-    var found = await UsableInvite(code)
+    var found = await InviteByCode(code)
         .AsNoTracking()
         .Select(invite => new
         {
+          Invite = invite,
           invite.Id,
           SettingId = invite.CampaignSettingId,
           IsOwner = invite.CampaignSetting.OwnerUserId == userId,
@@ -103,6 +107,11 @@ public class InvitesController : ControllerBase
     if (found.Role is { } existingRole)
     {
       return Ok(new AcceptInviteResponse(found.SettingId, existingRole));
+    }
+
+    if (found.Invite.StatusAt(_timeProvider.GetUtcNow()) != InviteStatus.Active)
+    {
+      throw new NotFoundException(NotFoundMessage);
     }
 
     // Membership and use count change together or not at all. Two accepts
@@ -151,12 +160,13 @@ public class InvitesController : ControllerBase
     return Ok(new AcceptInviteResponse(found.SettingId, SettingRole.Player));
   }
 
-  // A string that cannot be a code is 404 straight away, without a lookup.
   private IQueryable<SettingInvite> UsableInvite(string code) =>
+      InviteByCode(code).Where(InviteRules.IsActiveAt(_timeProvider.GetUtcNow()));
+
+  // A string that cannot be a code is 404 straight away, without a lookup.
+  private IQueryable<SettingInvite> InviteByCode(string code) =>
       InviteCodes.TryNormalize(code, out var normalized)
-          ? _db.SettingInvites
-              .Where(invite => invite.Code == normalized)
-              .Where(InviteRules.IsActiveAt(_timeProvider.GetUtcNow()))
+          ? _db.SettingInvites.Where(invite => invite.Code == normalized)
           : throw new NotFoundException(NotFoundMessage);
 
   private Task<SettingRole> CurrentRoleAsync(Guid settingId, CancellationToken cancellationToken) =>
