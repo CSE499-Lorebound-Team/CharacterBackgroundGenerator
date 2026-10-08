@@ -26,6 +26,13 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `GameMaster` row too, so create both together and never remove or demote the
   owner's row. Deleting a setting deletes its memberships; a user who still
   has memberships cannot be deleted.
+- A `SettingInvite` is a 10-character Crockford base32 code (`Sharing/InviteCodes.cs`,
+  no `I L O U`), unique across all settings. Accepting one always grants
+  `Player`. Codes are stored in plain text so a GM can re-share them; they are
+  unguessable and revocable (`RevokedAt`; rows are never deleted while the
+  setting exists). Check constraints keep `MaxUses` positive and `UseCount`
+  between 0 and `MaxUses`. Deleting a setting deletes its invites; a user who
+  created invites cannot be deleted.
 
 ## DTOs
 
