@@ -156,6 +156,24 @@ fails if a controller routed under `api/settings` does not inject it.
 - Use `VisibleToCurrentUser()` as the starting point of every settings list
   query, never `db.CampaignSettings` directly.
 
+### Settings endpoints
+
+Who gets what from each `/api/settings` endpoint. `SettingsAuthorizationTests`
+and `SettingsListTests` assert every cell, so change them together.
+
+| Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- | --- |
+| `POST /api/settings` | 401 | **201**, becomes owner and GameMaster | n/a | n/a | n/a |
+| `GET /api/settings` | 401 | 200, setting not listed | 200, listed | 200, listed | 200, listed |
+| `GET /api/settings/{id}` | 401 | 404 | 200 | 200 | 200 |
+| `PUT /api/settings/{id}` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{id}` | 401 | 404 | 403 | 403 | **204** |
+
+- An unknown id is 404 for everyone, with the same body a non-member gets.
+- `GET /api/settings?role=gm` lists settings where I am owner or GameMaster;
+  `role=player` those where I am a Player; any other value is 400.
+- Deleting a setting removes its entries, relationships and memberships.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
