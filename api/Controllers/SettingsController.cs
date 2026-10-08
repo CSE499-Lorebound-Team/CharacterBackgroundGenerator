@@ -169,6 +169,7 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
                   setting.Id,
                   setting.Name,
                   setting.Description,
+                  // P4-01: filter out GM-only entries here for Player memberships.
                   setting.Entries.Count,
                   setting.OwnerUserId == userId
                       ? "GameMaster"
