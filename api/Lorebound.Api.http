@@ -91,3 +91,13 @@ Content-Type: application/json
 { "displayName": "Renamed Player" }
 
 ###
+
+### Create an invite (GameMaster). Body is optional.
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/invites
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "expiresInDays": 7, "maxUses": 5 }
+
+###

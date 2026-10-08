@@ -926,7 +926,7 @@ The connection string is stored with .NET user secrets, outside the repository. 
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=lorebound;Username=lorebound;Password=<POSTGRES_PASSWORD from .env>"
 ```
 
-Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
+Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links and invite join links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
 
 ### 4. Create the tables
 
