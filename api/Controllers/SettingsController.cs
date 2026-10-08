@@ -43,8 +43,9 @@ public async Task<ActionResult<SettingDetailDto>> Create(
             .AnyAsync(setting =>
                 setting.OwnerUserId == _currentUser.UserId &&
                 EF.Functions.ILike(
-                    setting.Name,
-                    name));
+                setting.Name,
+                EscapeLikePattern(name),
+                "\\"));
 
     if (duplicateExists)
     {
