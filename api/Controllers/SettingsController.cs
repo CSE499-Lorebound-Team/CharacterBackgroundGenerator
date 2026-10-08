@@ -275,8 +275,9 @@ public async Task<ActionResult<SettingDetailDto>> Update(
               otherSetting.Id != id &&
               otherSetting.OwnerUserId == setting.OwnerUserId &&
               EF.Functions.ILike(
-                  otherSetting.Name,
-                  name));
+                otherSetting.Name,
+                EscapeLikePattern(name),
+                "\\"));
 
   if (duplicateExists)
   {
