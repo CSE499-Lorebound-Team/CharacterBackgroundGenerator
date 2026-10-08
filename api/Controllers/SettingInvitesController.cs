@@ -1,5 +1,6 @@
 using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
+using Lorebound.Api.Dtos.Common;
 using Lorebound.Api.Dtos.Invites;
 using Lorebound.Api.Errors;
 using Lorebound.Api.Mapping;
@@ -11,7 +12,10 @@ using Npgsql;
 
 namespace Lorebound.Api.Controllers;
 
-/// <summary>A GameMaster's invite codes for one setting (P3-02).</summary>
+/// <summary>
+/// A GameMaster's invite codes for one setting: create (P3-02), list and
+/// revoke (P3-03). Players never see codes.
+/// </summary>
 [ApiController]
 [Route("api/settings/{settingId:guid}/invites")]
 public class SettingInvitesController : ControllerBase
@@ -101,6 +105,73 @@ public class SettingInvitesController : ControllerBase
     return StatusCode(
         StatusCodes.Status201Created,
         invite.ToDto(_links.JoinSetting(invite.Code), now));
+  }
+
+  /// <summary>Every invite of the setting, newest first, with its current status.</summary>
+  [HttpGet]
+  [ProducesResponseType<PagedResult<InviteDto>>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<PagedResult<InviteDto>>> List(
+      Guid settingId,
+      [FromQuery] PageQuery pageQuery,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var now = _timeProvider.GetUtcNow();
+
+    var query = _db.SettingInvites
+        .AsNoTracking()
+        .Where(invite => invite.CampaignSettingId == settingId);
+
+    var totalCount = await query.CountAsync(cancellationToken);
+
+    var invites = await query
+        .OrderByDescending(invite => invite.CreatedAt)
+        .ThenBy(invite => invite.Id)
+        .Skip(pageQuery.Skip)
+        .Take(pageQuery.PageSize)
+        .ToListAsync(cancellationToken);
+
+    return Ok(new PagedResult<InviteDto>(
+        invites
+            .Select(invite => invite.ToDto(_links.JoinSetting(invite.Code), now))
+            .ToList(),
+        pageQuery.Page,
+        pageQuery.PageSize,
+        totalCount));
+  }
+
+  /// <summary>
+  /// Revokes an invite so it can no longer be accepted. The row is kept;
+  /// revoking twice is a no-op 204.
+  /// </summary>
+  [HttpDelete("{inviteId:guid}")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<IActionResult> Revoke(
+      Guid settingId,
+      Guid inviteId,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    // Scoped to the setting, so a GM of one setting cannot revoke another's.
+    var invite = await _db.SettingInvites
+        .SingleOrDefaultAsync(
+            invite => invite.Id == inviteId && invite.CampaignSettingId == settingId,
+            cancellationToken)
+        ?? throw new NotFoundException("Invite not found.");
+
+    if (invite.RevokedAt is null)
+    {
+      invite.RevokedAt = _timeProvider.GetUtcNow();
+      await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    return NoContent();
   }
 
   private static bool IsCodeCollision(DbUpdateException error) =>

@@ -101,3 +101,14 @@ Content-Type: application/json
 { "expiresInDays": 7, "maxUses": 5 }
 
 ###
+
+### List invites (GameMaster)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/invites
+
+### Revoke an invite (GameMaster)
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/invites/<INVITE_ID>
+X-Requested-With: Lorebound
+
+###

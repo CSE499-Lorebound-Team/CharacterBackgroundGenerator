@@ -184,11 +184,14 @@ and `SettingsListTests` assert every cell, so change them together.
 ### Invite endpoints
 
 A GameMaster shares a setting by creating an invite code; whoever accepts it
-joins as a **Player**. `InviteCreateTests` asserts this table.
+joins as a **Player**. Only GameMasters see or manage codes.
+`InviteCreateTests` and `InviteManagementTests` assert this table.
 
 | Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
 | --- | --- | --- | --- | --- | --- |
 | `POST /api/settings/{sid}/invites` | 401 | 404 | 403 | **201** | **201** |
+| `GET /api/settings/{sid}/invites` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{sid}/invites/{id}` | 401 | 404 | 403 | **204** | **204** |
 
 - Body (optional) `{ expiresInDays?, maxUses? }`: `expiresInDays` 1-90,
   default 7; `maxUses` 1-100, default unlimited. Out of range is 400 keyed by
@@ -204,6 +207,11 @@ joins as a **Player**. `InviteCreateTests` asserts this table.
   uses left); the 21st is **409**. It is a soft cap: two simultaneous
   creates can both pass it.
 - A code collision on insert is retried with a new code (up to 3 attempts).
+- `GET` returns `PagedResult<InviteDto>` of every invite (all statuses),
+  newest first.
+- `DELETE` is a soft revoke: it sets `revokedAt` and keeps the row, so the
+  invite stays listed as `Revoked`. Revoking again is a no-op 204 that keeps
+  the first `revokedAt`. An invite id from another setting is 404.
 
 ## Email
 
