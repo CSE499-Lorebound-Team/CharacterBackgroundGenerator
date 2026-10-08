@@ -112,3 +112,9 @@ DELETE {{HostAddress}}/api/settings/<SETTING_ID>/invites/<INVITE_ID>
 X-Requested-With: Lorebound
 
 ###
+
+### Preview an invite (any signed-in user). Case and hyphens are ignored.
+
+GET {{HostAddress}}/api/invites/<CODE>
+
+###
