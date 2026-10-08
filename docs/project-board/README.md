@@ -73,7 +73,7 @@ Total: **101 work items + 10 epics = 111 issues.**
 4. **Removed players keep their characters, read-only.**
 5. **Account deletion is blocked** while the user owns a setting that has other members.
 6. **Backstory is free text only.** No generated or AI-written backstory.
-7. **Production must be same-site** so the cookie is sent (decided in `P1-12`).
+7. **Production must be same-site** so the cookie is sent. Decided in `P1-12`: the frontend proxies `/api/*` to the API, so the browser sees one origin ([ADR 0001](../decisions/0001-same-origin-api-proxy.md)).
 
 ## Working agreement
 

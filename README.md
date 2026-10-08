@@ -71,6 +71,7 @@ CharacterBackgroundGenerator/
 │
 ├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
 ├── docs/project-board/    (roadmap and issue definitions)
+├── docs/decisions/        (architecture decision records)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
@@ -825,10 +826,10 @@ frontend/.env.local
 For example:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5110
+API_ORIGIN=http://localhost:5110
 ```
 
-This matches the API port in `api/Properties/launchSettings.json`. The API only accepts browser requests from `http://localhost:3000` (CORS, set in `api/appsettings.Development.json`), so run the frontend on its default port.
+The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
 Files containing local secrets should not be committed.
 

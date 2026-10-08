@@ -64,6 +64,10 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 - Origins come from `Cors:AllowedOrigins` (a string array). Development
   allows `http://localhost:3000` via `appsettings.Development.json`; in
   production set `Cors__AllowedOrigins__0` (and `__1`, ...) as environment variables.
+- In production the frontend proxies `/api/*` to the API (same origin, see
+  `docs/decisions/0001-same-origin-api-proxy.md`), so browsers make no
+  cross-origin calls; the origin list still matters because the CSRF check
+  only accepts unsafe requests from these origins.
 - Credentials are allowed so the auth cookie is sent, so the origin list is
   always explicit, never `*`.
 - `AllowAnyHeader()` echoes requested headers (including `X-Requested-With`).
