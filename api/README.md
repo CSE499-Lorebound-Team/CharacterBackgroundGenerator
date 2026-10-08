@@ -156,3 +156,23 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   only from loopback and the IPs in `ForwardedHeaders:KnownProxies` (set
   `ForwardedHeaders__KnownProxies__0`, ...). Without that, every request
   would appear to come from the proxy and share one limit.
+
+## CSRF
+
+Cookie auth sends the cookie on any request to the API, so unsafe requests
+must prove they come from our frontend (`Security/CsrfProtectionMiddleware.cs`).
+No CSRF token is used, so nothing secret is ever readable by JavaScript.
+
+- Every `POST`, `PUT`, `PATCH` and `DELETE` must send
+  **`X-Requested-With: Lorebound`**. A cross-origin page can only add a custom
+  header after a CORS preflight, which the origin allowlist refuses, and an
+  HTML form cannot add headers at all.
+- If the request has an `Origin` header, it must be in `Cors:AllowedOrigins`
+  (case and a trailing slash are ignored). This also blocks other origins on
+  the same site, which `SameSite=Lax` alone would let through.
+- Violations return **403** problem JSON ("Missing or invalid X-Requested-With
+  header." or "Origin not allowed."). `GET`, `HEAD` and `OPTIONS` are not checked.
+- The check runs right after CORS, before rate limiting and authentication,
+  and applies to anonymous endpoints too (login CSRF).
+- The frontend API client (P9-03) sends the header on every request; tests get
+  it from the factories; `Lorebound.Api.http` includes it on each unsafe request.

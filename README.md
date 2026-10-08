@@ -617,6 +617,7 @@ Database tests share one migrated database, and every test starts with empty tab
 - `CreateSignedInClientAsync(email, displayName)` creates a confirmed user, signs it in through `POST /api/auth/login`, and returns `(Client, User)`; the client keeps the auth cookie.
 - `WithConfig(key, value)` (on any factory) returns a copy with one config value overridden, e.g. `Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient()`.
 - `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
+- Every client from either factory sends `X-Requested-With: Lorebound`, like the real frontend, so requests pass the CSRF check. To test the check itself, remove it: `client.DefaultRequestHeaders.Remove(CsrfProtectionMiddleware.HeaderName)`.
 - The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client. Every endpoint requires sign-in by default, so a new test-only controller that should be public needs `[AllowAnonymous]`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 - `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.

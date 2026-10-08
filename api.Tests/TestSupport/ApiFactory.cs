@@ -1,3 +1,4 @@
+using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -14,6 +15,17 @@ public class ApiFactory : WebApplicationFactory<Program>
 {
   public const string UnusedConnectionString =
       "Host=127.0.0.1;Port=1;Database=unused;Username=unused;Password=unused;Timeout=1";
+
+  /// <summary>
+  /// Every client sends the CSRF header like the real frontend, so tests
+  /// exercise endpoints rather than the CSRF check; CsrfTests removes it.
+  /// </summary>
+  protected override void ConfigureClient(HttpClient client)
+  {
+    base.ConfigureClient(client);
+    client.DefaultRequestHeaders.Add(
+        CsrfProtectionMiddleware.HeaderName, CsrfProtectionMiddleware.HeaderValue);
+  }
 
   protected override void ConfigureWebHost(IWebHostBuilder builder)
   {

@@ -1,11 +1,14 @@
 @HostAddress = http://localhost:5110
 
+# Every POST/PUT/PATCH/DELETE must send X-Requested-With: Lorebound (CSRF check).
+
 GET {{HostAddress}}/api/health
 Accept: application/json
 
 ###
 
 POST {{HostAddress}}/api/auth/register
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "password": "correct horse battery", "displayName": "Player" }
@@ -14,6 +17,7 @@ Content-Type: application/json
 
 # Sets the lorebound.auth cookie (Secure: use the https profile in a browser).
 POST {{HostAddress}}/api/auth/login
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "password": "correct horse battery", "rememberMe": false }
@@ -21,11 +25,13 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/logout
+X-Requested-With: Lorebound
 
 ###
 
 # userId and code come from the [dev email] link in the API log.
 POST {{HostAddress}}/api/auth/confirm-email
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "userId": "<userId>", "code": "<code>" }
@@ -33,6 +39,7 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/resend-confirmation
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com" }
@@ -40,6 +47,7 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/forgot-password
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com" }
@@ -48,6 +56,7 @@ Content-Type: application/json
 
 # email and code come from the [dev email] reset link in the API log.
 POST {{HostAddress}}/api/auth/reset-password
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "code": "<code>", "newPassword": "a brand new passphrase" }
@@ -57,8 +66,8 @@ Content-Type: application/json
 ### Update setting
 
 PUT {{HostAddress}}/api/settings/<SETTING_ID>
-Content-Type: application/json
 X-Requested-With: Lorebound
+Content-Type: application/json
 
 {
   "name": "Osepia Revised",
