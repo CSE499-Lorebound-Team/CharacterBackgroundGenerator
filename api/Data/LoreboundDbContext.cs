@@ -145,5 +145,13 @@ public class LoreboundDbContext
         timestamped.UpdatedAt = now;
       }
     }
+
+    foreach (var entry in ChangeTracker.Entries<SettingMembership>())
+    {
+      if (entry.State == EntityState.Added && entry.Entity.JoinedAt == default)
+      {
+        entry.Entity.JoinedAt = now;
+      }
+    }
   }
 }
