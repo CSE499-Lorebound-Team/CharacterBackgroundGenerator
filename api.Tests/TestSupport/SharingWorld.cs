@@ -8,7 +8,7 @@ namespace Lorebound.Api.Tests.TestSupport;
 /// <summary>
 /// One setting created by the owner through the API, plus a GameMaster (not
 /// the owner), a Player, a signed-in non-member and an anonymous client, for
-/// the sharing tests (Phase 3).
+/// the sharing (Phase 3) and entries (Phase 4) tests.
 /// </summary>
 public sealed class SharingWorld
 {
@@ -118,6 +118,59 @@ public sealed class SharingWorld
     });
 
     return (client, user.Id);
+  }
+
+  /// <summary>Inserts an entry directly (not through the API).</summary>
+  public async Task<SettingEntry> AddEntryAsync(
+      string name,
+      SettingEntryType type = SettingEntryType.Location,
+      bool isGmOnly = false,
+      string? description = null,
+      Guid? settingId = null)
+  {
+    var entry = new SettingEntry
+    {
+      Id = Guid.NewGuid(),
+      CampaignSettingId = settingId ?? SettingId,
+      Name = name,
+      EntryType = type,
+      IsGmOnly = isGmOnly,
+      Description = description,
+    };
+
+    await _factory.WithDbAsync(db =>
+    {
+      db.SettingEntries.Add(entry);
+      return db.SaveChangesAsync();
+    });
+
+    return entry;
+  }
+
+  /// <summary>Inserts a relationship from <paramref name="source"/> to <paramref name="target"/>.</summary>
+  public async Task<SettingEntryRelationship> LinkAsync(
+      SettingEntry source,
+      SettingEntry target,
+      string relationshipType = "Ally of",
+      string? description = null)
+  {
+    var relationship = new SettingEntryRelationship
+    {
+      Id = Guid.NewGuid(),
+      CampaignSettingId = source.CampaignSettingId,
+      SourceEntryId = source.Id,
+      TargetEntryId = target.Id,
+      RelationshipType = relationshipType,
+      Description = description,
+    };
+
+    await _factory.WithDbAsync(db =>
+    {
+      db.SettingEntryRelationships.Add(relationship);
+      return db.SaveChangesAsync();
+    });
+
+    return relationship;
   }
 
   private static SettingMembership Membership(Guid settingId, Guid userId, SettingRole role) =>

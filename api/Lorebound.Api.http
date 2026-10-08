@@ -171,3 +171,9 @@ DELETE {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
 X-Requested-With: Lorebound
 
 ###
+
+### List entries (any member). Players never see GM-only entries.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries?type=Location&search=tower&page=1&pageSize=20
+
+###

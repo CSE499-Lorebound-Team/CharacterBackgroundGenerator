@@ -132,6 +132,30 @@ public class SettingAccessTests : PostgresTestBase
   }
 
   [Theory]
+  [InlineData(Caller.Owner, "GameMaster")]
+  [InlineData(Caller.GameMaster, "GameMaster")]
+  [InlineData(Caller.Player, "Player")]
+  [InlineData(Caller.NonMember, "404")]
+  public async Task RequireMemberRoleAsync(Caller caller, string expected)
+  {
+    var seeded = await SeedAsync();
+
+    var outcome = await AsAsync(seeded, caller, async access =>
+    {
+      try
+      {
+        return (await access.RequireMemberRoleAsync(seeded.SettingId)).ToString();
+      }
+      catch (NotFoundException)
+      {
+        return "404";
+      }
+    });
+
+    Assert.Equal(expected, outcome);
+  }
+
+  [Theory]
   [InlineData(Caller.Owner, "ok")]
   [InlineData(Caller.GameMaster, "ok")]
   [InlineData(Caller.Player, "403")]
@@ -186,6 +210,7 @@ public class SettingAccessTests : PostgresTestBase
     {
       Assert.Null(await access.GetRoleAsync(missing));
       await Assert.ThrowsAsync<NotFoundException>(() => access.RequireMemberAsync(missing));
+      await Assert.ThrowsAsync<NotFoundException>(() => access.RequireMemberRoleAsync(missing));
       await Assert.ThrowsAsync<NotFoundException>(() => access.RequireGameMasterAsync(missing));
       await Assert.ThrowsAsync<NotFoundException>(() => access.RequireOwnerAsync(missing));
       return true;

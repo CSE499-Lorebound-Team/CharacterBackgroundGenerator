@@ -301,6 +301,28 @@ these rules.
   created stay, and they can rejoin with a new invite. Characters are not
   deleted; P6-10 makes them read-only.
 
+### Entry endpoints
+
+A setting's lore (`SettingEntriesController`, routes under
+`api/settings/{sid}/entries`). Any member reads; GameMasters write.
+**GM-only entries never reach a Player**: not in lists, search, counts or
+another entry's relationships.
+
+| Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/settings/{sid}/entries` | 401 | 404 | 200, no GM-only | 200 | 200 |
+
+- `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
+  `search` (case-insensitive substring of name or description; `%` and `_`
+  match literally), `gmOnly` (`true`/`false`) and `page`/`pageSize`. Sorted
+  by name, ignoring case.
+- Returns `PagedResult<EntryListItemDto>`, each `{ id, name, entryType,
+  description, isGmOnly, relationshipCount, updatedAt }`. `isGmOnly` is
+  **only sent to GameMasters**; a Player's items have no such property, and
+  `gmOnly=true` gives a Player an empty page.
+- `relationshipCount` counts relationships in both directions whose **other**
+  entry the caller can see.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
