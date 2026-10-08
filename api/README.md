@@ -213,6 +213,27 @@ joins as a **Player**. Only GameMasters see or manage codes.
   invite stays listed as `Revoked`. Revoking again is a no-op 204 that keeps
   the first `revokedAt`. An invite id from another setting is 404.
 
+### Joining by code
+
+The joining side works by code, not setting id (`InvitesController`, routes
+under `api/invites`). `InvitePreviewTests` asserts these rules.
+
+| Endpoint | Anonymous | Any signed-in user, usable code | Unusable code |
+| --- | --- | --- | --- |
+| `GET /api/invites/{code}` | 401 | 200 `{ settingName, gmDisplayName, alreadyMember }` | 404 |
+
+- **Every unusable code gets the identical 404** ("Invite not found."):
+  unknown, malformed, expired, revoked or used up, for members and
+  non-members alike, so a caller cannot tell a dead code from one that never
+  existed. Never add a different status or message for one of these cases.
+- Codes are read leniently by `InviteCodes.TryNormalize`: case-insensitive,
+  hyphens and spaces ignored, `I`/`L` read as `1` and `O` as `0`. Anything
+  that still cannot be a code is 404 without a database lookup.
+- `gmDisplayName` is the owner's display name. `alreadyMember` is true for
+  the owner and any member. Emails are never returned.
+- Previewing never changes the invite (`useCount` stays the same).
+- Rate limited by the `invites` policy (see Rate limiting).
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
@@ -240,7 +261,10 @@ joins as a **Player**. Only GameMasters see or manage codes.
 - Policy `auth` (`Security/RateLimitingSetup.cs`): a fixed window of **10
   requests per minute per client IP**, shared by login, register,
   forgot-password and resend-confirmation (`[EnableRateLimiting(RateLimitingSetup.AuthPolicy)]`).
-  Other endpoints are not limited.
+- Policy `invites`: the same limit with its **own counter**, on the
+  endpoints that look up an invite code (`GET /api/invites/{code}`), so
+  guessing codes is slow and does not spend the caller's login attempts.
+- Other endpoints are not limited.
 - Over the limit: **429** problem JSON with a `Retry-After` header and
   `retryAfterSeconds`. Login lockout is separate and returns 423.
 - Limits come from `RateLimiting:Auth:PermitLimit` and `WindowSeconds`. The

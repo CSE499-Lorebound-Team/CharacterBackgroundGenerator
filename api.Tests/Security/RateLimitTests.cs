@@ -76,6 +76,62 @@ public class RateLimitTests : PostgresTestBase
   }
 
   [Fact]
+  public void Invite_policy_covers_the_code_lookup_endpoints()
+  {
+    var limited = Factory.Services.GetRequiredService<EndpointDataSource>().Endpoints
+        .OfType<RouteEndpoint>()
+        .Where(endpoint => endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName
+            == RateLimitingSetup.InvitePolicy)
+        .Select(endpoint => endpoint.RoutePattern.RawText)
+        .Order();
+
+    Assert.Equal(["api/invites/{code}"], limited);
+  }
+
+  // Signs in on a client of the limited factory (one login: the auth counter,
+  // not the invite one).
+  private async Task<HttpClient> SignedInLimitedClientAsync()
+  {
+    await Factory.CreateUserAsync("guesser@example.com", "Guesser");
+    var client = LimitedFactory().CreateCookieClient();
+    var login = await client.PostAsJsonAsync("/api/auth/login",
+        new { email = "guesser@example.com", password = CustomWebApplicationFactory.DefaultPassword });
+    login.EnsureSuccessStatusCode();
+    return client;
+  }
+
+  [Fact]
+  public async Task Eleventh_invite_preview_in_a_minute_returns_429()
+  {
+    var client = await SignedInLimitedClientAsync();
+
+    for (var attempt = 1; attempt <= 10; attempt++)
+    {
+      Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/invites/ZZZZZZZZZZ")).StatusCode);
+    }
+
+    var response = await client.GetAsync("/api/invites/ZZZZZZZZZZ");
+
+    Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+    await JsonAssert.ReadProblemAsync(response);
+  }
+
+  [Fact]
+  public async Task Invite_and_login_limits_are_counted_separately()
+  {
+    var client = await SignedInLimitedClientAsync();
+
+    for (var attempt = 1; attempt <= 10; attempt++)
+    {
+      await client.GetAsync("/api/invites/ZZZZZZZZZZ");
+    }
+
+    // Login has used 1 of its 10; the invite counter is spent.
+    Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(client)).StatusCode);
+    Assert.Equal(HttpStatusCode.TooManyRequests, (await client.GetAsync("/api/invites/ZZZZZZZZZZ")).StatusCode);
+  }
+
+  [Fact]
   public async Task Other_endpoints_are_not_limited()
   {
     var client = LimitedFactory().CreateCookieClient();
