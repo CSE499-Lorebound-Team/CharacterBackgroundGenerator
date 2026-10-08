@@ -312,6 +312,7 @@ another entry's relationships.
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/settings/{sid}/entries` | 401 | 404 | 200, no GM-only | 200 | 200 |
 | `POST /api/settings/{sid}/entries` | 401 | 404 | 403 | **201** | **201** |
+| `GET /api/settings/{sid}/entries/{id}` | 401 | 404 | 200; 404 if GM-only | 200 | 200 |
 
 - `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
   `search` (case-insensitive substring of name or description; `%` and `_`
@@ -331,6 +332,14 @@ another entry's relationships.
   concurrent creates). Returns **201** `SettingEntryDto` `{ id,
   campaignSettingId, name, description, entryType, isGmOnly, createdAt,
   updatedAt }` with a `Location` header.
+- `GET .../entries/{id}` returns `EntryDetailDto`: the entry's fields plus
+  `outgoing` and `incoming` lists of `{ id, otherEntryId, otherEntryName,
+  otherEntryType, relationshipType, description }` (the other entry is the
+  target for outgoing, the source for incoming), sorted by the other entry's
+  name. A Player asking for a GM-only entry gets the **same 404** as for a
+  missing one ("Entry not found."), and relationships whose other entry is
+  GM-only are left out, so a Player cannot learn a hidden entry exists. An
+  entry id from another setting is 404.
 
 ## Email
 

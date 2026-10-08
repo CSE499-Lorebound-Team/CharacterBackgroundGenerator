@@ -192,3 +192,9 @@ Content-Type: application/json
 }
 
 ###
+
+### Get an entry with its relationships (any member; GM-only entries are 404 for Players)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+
+###

@@ -104,6 +104,66 @@ public class SettingEntriesController : ControllerBase
   }
 
   /// <summary>
+  /// One entry with its outgoing and incoming relationships, each sorted by
+  /// the other entry's name. A Player asking for a GM-only entry gets the
+  /// same 404 as for a missing one, and relationships to GM-only entries are
+  /// left out, so a Player cannot learn a hidden entry exists.
+  /// </summary>
+  [HttpGet("{entryId:guid}")]
+  [ProducesResponseType<EntryDetailDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<EntryDetailDto>> Get(
+      Guid settingId,
+      Guid entryId,
+      CancellationToken cancellationToken)
+  {
+    var role = await _settingAccess.RequireMemberRoleAsync(settingId, cancellationToken);
+    var isGameMaster = role == SettingRole.GameMaster;
+
+    var detail = await _db.SettingEntries
+        .AsNoTracking()
+        .Where(entry => entry.Id == entryId && entry.CampaignSettingId == settingId)
+        .VisibleTo(role)
+        .Select(entry => new EntryDetailDto(
+            entry.Id,
+            entry.CampaignSettingId,
+            entry.Name,
+            entry.EntryType,
+            entry.Description,
+            isGameMaster ? entry.IsGmOnly : null,
+            entry.OutgoingRelationships
+                .Where(r => isGameMaster || !r.TargetEntry.IsGmOnly)
+                .OrderBy(r => r.TargetEntry.Name)
+                .ThenBy(r => r.Id)
+                .Select(r => new EntryRelationshipDto(
+                    r.Id,
+                    r.TargetEntryId,
+                    r.TargetEntry.Name,
+                    r.TargetEntry.EntryType,
+                    r.RelationshipType,
+                    r.Description))
+                .ToList(),
+            entry.IncomingRelationships
+                .Where(r => isGameMaster || !r.SourceEntry.IsGmOnly)
+                .OrderBy(r => r.SourceEntry.Name)
+                .ThenBy(r => r.Id)
+                .Select(r => new EntryRelationshipDto(
+                    r.Id,
+                    r.SourceEntryId,
+                    r.SourceEntry.Name,
+                    r.SourceEntry.EntryType,
+                    r.RelationshipType,
+                    r.Description))
+                .ToList(),
+            entry.CreatedAt,
+            entry.UpdatedAt))
+        .AsSplitQuery()
+        .SingleOrDefaultAsync(cancellationToken);
+
+    return Ok(detail ?? throw EntryNotFound());
+  }
+
+  /// <summary>
   /// Adds an entry. GameMasters only. The name is trimmed and must be unique
   /// per type within the setting, ignoring case (409 otherwise).
   /// </summary>
@@ -173,6 +233,9 @@ public class SettingEntriesController : ControllerBase
       throw DuplicateName(entry.EntryType);
     }
   }
+
+  // One message for missing, hidden and other-setting entries alike.
+  private static NotFoundException EntryNotFound() => new("Entry not found.");
 
   private static ConflictException DuplicateName(SettingEntryType entryType) =>
       new($"A {entryType} with this name already exists in this setting.");
