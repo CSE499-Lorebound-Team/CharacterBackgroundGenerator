@@ -623,6 +623,27 @@ Database tests share one migrated database, and every test starts with empty tab
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 - `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.
 
+### Auth test suite
+
+The authentication surface (P1-13) is covered end to end, mostly against the real database (`Security/CsrfTests` and `Security/AuthenticationTests` need none). Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Register, confirm, log in, use the session, log out, end to end | `Auth/AuthJourneyTests` |
+| Login cookie is `HttpOnly`, `Secure`, `SameSite=Lax`; session vs 14-day cookie; only the auth cookie is set | `Auth/LoginTests`, `Auth/AuthJourneyTests`, `Security/AuthenticationTests` |
+| No response carries a `token`, `access` or `refresh` field, or the cookie value; no token-issuing routes are mapped | `Auth/AuthJourneyTests`, `Security/AuthenticationTests` |
+| Logout ends the session everywhere, including a copied cookie; a tampered cookie is rejected | `Auth/LogoutTests`, `Auth/AuthJourneyTests` |
+| Lockout after 5 failures (423), per account only; same 401 for unknown email, wrong password and unconfirmed email; unknown emails never report a lockout | `Auth/LoginTests`, `Auth/AuthJourneyTests` |
+| Register validation and duplicate handling | `Auth/RegisterTests` |
+| Confirm email and resend: happy and failure paths | `Auth/ConfirmEmailTests` |
+| Forgot and reset password: happy and failure paths; old sessions end | `Auth/ResetPasswordTests` |
+| Rate limit: the 11th request in a minute returns 429 | `Security/RateLimitTests` |
+| CSRF header and Origin checks | `Security/CsrfTests`, `Auth/AuthJourneyTests` |
+| Anonymous calls to protected routes return 401 problem JSON; only intended endpoints are public | `Security/FallbackPolicyTests`, `Auth/UsersMeTests` |
+| `ICurrentUser` and `/api/users/me` | `Auth/CurrentUserTests`, `Auth/UsersMeTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Auth|FullyQualifiedName~Security"`.
+
 ---
 
 # Testing Frontend and API Together

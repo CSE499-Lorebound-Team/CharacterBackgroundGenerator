@@ -97,7 +97,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   forbidden ones **403**; the API never redirects to a login page.
 - The cookie's security stamp is checked against the database on every request
   (Identity's default is every 30 minutes), so a password reset signs the user
-  out everywhere at once. Tests on `ApiFactory` (no database) turn this off.
+  out everywhere at once; logout does the same. Tests on `ApiFactory` (no
+  database) turn this off.
 - Passwords: at least 10 characters, no forced digit/case/symbol rules. Emails
   are unique. Five failed sign-ins lock an account for 15 minutes.
 - `Auth:RequireConfirmedEmail` controls whether sign-in needs a confirmed
@@ -112,7 +113,7 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 | --- | --- | --- |
 | `POST /api/auth/register` `{ email, password, displayName }` | **201** `{ id, email, displayName, emailConfirmed }`; does not sign in. Always emails a confirmation link (`Auth:RequireConfirmedEmail` only decides whether login needs it) | **400** validation problem keyed by `Email`, `Password` or `DisplayName` (1-60 chars, trimmed). When confirmation is required, a taken email gets a generic "Could not register with these details." |
 | `POST /api/auth/login` `{ email, password, rememberMe }` | **200** `{ id, email, displayName }` plus `Set-Cookie` | **401** "Invalid email or password." for a wrong password, an unknown email or an unconfirmed email alike; **423** when locked out, with `Retry-After` and `retryAfterSeconds` |
-| `POST /api/auth/logout` (signed in) | **204**; `Set-Cookie` expires the auth cookie (same name and path as at sign-in) | **401** when not signed in |
+| `POST /api/auth/logout` (signed in) | **204**; signs out **everywhere**: the security stamp changes, so every copy of the cookie (other devices, a stolen copy) stops working, and `Set-Cookie` expires this browser's cookie (same name and path as at sign-in) | **401** when not signed in |
 | `POST /api/auth/confirm-email` `{ userId, code }` | **204**; the email is confirmed | **400** "This confirmation link is invalid or has already been used." for an unknown user, a malformed or wrong code, or an already-confirmed account (so a code works once) |
 | `POST /api/auth/resend-confirmation` `{ email }` | **204** always; a new link is sent only to an unconfirmed account | **400** only for a missing or malformed email |
 | `POST /api/auth/forgot-password` `{ email }` | **204** always; a reset link is sent only to an existing account with a **confirmed** email | **400** only for a missing or malformed email |
