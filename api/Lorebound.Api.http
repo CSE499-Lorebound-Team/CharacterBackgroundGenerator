@@ -118,3 +118,16 @@ X-Requested-With: Lorebound
 GET {{HostAddress}}/api/invites/<CODE>
 
 ###
+
+### Create setting
+
+POST {{HostAddress}}/api/settings
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Osepia",
+  "description": "A campaign setting inspired by the ancient Near East."
+}
+
+###
