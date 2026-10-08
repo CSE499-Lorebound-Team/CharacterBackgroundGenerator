@@ -169,8 +169,13 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
                   setting.Id,
                   setting.Name,
                   setting.Description,
-                  // P4-01: filter out GM-only entries here for Player memberships.
-                  setting.Entries.Count,
+                  // Players do not count GM-only entries (P4-01).
+                  setting.Entries.Count(entry =>
+                      !entry.IsGmOnly ||
+                      setting.OwnerUserId == userId ||
+                      setting.Memberships.Any(membership =>
+                          membership.UserId == userId &&
+                          membership.Role == SettingRole.GameMaster)),
                   setting.OwnerUserId == userId
                       ? "GameMaster"
                       : setting.Memberships
@@ -226,6 +231,7 @@ public async Task<ActionResult<SettingDetailDto>> GetById(
           .AsNoTracking()
           .Where(entry =>
               entry.CampaignSettingId == id)
+          .VisibleTo(role ?? SettingRole.Player)
           .GroupBy(entry =>
               entry.EntryType)
           .Select(group =>
@@ -316,6 +322,7 @@ public async Task<ActionResult<SettingDetailDto>> Update(
           .AsNoTracking()
           .Where(entry =>
               entry.CampaignSettingId == id)
+          .VisibleTo(role ?? SettingRole.Player)
           .GroupBy(entry =>
               entry.EntryType)
           .Select(group =>

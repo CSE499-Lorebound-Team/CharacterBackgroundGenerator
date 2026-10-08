@@ -63,6 +63,26 @@ public class LoreboundDbContext
           .OnDelete(DeleteBehavior.Restrict);
     });
 
+    // Case-insensitive text for entry names (P4-01).
+    modelBuilder.HasPostgresExtension("citext");
+
+    modelBuilder.Entity<SettingEntry>(entry =>
+    {
+      entry.Property(e => e.Name)
+          .IsRequired()
+          .HasColumnType("citext");
+
+      // "Aster" and "aster" of the same type in one setting are duplicates.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.EntryType, e.Name })
+          .IsUnique();
+
+      // The list endpoint filters by type and the visibility filter by
+      // IsGmOnly, both within one setting.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.EntryType });
+
+      entry.HasIndex(e => new { e.CampaignSettingId, e.IsGmOnly });
+    });
+
     modelBuilder.Entity<CampaignSetting>()
         .HasMany(setting => setting.Entries)
         .WithOne(entry => entry.CampaignSetting)

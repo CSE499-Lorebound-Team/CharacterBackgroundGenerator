@@ -33,6 +33,14 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   setting exists). Check constraints keep `MaxUses` positive and `UseCount`
   between 0 and `MaxUses`. Deleting a setting deletes its invites; a user who
   created invites cannot be deleted.
+- A `SettingEntry` name is `citext` (the `citext` extension is enabled by
+  migration), unique per (setting, type) **ignoring case**: "Sharn" and
+  "SHARN" cannot both be Locations of one setting, but may be a Location and
+  a Faction. `IsGmOnly` (default `false`) marks secret lore. **Every query
+  that reads entries for a response goes through
+  `SettingEntryQueries.VisibleTo(role)`** (`Data/SettingEntryQueries.cs`),
+  which drops `IsGmOnly` entries for Players; this includes counts (the
+  settings list `entryCount` and detail `entryCountsByType`).
 
 ## DTOs
 
