@@ -225,9 +225,10 @@ these rules.
 | `POST /api/invites/{code}/accept` | 401 | 200 `{ settingId, myRole }` | 404 |
 
 - **Every unusable code gets the identical 404** ("Invite not found."):
-  unknown, malformed, expired, revoked or used up, for members and
-  non-members alike, so a caller cannot tell a dead code from one that never
-  existed. Never add a different status or message for one of these cases.
+  unknown, malformed, expired, revoked or used up, so a caller cannot tell a
+  dead code from one that never existed. Never add a different status or
+  message for one of these cases. The one exception is accepting a code of a
+  setting you already belong to (below).
 - Codes are read leniently by `InviteCodes.TryNormalize`: case-insensitive,
   hyphens and spaces ignored, `I`/`L` read as `1` and `O` as `0`. Anything
   that still cannot be a code is 404 without a database lookup.
@@ -237,6 +238,9 @@ these rules.
 - Accepting adds a `Player` membership and adds 1 to `useCount`, in one
   transaction. A user who already belongs (owner, GameMaster or Player) gets
   200 with their current role and uses nothing, so retries are safe.
+  Membership is checked **before** validity, so retrying an accept that took
+  the last use is still 200, not 404. This tells a member nothing they could
+  not already see; preview stays strict (404 for any unusable code).
 - Race-safe: the use is taken by one `UPDATE ... WHERE` the invite is still
   usable, so parallel accepts of a last use admit exactly one user and the
   rest get 404. A second parallel accept by the same user hits the unique
