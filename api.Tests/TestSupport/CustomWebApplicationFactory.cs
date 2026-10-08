@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Lorebound.Api.Data;
 using Lorebound.Api.Models;
+using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -20,6 +21,17 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
   public CustomWebApplicationFactory(string connectionString)
   {
     _connectionString = connectionString;
+  }
+
+  /// <summary>
+  /// Every client sends the CSRF header like the real frontend, so tests
+  /// exercise endpoints rather than the CSRF check; CsrfTests removes it.
+  /// </summary>
+  protected override void ConfigureClient(HttpClient client)
+  {
+    base.ConfigureClient(client);
+    client.DefaultRequestHeaders.Add(
+        CsrfProtectionMiddleware.HeaderName, CsrfProtectionMiddleware.HeaderValue);
   }
 
   protected override void ConfigureWebHost(IWebHostBuilder builder)

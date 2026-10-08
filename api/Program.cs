@@ -80,6 +80,9 @@ app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
+// After CORS, which answers preflights first; before everything else, so a
+// forged request is refused before it reaches the rate limiter or auth.
+app.UseMiddleware<CsrfProtectionMiddleware>();
 // After CORS (so 429s carry CORS headers) and before authentication, so a
 // throttled request costs no database lookups.
 app.UseRateLimiter();

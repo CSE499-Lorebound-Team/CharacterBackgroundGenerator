@@ -71,6 +71,7 @@ CharacterBackgroundGenerator/
 │
 ├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
 ├── docs/project-board/    (roadmap and issue definitions)
+├── docs/decisions/        (architecture decision records)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
@@ -617,6 +618,7 @@ Database tests share one migrated database, and every test starts with empty tab
 - `CreateSignedInClientAsync(email, displayName)` creates a confirmed user, signs it in through `POST /api/auth/login`, and returns `(Client, User)`; the client keeps the auth cookie.
 - `WithConfig(key, value)` (on any factory) returns a copy with one config value overridden, e.g. `Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient()`.
 - `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
+- Every client from either factory sends `X-Requested-With: Lorebound`, like the real frontend, so requests pass the CSRF check. To test the check itself, remove it: `client.DefaultRequestHeaders.Remove(CsrfProtectionMiddleware.HeaderName)`.
 - The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client. Every endpoint requires sign-in by default, so a new test-only controller that should be public needs `[AllowAnonymous]`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 - `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.
@@ -824,10 +826,10 @@ frontend/.env.local
 For example:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5110
+API_ORIGIN=http://localhost:5110
 ```
 
-This matches the API port in `api/Properties/launchSettings.json`. The API only accepts browser requests from `http://localhost:3000` (CORS, set in `api/appsettings.Development.json`), so run the frontend on its default port.
+The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
 Files containing local secrets should not be committed.
 

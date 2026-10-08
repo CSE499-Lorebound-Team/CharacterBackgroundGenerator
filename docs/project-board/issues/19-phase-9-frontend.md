@@ -56,10 +56,11 @@ depends: P1-12
 One typed fetch layer for all pages.
 
 ## Tasks
-- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: base URL from `NEXT_PUBLIC_API_URL` (or same-origin path if the P1-12 rewrite option is chosen), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out.
+- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: same-origin relative paths (`/api/...`; P1-12 chose the rewrite, see `docs/decisions/0001-same-origin-api-proxy.md`), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out.
+- [ ] `next.config.ts` `rewrites()` forwarding `/api/:path*` to `${API_ORIGIN}/api/:path*` (default `http://localhost:5110`), as in the ADR.
 - [ ] Throw `ApiError { status, title, detail, errors }` parsed from problem JSON.
-- [ ] Server-side variant that forwards the incoming `cookie` header (server components need it; `cookies()` from `next/headers` is async in current Next).
-- [ ] `.env.example` with `NEXT_PUBLIC_API_URL`.
+- [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `cookies()` from `next/headers` is async in current Next).
+- [ ] `.env.example` with `API_ORIGIN` (server-only; no `NEXT_PUBLIC_API_URL`).
 - [ ] Shared DTO types in `lib/types.ts` mirroring API DTOs.
 - [ ] Never read or store any token in JS; there are none.
 

@@ -64,6 +64,10 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 - Origins come from `Cors:AllowedOrigins` (a string array). Development
   allows `http://localhost:3000` via `appsettings.Development.json`; in
   production set `Cors__AllowedOrigins__0` (and `__1`, ...) as environment variables.
+- In production the frontend proxies `/api/*` to the API (same origin, see
+  `docs/decisions/0001-same-origin-api-proxy.md`), so browsers make no
+  cross-origin calls; the origin list still matters because the CSRF check
+  only accepts unsafe requests from these origins.
 - Credentials are allowed so the auth cookie is sent, so the origin list is
   always explicit, never `*`.
 - `AllowAnyHeader()` echoes requested headers (including `X-Requested-With`).
@@ -113,6 +117,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 | `POST /api/auth/resend-confirmation` `{ email }` | **204** always; a new link is sent only to an unconfirmed account | **400** only for a missing or malformed email |
 | `POST /api/auth/forgot-password` `{ email }` | **204** always; a reset link is sent only to an existing account with a **confirmed** email | **400** only for a missing or malformed email |
 | `POST /api/auth/reset-password` `{ email, code, newPassword }` | **204**; the password changes and the user's other sessions end | **400** "This reset link is invalid or has expired." for an unknown email, a malformed, wrong or used code; **400** keyed by `NewPassword` for a weak password |
+| `GET /api/users/me` (signed in) | **200** `{ id, email, displayName, emailConfirmed, createdAt }` | **401** when not signed in |
+| `PUT /api/users/me` `{ displayName }` (signed in) | **200** with the updated profile; the session stays valid and the display name claim refreshes on the next request | **400** keyed by `DisplayName` (1-60 chars, trimmed); **401** when not signed in. Email and password changes are out of scope for now |
 
 - `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
 - An unknown email still runs a password hash check, so the response time
@@ -156,3 +162,23 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   only from loopback and the IPs in `ForwardedHeaders:KnownProxies` (set
   `ForwardedHeaders__KnownProxies__0`, ...). Without that, every request
   would appear to come from the proxy and share one limit.
+
+## CSRF
+
+Cookie auth sends the cookie on any request to the API, so unsafe requests
+must prove they come from our frontend (`Security/CsrfProtectionMiddleware.cs`).
+No CSRF token is used, so nothing secret is ever readable by JavaScript.
+
+- Every `POST`, `PUT`, `PATCH` and `DELETE` must send
+  **`X-Requested-With: Lorebound`**. A cross-origin page can only add a custom
+  header after a CORS preflight, which the origin allowlist refuses, and an
+  HTML form cannot add headers at all.
+- If the request has an `Origin` header, it must be in `Cors:AllowedOrigins`
+  (case and a trailing slash are ignored). This also blocks other origins on
+  the same site, which `SameSite=Lax` alone would let through.
+- Violations return **403** problem JSON ("Missing or invalid X-Requested-With
+  header." or "Origin not allowed."). `GET`, `HEAD` and `OPTIONS` are not checked.
+- The check runs right after CORS, before rate limiting and authentication,
+  and applies to anonymous endpoints too (login CSRF).
+- The frontend API client (P9-03) sends the header on every request; tests get
+  it from the factories; `Lorebound.Api.http` includes it on each unsafe request.
