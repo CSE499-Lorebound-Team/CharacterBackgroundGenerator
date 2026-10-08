@@ -137,3 +137,9 @@ Content-Type: application/json
 GET {{HostAddress}}/api/settings?search=Osepia&role=gm&page=1&pageSize=20
 
 ###
+
+### Get setting detail
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>
+
+###
