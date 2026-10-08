@@ -40,6 +40,17 @@ public class SettingAccess : ISettingAccess
     return access.Setting;
   }
 
+  public async Task<SettingRole> RequireMemberRoleAsync(
+      Guid settingId,
+      CancellationToken cancellationToken = default)
+  {
+    var access = await RequireAccessAsync(
+        settingId,
+        cancellationToken);
+
+    return access.Role;
+  }
+
   public async Task<CampaignSetting> RequireGameMasterAsync(
       Guid settingId,
       CancellationToken cancellationToken = default)

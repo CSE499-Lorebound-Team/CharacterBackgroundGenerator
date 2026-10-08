@@ -171,3 +171,52 @@ DELETE {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
 X-Requested-With: Lorebound
 
 ###
+
+### List entries (any member). Players never see GM-only entries.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries?type=Location&search=tower&page=1&pageSize=20
+
+###
+
+### Create an entry (GameMaster)
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/entries
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers.",
+  "isGmOnly": false
+}
+
+###
+
+### Get an entry with its relationships (any member; GM-only entries are 404 for Players)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+
+###
+
+### Update an entry (GameMaster). Replaces every field.
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers, capital of crime.",
+  "isGmOnly": true
+}
+
+###
+
+### Delete an entry (GameMaster). 409 with relationshipCount if it has relationships; add ?force=true to delete them too.
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
+X-Requested-With: Lorebound
+
+###

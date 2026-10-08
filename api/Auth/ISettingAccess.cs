@@ -22,6 +22,14 @@ public interface ISettingAccess
       Guid settingId,
       CancellationToken cancellationToken = default);
 
+  /// <summary>
+  /// Any member; returns their role (the owner's is GameMaster), for reads
+  /// whose result depends on it, such as hiding GM-only entries.
+  /// </summary>
+  Task<SettingRole> RequireMemberRoleAsync(
+      Guid settingId,
+      CancellationToken cancellationToken = default);
+
   /// <summary>A GameMaster or the owner; a Player gets 403.</summary>
   Task<CampaignSetting> RequireGameMasterAsync(
       Guid settingId,

@@ -37,17 +37,27 @@ public class ApiExceptionHandler : IExceptionHandler
 
     httpContext.Response.StatusCode = status;
 
+    var problem = new ProblemDetails
+    {
+      Status = status,
+      Title = title,
+      // These messages are written for API clients, so they are safe to return.
+      Detail = exception.Message,
+    };
+
+    if (exception is ConflictException conflict)
+    {
+      foreach (var (key, value) in conflict.Extensions)
+      {
+        problem.Extensions[key] = value;
+      }
+    }
+
     return await _problemDetails.TryWriteAsync(new ProblemDetailsContext
     {
       HttpContext = httpContext,
       Exception = exception,
-      ProblemDetails = new ProblemDetails
-      {
-        Status = status,
-        Title = title,
-        // These messages are written for API clients, so they are safe to return.
-        Detail = exception.Message,
-      },
+      ProblemDetails = problem,
     });
   }
 }

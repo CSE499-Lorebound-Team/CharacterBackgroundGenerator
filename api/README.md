@@ -33,6 +33,14 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   setting exists). Check constraints keep `MaxUses` positive and `UseCount`
   between 0 and `MaxUses`. Deleting a setting deletes its invites; a user who
   created invites cannot be deleted.
+- A `SettingEntry` name is `citext` (the `citext` extension is enabled by
+  migration), unique per (setting, type) **ignoring case**: "Sharn" and
+  "SHARN" cannot both be Locations of one setting, but may be a Location and
+  a Faction. `IsGmOnly` (default `false`) marks secret lore. **Every query
+  that reads entries for a response goes through
+  `SettingEntryQueries.VisibleTo(role)`** (`Data/SettingEntryQueries.cs`),
+  which drops `IsGmOnly` entries for Players; this includes counts (the
+  settings list `entryCount` and detail `entryCountsByType`).
 
 ## DTOs
 
@@ -64,7 +72,9 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 
 - Throw `NotFoundException` (404), `ForbiddenException` (403) or
   `ConflictException` (409) from `Errors/`; `ApiExceptionHandler` maps them.
-  Their message becomes `detail`, so write it for API clients.
+  Their message becomes `detail`, so write it for API clients. A
+  `ConflictException` may carry extra members for the client, e.g.
+  `{ relationshipCount }` when deleting a linked entry.
 - Invalid request bodies return 400 `ValidationProblemDetails` with an
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
@@ -292,6 +302,61 @@ these rules.
   it drops out of their settings list. Their account and any invites they
   created stay, and they can rejoin with a new invite. Characters are not
   deleted; P6-10 makes them read-only.
+
+### Entry endpoints
+
+A setting's lore (`SettingEntriesController`, routes under
+`api/settings/{sid}/entries`). Any member reads; GameMasters write.
+**GM-only entries never reach a Player**: not in lists, search, counts or
+another entry's relationships.
+
+| Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/settings/{sid}/entries` | 401 | 404 | 200, no GM-only | 200 | 200 |
+| `POST /api/settings/{sid}/entries` | 401 | 404 | 403 | **201** | **201** |
+| `GET /api/settings/{sid}/entries/{id}` | 401 | 404 | 200; 404 if GM-only | 200 | 200 |
+| `PUT /api/settings/{sid}/entries/{id}` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{sid}/entries/{id}` | 401 | 404 | 403 | **204**; 409 if linked | **204**; 409 if linked |
+
+- `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
+  `search` (case-insensitive substring of name or description; `%` and `_`
+  match literally), `gmOnly` (`true`/`false`) and `page`/`pageSize`. Sorted
+  by name, ignoring case.
+- Returns `PagedResult<EntryListItemDto>`, each `{ id, name, entryType,
+  description, isGmOnly, relationshipCount, updatedAt }`. `isGmOnly` is
+  **only sent to GameMasters**; a Player's items have no such property, and
+  `gmOnly=true` gives a Player an empty page.
+- `relationshipCount` counts relationships in both directions whose **other**
+  entry the caller can see.
+- `POST` body `{ name, entryType, description?, isGmOnly? }`: `name` 1-120
+  characters (trimmed), `entryType` a defined type name, `description` up to
+  4000 (blank becomes `null`), `isGmOnly` defaults to `false`. Invalid is 400
+  keyed by the field. A name already used by an entry of the **same type**
+  in the setting, ignoring case, is **409** (the unique index also catches
+  concurrent creates). Returns **201** `SettingEntryDto` `{ id,
+  campaignSettingId, name, description, entryType, isGmOnly, createdAt,
+  updatedAt }` with a `Location` header.
+- `GET .../entries/{id}` returns `EntryDetailDto`: the entry's fields plus
+  `outgoing` and `incoming` lists of `{ id, otherEntryId, otherEntryName,
+  otherEntryType, relationshipType, description }` (the other entry is the
+  target for outgoing, the source for incoming), sorted by the other entry's
+  name. A Player asking for a GM-only entry gets the **same 404** as for a
+  missing one ("Entry not found."), and relationships whose other entry is
+  GM-only are left out, so a Player cannot learn a hidden entry exists. An
+  entry id from another setting is 404.
+- `PUT .../entries/{id}` replaces every field with the same body and rules
+  as `POST` (so omitting `isGmOnly` makes the entry visible). The type may
+  change and secrecy may toggle. The duplicate-name check ignores the entry
+  itself, so changing only the case of its name is fine. Returns 200
+  `SettingEntryDto` with a new `updatedAt`. Making an entry GM-only does
+  **not** change characters that already chose it (P6-05).
+- `DELETE .../entries/{id}` of an entry that has relationships (either
+  direction) is **409** with a `relationshipCount` member in the problem
+  JSON, and nothing changes. With `?force=true` its relationships and the
+  entry are deleted in one transaction (other relationships are kept).
+  **204** on success; deleting again is 404. P6-09 adds a guard against
+  deleting entries characters have chosen, at the marked extension point in
+  `SettingEntriesController.Delete`.
 
 ## Email
 

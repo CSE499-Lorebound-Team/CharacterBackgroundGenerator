@@ -201,7 +201,7 @@ Pull the latest changes:
 git pull origin dev
 ```
 
-Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1` from the repository root (see [Database Development](#database-development)).
+Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1` from the repository root (see [Database Development](#database-development)).
 
 You are now ready to begin development.
 
@@ -663,6 +663,24 @@ Invites are a security boundary, so sharing (P3-08) is covered through HTTP agai
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Sharing|FullyQualifiedName~SettingInvite"`.
 
+### Entries test suite
+
+GM-only lore must never reach a Player, so entries (P4-07) are covered through HTTP against the real database, reusing `TestSupport/SharingWorld` (its `AddEntryAsync` and `LinkAsync` insert entries and relationships directly). Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| No Player response (entries list, type filter, search, `gmOnly=true`, entry detail, setting detail, settings list) contains a GM-only entry's id, name, description or the `isGmOnly` flag | `Entries/EntriesBoundaryTests` |
+| A Player asking for a GM-only entry gets the identical 404 as for a missing one | `Entries/EntriesBoundaryTests`, `Entries/EntriesDetailTests` |
+| `relationshipCount`, settings list `entryCount` and detail `entryCountsByType` exclude hidden entries and links to them for Players only | `Entries/EntriesBoundaryTests`, `Entries/EntriesListTests` |
+| Relationships to GM-only entries are left out of a Player's entry detail | `Entries/EntriesDetailTests` |
+| Anonymous 401 and non-member 404 (identical to a missing setting) on every entries endpoint | `Entries/EntriesBoundaryTests` |
+| Player writes are 403, whether the entry is public, hidden or missing | `Entries/EntriesBoundaryTests` (plus each endpoint's own tests) |
+| Delete is 409 with `relationshipCount` unless `force=true`; force removes only that entry's relationships | `Entries/EntriesDeleteTests` |
+| Names are unique per (setting, type) ignoring case, in the database and as 409 from create and update, including concurrent creates | `Data/SettingEntryTests`, `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests` |
+| Validation, search wildcards, paging and type filter | `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests`, `Entries/EntriesListTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Entries|FullyQualifiedName~SettingEntry"`.
+
 ---
 
 # Testing Frontend and API Together
@@ -906,7 +924,7 @@ The API uses PostgreSQL 17, run locally with Docker Compose.
 With Docker Desktop running, from the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
 ```
 
 The script checks the .NET 10 SDK and Docker, creates `.env` with a random password if it is missing, starts the database, restores tools and packages, sets the connection-string user secret if it is missing, and applies migrations. It never overwrites an existing `.env` or user secret, so it is safe to re-run.
@@ -1017,7 +1035,7 @@ dotnet restore
 If the pull adds a database migration (new files in `api/Data/Migrations/`), re-run the onboarding script, or `dotnet ef database update` from `api/`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
 ```
 
 ---
