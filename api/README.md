@@ -313,6 +313,7 @@ another entry's relationships.
 | `GET /api/settings/{sid}/entries` | 401 | 404 | 200, no GM-only | 200 | 200 |
 | `POST /api/settings/{sid}/entries` | 401 | 404 | 403 | **201** | **201** |
 | `GET /api/settings/{sid}/entries/{id}` | 401 | 404 | 200; 404 if GM-only | 200 | 200 |
+| `PUT /api/settings/{sid}/entries/{id}` | 401 | 404 | 403 | 200 | 200 |
 
 - `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
   `search` (case-insensitive substring of name or description; `%` and `_`
@@ -340,6 +341,12 @@ another entry's relationships.
   missing one ("Entry not found."), and relationships whose other entry is
   GM-only are left out, so a Player cannot learn a hidden entry exists. An
   entry id from another setting is 404.
+- `PUT .../entries/{id}` replaces every field with the same body and rules
+  as `POST` (so omitting `isGmOnly` makes the entry visible). The type may
+  change and secrecy may toggle. The duplicate-name check ignores the entry
+  itself, so changing only the case of its name is fine. Returns 200
+  `SettingEntryDto` with a new `updatedAt`. Making an entry GM-only does
+  **not** change characters that already chose it (P6-05).
 
 ## Email
 

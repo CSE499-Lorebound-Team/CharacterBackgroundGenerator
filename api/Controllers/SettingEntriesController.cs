@@ -199,6 +199,48 @@ public class SettingEntriesController : ControllerBase
   }
 
   /// <summary>
+  /// Replaces an entry's name, type, description and secrecy. GameMasters
+  /// only; same rules as create, and the name check ignores the entry
+  /// itself. Making an entry GM-only does not change characters that already
+  /// chose it (decision recorded in P6-05).
+  /// </summary>
+  [HttpPut("{entryId:guid}")]
+  [ProducesResponseType<SettingEntryDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<ActionResult<SettingEntryDto>> Update(
+      Guid settingId,
+      Guid entryId,
+      UpdateEntryRequest request,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var entry = await FindEntryAsync(settingId, entryId, cancellationToken);
+
+    entry.Name = request.Name.Trim();
+    entry.EntryType = request.EntryType!.Value;
+    entry.Description = NormalizeDescription(request.Description);
+    entry.IsGmOnly = request.IsGmOnly;
+
+    await SaveUniqueAsync(entry, cancellationToken);
+
+    return Ok(entry.ToDto(SettingRole.GameMaster));
+  }
+
+  // Tracked, scoped to the setting so an id from another setting is 404.
+  private async Task<SettingEntry> FindEntryAsync(
+      Guid settingId,
+      Guid entryId,
+      CancellationToken cancellationToken) =>
+      await _db.SettingEntries.SingleOrDefaultAsync(
+          entry => entry.Id == entryId && entry.CampaignSettingId == settingId,
+          cancellationToken)
+      ?? throw EntryNotFound();
+
+  /// <summary>
   /// Saves <paramref name="entry"/>, answering 409 when another entry of the
   /// same setting and type already has its name (ignoring case). Checked up
   /// front for the common case; the unique index catches a concurrent save.

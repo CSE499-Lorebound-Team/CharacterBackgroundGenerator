@@ -198,3 +198,18 @@ Content-Type: application/json
 GET {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
 
 ###
+
+### Update an entry (GameMaster). Replaces every field.
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers, capital of crime.",
+  "isGmOnly": true
+}
+
+###
