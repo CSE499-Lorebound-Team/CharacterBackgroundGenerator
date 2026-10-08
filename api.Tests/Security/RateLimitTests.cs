@@ -116,6 +116,25 @@ public class RateLimitTests : PostgresTestBase
     await JsonAssert.ReadProblemAsync(response);
   }
 
+  // Preview and accept share one counter, so alternating between them does
+  // not double the number of guesses.
+  [Fact]
+  public async Task Preview_and_accept_share_the_invite_limit()
+  {
+    var client = await SignedInLimitedClientAsync();
+
+    for (var attempt = 1; attempt <= 5; attempt++)
+    {
+      await client.GetAsync("/api/invites/ZZZZZZZZZZ");
+      await client.PostAsync("/api/invites/ZZZZZZZZZZ/accept", null);
+    }
+
+    var response = await client.PostAsync("/api/invites/ZZZZZZZZZZ/accept", null);
+
+    Assert.Equal(HttpStatusCode.TooManyRequests, response.StatusCode);
+    await JsonAssert.ReadProblemAsync(response);
+  }
+
   [Fact]
   public async Task Invite_and_login_limits_are_counted_separately()
   {

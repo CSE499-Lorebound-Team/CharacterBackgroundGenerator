@@ -644,6 +644,25 @@ The authentication surface (P1-13) is covered end to end, mostly against the rea
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Auth|FullyQualifiedName~Security"`.
 
+### Sharing test suite
+
+Invites are a security boundary, so sharing (P3-08) is covered through HTTP against the real database. `TestSupport/SharingWorld` seeds one setting with an owner, a GameMaster, a Player, a signed-in non-member and an anonymous client. Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Expired, revoked, exhausted, unknown and malformed codes all return the identical 404, on preview and accept | `Sharing/InvitePreviewTests`, `Sharing/InviteAcceptTests` |
+| Parallel accepts of a 1-use code create exactly one membership; parallel accepts by one user create one membership and use one use | `Sharing/InviteAcceptTests` |
+| Accepting when already a member returns 200 and uses nothing | `Sharing/InviteAcceptTests` |
+| The owner cannot be demoted, removed or leave | `Sharing/SettingMembersTests`, `Sharing/MemberRemovalTests` |
+| A Player cannot create, list or revoke invites, change roles or remove others | `Sharing/InviteCreateTests`, `Sharing/InviteManagementTests`, `Sharing/SettingMembersTests`, `Sharing/MemberRemovalTests` |
+| A non-member gets 404 on every sharing endpoint, identical to a missing setting; anonymous gets 401 | `Sharing/SharingBoundaryTests` (plus each endpoint's own matrix) |
+| No sharing response contains an email; the members list never does | `Sharing/SharingBoundaryTests`, `Sharing/SettingMembersTests` |
+| An invite joins only its own setting; another setting's invites and members cannot be reached through this setting's URLs; a deleted setting's codes stop working | `Sharing/SharingBoundaryTests`, `Sharing/InviteManagementTests` |
+| Code lookups are rate limited (10/min, preview and accept share one counter, separate from login) | `Security/RateLimitTests` |
+| Invite storage: unique codes, `UseCount` within `MaxUses`, cascade with the setting; code format | `Data/SettingInviteTests`, `Sharing/InviteCodesTests`, `Sharing/InviteCodeNormalizeTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Sharing|FullyQualifiedName~SettingInvite"`.
+
 ---
 
 # Testing Frontend and API Together
