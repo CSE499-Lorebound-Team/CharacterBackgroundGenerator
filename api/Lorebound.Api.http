@@ -158,3 +158,10 @@ Content-Type: application/json
 { "role": "GameMaster" }
 
 ###
+
+### Remove a member, or leave (your own user id)
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
+X-Requested-With: Lorebound
+
+###

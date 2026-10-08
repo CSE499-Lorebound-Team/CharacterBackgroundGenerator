@@ -105,6 +105,21 @@ public sealed class SharingWorld
     return invites;
   }
 
+  /// <summary>Another signed-in user who belongs to the setting with <paramref name="role"/>.</summary>
+  public async Task<(HttpClient Client, Guid UserId)> AddMemberAsync(string name, SettingRole role)
+  {
+    var (client, user) = await _factory.CreateSignedInClientAsync(
+        $"{name}@example.com".ToLowerInvariant(), name);
+
+    await _factory.WithDbAsync(db =>
+    {
+      db.SettingMemberships.Add(Membership(SettingId, user.Id, role));
+      return db.SaveChangesAsync();
+    });
+
+    return (client, user.Id);
+  }
+
   private static SettingMembership Membership(Guid settingId, Guid userId, SettingRole role) =>
       new() { Id = Guid.NewGuid(), CampaignSettingId = settingId, UserId = userId, Role = role };
 }
