@@ -230,6 +230,68 @@ public class SettingEntriesController : ControllerBase
     return Ok(entry.ToDto(SettingRole.GameMaster));
   }
 
+  /// <summary>
+  /// Deletes an entry. GameMasters only. An entry that still has
+  /// relationships (either direction) is 409 with <c>relationshipCount</c>
+  /// and nothing changes, unless <paramref name="force"/> is true: then its
+  /// relationships and the entry go together in one transaction.
+  /// </summary>
+  [HttpDelete("{entryId:guid}")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<IActionResult> Delete(
+      Guid settingId,
+      Guid entryId,
+      [FromQuery] bool force,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var entry = await FindEntryAsync(settingId, entryId, cancellationToken);
+
+    var relationships = _db.SettingEntryRelationships
+        .Where(r => r.SourceEntryId == entryId || r.TargetEntryId == entryId);
+
+    var relationshipCount = await relationships.CountAsync(cancellationToken);
+
+    if (relationshipCount > 0 && !force)
+    {
+      throw new ConflictException(
+          $"This entry has {relationshipCount} relationship(s). Delete them first, " +
+          "or pass force=true to delete them with the entry.",
+          new Dictionary<string, object?> { ["relationshipCount"] = relationshipCount });
+    }
+
+    // P6-09 extension point: refuse here (409, before anything is deleted)
+    // when characters have chosen this entry, whatever the value of force.
+
+    await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
+
+    await relationships.ExecuteDeleteAsync(cancellationToken);
+    _db.SettingEntries.Remove(entry);
+
+    try
+    {
+      await _db.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException error) when (error.InnerException is PostgresException
+    {
+      SqlState: PostgresErrorCodes.ForeignKeyViolation,
+    })
+    {
+      // A relationship was added between the count and the delete; the
+      // transaction rolls back, so nothing changed.
+      throw new ConflictException(
+          "This entry's relationships changed while it was being deleted. Try again.");
+    }
+
+    await transaction.CommitAsync(cancellationToken);
+
+    return NoContent();
+  }
+
   // Tracked, scoped to the setting so an id from another setting is 404.
   private async Task<SettingEntry> FindEntryAsync(
       Guid settingId,

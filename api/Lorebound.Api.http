@@ -213,3 +213,10 @@ Content-Type: application/json
 }
 
 ###
+
+### Delete an entry (GameMaster). 409 with relationshipCount if it has relationships; add ?force=true to delete them too.
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
+X-Requested-With: Lorebound
+
+###

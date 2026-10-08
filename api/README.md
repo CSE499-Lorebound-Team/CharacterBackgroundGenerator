@@ -72,7 +72,9 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 
 - Throw `NotFoundException` (404), `ForbiddenException` (403) or
   `ConflictException` (409) from `Errors/`; `ApiExceptionHandler` maps them.
-  Their message becomes `detail`, so write it for API clients.
+  Their message becomes `detail`, so write it for API clients. A
+  `ConflictException` may carry extra members for the client, e.g.
+  `{ relationshipCount }` when deleting a linked entry.
 - Invalid request bodies return 400 `ValidationProblemDetails` with an
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
@@ -314,6 +316,7 @@ another entry's relationships.
 | `POST /api/settings/{sid}/entries` | 401 | 404 | 403 | **201** | **201** |
 | `GET /api/settings/{sid}/entries/{id}` | 401 | 404 | 200; 404 if GM-only | 200 | 200 |
 | `PUT /api/settings/{sid}/entries/{id}` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{sid}/entries/{id}` | 401 | 404 | 403 | **204**; 409 if linked | **204**; 409 if linked |
 
 - `GET` takes `type` (an entry type name, e.g. `Location`; unknown is 400),
   `search` (case-insensitive substring of name or description; `%` and `_`
@@ -347,6 +350,13 @@ another entry's relationships.
   itself, so changing only the case of its name is fine. Returns 200
   `SettingEntryDto` with a new `updatedAt`. Making an entry GM-only does
   **not** change characters that already chose it (P6-05).
+- `DELETE .../entries/{id}` of an entry that has relationships (either
+  direction) is **409** with a `relationshipCount` member in the problem
+  JSON, and nothing changes. With `?force=true` its relationships and the
+  entry are deleted in one transaction (other relationships are kept).
+  **204** on success; deleting again is 404. P6-09 adds a guard against
+  deleting entries characters have chosen, at the marked extension point in
+  `SettingEntriesController.Delete`.
 
 ## Email
 
