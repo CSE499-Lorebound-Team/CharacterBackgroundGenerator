@@ -701,6 +701,17 @@ A link must never reveal a GM-only entry to a Player, so relationships (P5-06) a
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Relationship"`.
 
+### Characters test suite
+
+Characters (Phase 6) are being built issue by issue; this table grows with each one. Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Character storage: draft defaults, status stored as its name, name and backstory limits; choices are an entry or free text but never both, unique per (character, step, ordinal), with text limits | `Data/CharacterTests` |
+| Deleting a setting deletes its characters and their choices; deleting a character deletes its choices; deleting an entry keeps the choice with a null entry; a user who owns characters cannot be deleted | `Data/CharacterTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
+
 ---
 
 # Testing Frontend and API Together

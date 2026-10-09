@@ -54,6 +54,20 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   (P5-03) does. Relationship reads go through the
   `VisibleTo(role)` overload for relationships, which hides from Players any
   link whose source **or** target is GM-only.
+- A `Character` belongs to one setting and one owner. New ones are
+  `Status = Draft` (`Draft`/`Complete`, stored as names), `CurrentStep = 1`,
+  named "Unnamed Character"; `Name` is at most 100 characters and
+  `Backstory` (free text only, nothing generates it) at most 10000.
+  Deleting a setting deletes its characters; a user who owns characters
+  cannot be deleted (account deletion removes them first, P6-11).
+- Builder answers are `CharacterChoice` rows, not columns, so a new builder
+  step needs no migration: one per (character, `StepKey`, `Ordinal`)
+  (unique index), each either an `EntryId` or `FreeText` (at most 2000),
+  **never both** (check constraint `CK_CharacterChoices_EntryOrFreeText`).
+  Deleting a character deletes its choices. Deleting an entry sets the
+  choice's `EntryId` to null and keeps the character, so a choice may end
+  up with neither; that is why the database allows "neither", and saving a
+  choice (P7-03) must refuse it.
 
 ## DTOs
 
