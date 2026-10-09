@@ -49,7 +49,9 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   reverse direction is a different link. `RelationshipType` is at most 60
   characters and `Description` at most 1000. The database cannot check that
   both entries belong to the relationship's setting, so the create endpoint
-  (P5-03) must.
+  (P5-03) does. Relationship reads go through the
+  `VisibleTo(role)` overload for relationships, which hides from Players any
+  link whose source **or** target is GM-only.
 
 ## DTOs
 
@@ -366,6 +368,43 @@ another entry's relationships.
   **204** on success; deleting again is 404. P6-09 adds a guard against
   deleting entries characters have chosen, at the marked extension point in
   `SettingEntriesController.Delete`.
+
+### Relationship endpoints
+
+Typed, directed links between a setting's entries
+(`SettingRelationshipsController`, routes under
+`api/settings/{sid}/relationships`). Any member reads; GameMasters write.
+**A Player never sees a link where either end is GM-only.**
+
+| Endpoint | Anonymous | Non-member | Player | GameMaster | Owner |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/settings/{sid}/relationships` | 401 | 404 | 200, no GM-only ends | 200 | 200 |
+| `POST /api/settings/{sid}/relationships` | 401 | 404 | 403 | **201** | **201** |
+
+- `GET` takes `entryId` (links where that entry is the source **or** the
+  target), `type` (the whole relationship type, ignoring case and
+  surrounding spaces; `%` and `_` match literally) and `page`/`pageSize`.
+  An `entryId` the caller cannot see (missing, GM-only for a Player, or in
+  another setting) is **404** "Entry not found.", the same in every case.
+  Sorted by source name, then type, then target name.
+- Returns `PagedResult<RelationshipDto>`, each `{ id, source, target,
+  relationshipType, description, createdAt, updatedAt }`, where `source`
+  and `target` are `{ id, name, entryType }`.
+- `POST` body `{ sourceEntryId, targetEntryId, relationshipType,
+  description? }`: `relationshipType` 1-60 characters (trimmed),
+  `description` up to 1000 (blank becomes `null`). The setting is always
+  the one in the route; a `campaignSettingId` in the body is ignored.
+  Invalid is 400 keyed by the field, including:
+  - an entry that is missing or belongs to another setting ("Entry not
+    found in this setting.", keyed `SourceEntryId` or `TargetEntryId`);
+  - a self-link (keyed `TargetEntryId`).
+- A link with the same source, target and type already exists: **409**
+  (also for concurrent creates, through the unique index). The type
+  comparison is exact until P5-05 decides how types are normalized. Another
+  type or the reverse direction is a new link. GM-only entries can be linked.
+- Returns **201** `RelationshipDto` with a `Location` header
+  (`/api/settings/{sid}/relationships/{id}`; P5-04 adds `PUT` and `DELETE`
+  there).
 
 ## Email
 
