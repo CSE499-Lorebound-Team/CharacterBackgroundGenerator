@@ -593,6 +593,33 @@ maxSelections }`:
 - `maxFreeTextLength` is null unless `allowFreeText`.
 - The backstory is not a step; it stays on `PUT /api/characters/{id}`.
 
+### Builder endpoints
+
+`CharacterBuilderController` (`api/characters/{id}/...`) runs the builder
+for one character. Only the owner while still a member of the setting may
+use it (`RequireWriteAsync`).
+
+| Endpoint | Anonymous | Non-member, other Player or missing | Owner, member | Owner, removed | GameMaster of the setting |
+| --- | --- | --- | --- | --- | --- |
+| `GET /api/characters/{id}/steps/{key}/options` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
+
+- `GET .../steps/{key}/options` returns `{ stepKey, narrowed, options:
+  [{ entryId, name, description }] }`, sorted by name. An unknown `key`
+  (keys are exact, lower case) is 404 "Builder step not found."; steps
+  without an `entryType` (`setting`, `motivation`, `review`) return no
+  options and `narrowed: false`.
+- **Narrowing** ([ADR 0002](../docs/decisions/0002-relationship-type-vocabulary.md),
+  `BuilderQueries.LoadOptionsAsync`): candidates are the setting's entries
+  of the step's type that the caller may see (a Player never gets GM-only
+  entries). A candidate is linked when **any** relationship, of any type,
+  in **either** direction, joins it to an entry chosen in an **earlier**
+  step (lower `order`). If at least one candidate is linked, only linked
+  ones are returned with `narrowed: true`; otherwise every candidate with
+  `narrowed: false`, so the builder never dead-ends.
+- Relationships with a GM-only end do not count for a Player, so narrowing
+  never hints at hidden lore; that includes a chosen entry that became
+  GM-only after it was chosen.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
