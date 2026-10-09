@@ -67,7 +67,8 @@ public class CharacterBuilderController : ControllerBase
   /// setting and visible to the caller, unless already chosen for this step;
   /// a missing, other-setting or hidden entry gets the same 400. Sending no
   /// entries and no text clears the step. Moves <c>currentStep</c> past the
-  /// step if it was behind.
+  /// step if it was behind. A complete character must be reopened first
+  /// (409).
   /// </summary>
   [HttpPut("choices/{stepKey}")]
   [ProducesResponseType<CharacterDetailDto>(StatusCodes.Status200OK)]
@@ -84,6 +85,11 @@ public class CharacterBuilderController : ControllerBase
     var access = await _characterAccess.RequireWriteAsync(characterId, cancellationToken);
     var step = RequireStep(stepKey);
     var character = access.Character;
+
+    if (character.Status == CharacterStatus.Complete)
+    {
+      throw new ConflictException("This character is complete. Reopen it to change its answers.");
+    }
 
     var entryIds = request.EntryIds ?? [];
     var freeText = string.IsNullOrWhiteSpace(request.FreeText) ? null : request.FreeText.Trim();
@@ -193,6 +199,107 @@ public class CharacterBuilderController : ControllerBase
       // Another save of this step, or the deletion of a chosen entry, landed
       // in between.
       throw new ConflictException("This step changed while saving. Try again.");
+    }
+
+    return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
+  }
+
+  /// <summary>
+  /// Marks the character Complete once every required step has a valid
+  /// answer, every chosen entry still exists in the setting with the step's
+  /// type, no step is stale (P7-04) and the name is not blank. Otherwise 400
+  /// with one error per failing step, keyed by step key. Completing a
+  /// complete character again is a no-op.
+  /// </summary>
+  [HttpPost("complete")]
+  [ProducesResponseType<CharacterDetailDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<CharacterDetailDto>> Complete(
+      Guid characterId,
+      CancellationToken cancellationToken)
+  {
+    var access = await _characterAccess.RequireWriteAsync(characterId, cancellationToken);
+    var character = access.Character;
+
+    if (string.IsNullOrWhiteSpace(character.Name))
+    {
+      ModelState.AddModelError(nameof(Character.Name), "Give the character a name.");
+    }
+
+    var choices = await _db.CharacterChoices
+        .AsNoTracking()
+        .Where(choice => choice.CharacterId == character.Id)
+        .Select(choice => new
+        {
+          choice.StepKey,
+          choice.EntryId,
+          choice.FreeText,
+          EntrySettingId = choice.Entry == null ? (Guid?)null : choice.Entry.CampaignSettingId,
+          EntryType = choice.Entry == null ? (SettingEntryType?)null : choice.Entry.EntryType,
+        })
+        .ToListAsync(cancellationToken);
+
+    var ownerRole = await _db.LoadOwnerRoleAsync(character.CampaignSettingId, character.OwnerUserId, cancellationToken);
+    var staleSteps = await _db.LoadStaleStepsAsync(character.Id, character.CampaignSettingId, ownerRole, cancellationToken);
+
+    foreach (var step in BuilderSteps.All.Where(step => step.StoresChoices))
+    {
+      // A choice whose entry was deleted has neither an entry nor text, so
+      // it does not answer the step.
+      var answers = choices
+          .Where(choice => choice.StepKey == step.Key && (choice.EntryId is not null || choice.FreeText is not null))
+          .ToList();
+
+      if (answers.Any(answer => answer.EntryId is not null
+          && (answer.EntrySettingId != character.CampaignSettingId || answer.EntryType != step.EntryType)))
+      {
+        ModelState.AddModelError(step.Key, "The chosen entry no longer fits this step. Choose again.");
+      }
+      else if (staleSteps.Contains(step.Key))
+      {
+        ModelState.AddModelError(step.Key, "This answer no longer fits your earlier choices. Choose again.");
+      }
+      else if (step.Required && answers.Count == 0)
+      {
+        ModelState.AddModelError(step.Key, $"{step.Title} needs an answer.");
+      }
+    }
+
+    if (!ModelState.IsValid)
+    {
+      return ValidationProblem(ModelState);
+    }
+
+    if (character.Status != CharacterStatus.Complete)
+    {
+      character.Status = CharacterStatus.Complete;
+      await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
+  }
+
+  /// <summary>
+  /// Moves the character back to Draft so its answers can change again.
+  /// Reopening a draft is a no-op.
+  /// </summary>
+  [HttpPost("reopen")]
+  [ProducesResponseType<CharacterDetailDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<CharacterDetailDto>> Reopen(
+      Guid characterId,
+      CancellationToken cancellationToken)
+  {
+    var access = await _characterAccess.RequireWriteAsync(characterId, cancellationToken);
+    var character = access.Character;
+
+    if (character.Status != CharacterStatus.Draft)
+    {
+      character.Status = CharacterStatus.Draft;
+      await _db.SaveChangesAsync(cancellationToken);
     }
 
     return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
