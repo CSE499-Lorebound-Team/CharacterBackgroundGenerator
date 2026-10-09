@@ -33,6 +33,10 @@ public class LoreboundDbContext
 
   public DbSet<SettingInvite> SettingInvites => Set<SettingInvite>();
 
+  public DbSet<Character> Characters => Set<Character>();
+
+  public DbSet<CharacterChoice> CharacterChoices => Set<CharacterChoice>();
+
   protected override void ConfigureConventions(
       ModelConfigurationBuilder configurationBuilder)
   {
@@ -198,6 +202,73 @@ public class LoreboundDbContext
         table.HasCheckConstraint(
             "CK_SettingInvites_MaxUses",
             "\"MaxUses\" IS NULL OR \"MaxUses\" > 0");
+      });
+    });
+
+    modelBuilder.Entity<Character>(character =>
+    {
+      character.Property(c => c.Name)
+          .IsRequired()
+          .HasMaxLength(Character.NameMaxLength);
+
+      character.Property(c => c.Backstory)
+          .HasMaxLength(Character.BackstoryMaxLength);
+
+      // Deleting a setting deletes its characters (P6-01).
+      character
+          .HasOne(c => c.CampaignSetting)
+          .WithMany(setting => setting.Characters)
+          .HasForeignKey(c => c.CampaignSettingId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // A user who owns characters cannot be hard-deleted; account deletion
+      // removes them first (P6-11).
+      character
+          .HasOne(c => c.Owner)
+          .WithMany()
+          .HasForeignKey(c => c.OwnerUserId)
+          .OnDelete(DeleteBehavior.Restrict);
+    });
+
+    modelBuilder.Entity<CharacterChoice>(choice =>
+    {
+      choice.Property(c => c.StepKey)
+          .IsRequired()
+          .HasMaxLength(CharacterChoice.StepKeyMaxLength);
+
+      choice.Property(c => c.FreeText)
+          .HasMaxLength(CharacterChoice.FreeTextMaxLength);
+
+      choice
+          .HasOne(c => c.Character)
+          .WithMany(character => character.Choices)
+          .HasForeignKey(c => c.CharacterId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Deleting an entry keeps the character; the choice just loses its
+      // entry (P6-09).
+      choice
+          .HasOne(c => c.Entry)
+          .WithMany()
+          .HasForeignKey(c => c.EntryId)
+          .OnDelete(DeleteBehavior.SetNull);
+
+      // One answer per (step, ordinal). This index also serves lookups by
+      // CharacterId, so EF drops the single-column one.
+      choice
+          .HasIndex(c => new { c.CharacterId, c.StepKey, c.Ordinal })
+          .IsUnique();
+
+      choice.HasIndex(c => c.EntryId);
+
+      // A choice is an entry or free text, never both. "Neither" is refused
+      // when a choice is saved (P7-03), not here: a deleted entry leaves a
+      // choice with both null (P6-09), which a stricter check would block.
+      choice.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_CharacterChoices_EntryOrFreeText",
+            "\"EntryId\" IS NULL OR \"FreeText\" IS NULL");
       });
     });
   }
