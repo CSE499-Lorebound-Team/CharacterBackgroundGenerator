@@ -726,6 +726,16 @@ Characters are owned by one player, readable by their setting's GameMasters, and
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
 
+### Builder test suite
+
+Phase 7 checks the guided builder: the step catalog (P7-01) so far, with options, choices and completion to follow.
+
+| Requirement | Tests |
+| --- | --- |
+| Catalog: 8 steps, unique keys, contiguous orders, the agreed key/entry type/required per step; every `CharacterStepKeys` constant is a catalog key; steps that store nothing allow 0 selections; `GET /api/builder/steps` returns it in order (401 anonymous) | `Builder/BuilderStepsTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
+
 ---
 
 # Testing Frontend and API Together
