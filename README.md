@@ -684,17 +684,20 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Ent
 
 ### Relationships test suite
 
-The relationship endpoints (Phase 5) are tested through HTTP the same way, reusing `TestSupport/SharingWorld`. P5-06 adds the cross-endpoint checks.
+A link must never reveal a GM-only entry to a Player, so relationships (P5-06) are covered through HTTP against the real database, reusing `TestSupport/SharingWorld` like the entries suite. `Relationships/RelationshipsBoundaryTests` checks every relationship endpoint at once; the other files test one endpoint each. Where to find each check:
 
 | Requirement | Tests |
 | --- | --- |
-| A Player never sees a link where either end is GM-only, in the list or its `totalCount` | `Relationships/RelationshipsListTests` |
-| `entryId` returns incoming and outgoing links; an entry the caller cannot see is the same 404 as a missing one | `Relationships/RelationshipsListTests` |
-| Links to an entry of another setting, or to a missing entry, are 400 and create nothing; the setting comes from the route | `Relationships/RelationshipsCreateTests` |
-| Self-link 400; duplicate 409, including concurrent creates; another type or direction is allowed | `Relationships/RelationshipsCreateTests` |
-| Update changes only type and description; changing source or target is 400; a relationship of another setting is 404; delete is 204 and keeps the entries | `Relationships/RelationshipsUpdateDeleteTests` |
+| No Player response (relationships list, `entryId` and `type` filters, entries list, entry detail) contains a GM-only entry's id, name or description, or the id or type of a link to it | `Relationships/RelationshipsBoundaryTests`, `Entries/EntriesDetailTests` |
+| A Player never sees a link where either end is GM-only, in the list or its `totalCount`; hiding an entry hides its links at once, unhiding restores them | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsBoundaryTests` |
+| `entryId` returns incoming and outgoing links; an entry the caller cannot see (hidden, missing or of another setting) is the same 404 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsBoundaryTests` |
+| Cross-setting links are 400 and create nothing; another setting's links are the same 404 as a missing one on `PUT` and `DELETE` and never listed; the setting comes from the route | `Relationships/RelationshipsCreateTests`, `Relationships/RelationshipsBoundaryTests` |
+| Self-link 400; duplicate 409, including concurrent creates; another type or direction is allowed | `Relationships/RelationshipsCreateTests`, `Data/SettingEntryRelationshipTests` |
+| Update changes only type and description; changing source or target is 400; delete is 204 and keeps the entries | `Relationships/RelationshipsUpdateDeleteTests` |
 | Types: normalized (trim, single spaces, suggested spelling), compared ignoring case in the database and as 409; `GET /api/relationship-types` | `Relationships/RelationshipTypesTests`, `Data/SettingEntryRelationshipTests` |
-| Anonymous 401, non-member 404, Player write 403 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsCreateTests`, `Relationships/RelationshipsUpdateDeleteTests` |
+| Anonymous 401 and non-member 404 (identical to a missing setting) on every relationship endpoint | `Relationships/RelationshipsBoundaryTests` (plus each endpoint's own tests) |
+| Player writes are 403 with the identical problem, whether the link is public, to a hidden entry or missing | `Relationships/RelationshipsBoundaryTests` |
+| Deleting an entry is 409 while it has links; with `force=true` its links in both directions go and the rest stay | `Relationships/RelationshipsBoundaryTests`, `Entries/EntriesDeleteTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Relationship"`.
 
