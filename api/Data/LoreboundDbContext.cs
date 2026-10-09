@@ -93,18 +93,45 @@ public class LoreboundDbContext
         .WithOne(relationship => relationship.CampaignSetting)
         .HasForeignKey(relationship => relationship.CampaignSettingId);
 
-    modelBuilder.Entity<SettingEntryRelationship>()
-    .HasOne(relationship => relationship.SourceEntry)
-    .WithMany(entry => entry.OutgoingRelationships)
-    .HasForeignKey(relationship => relationship.SourceEntryId)
-    .OnDelete(DeleteBehavior.NoAction);
+    modelBuilder.Entity<SettingEntryRelationship>(relationship =>
+    {
+      relationship
+          .HasOne(r => r.SourceEntry)
+          .WithMany(entry => entry.OutgoingRelationships)
+          .HasForeignKey(r => r.SourceEntryId)
+          .OnDelete(DeleteBehavior.NoAction);
 
-    modelBuilder.Entity<SettingEntryRelationship>()
-        .HasOne(relationship => relationship.TargetEntry)
-        .WithMany(entry => entry.IncomingRelationships)
-        .HasForeignKey(relationship => relationship.TargetEntryId)
-        .OnDelete(DeleteBehavior.NoAction);
-        
+      relationship
+          .HasOne(r => r.TargetEntry)
+          .WithMany(entry => entry.IncomingRelationships)
+          .HasForeignKey(r => r.TargetEntryId)
+          .OnDelete(DeleteBehavior.NoAction);
+
+      relationship.Property(r => r.RelationshipType)
+          .IsRequired()
+          .HasMaxLength(60);
+
+      relationship.Property(r => r.Description)
+          .HasMaxLength(1000);
+
+      // The same link may exist once per type (P5-01). This index also
+      // serves lookups by SourceEntryId, so EF drops the single-column one.
+      relationship
+          .HasIndex(r => new { r.SourceEntryId, r.TargetEntryId, r.RelationshipType })
+          .HasDatabaseName("IX_SettingEntryRelationships_Source_Target_Type")
+          .IsUnique();
+
+      relationship.HasIndex(r => r.TargetEntryId);
+
+      relationship.HasIndex(r => r.CampaignSettingId);
+
+      // An entry cannot relate to itself. Both endpoints belonging to the
+      // relationship's setting is a cross-table rule, checked in P5-03.
+      relationship.ToTable(table => table.HasCheckConstraint(
+          "CK_SettingEntryRelationships_NoSelfLink",
+          "\"SourceEntryId\" <> \"TargetEntryId\""));
+    });
+
     modelBuilder.Entity<SettingMembership>(membership =>
     {
       membership

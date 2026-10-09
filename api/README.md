@@ -41,6 +41,15 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `SettingEntryQueries.VisibleTo(role)`** (`Data/SettingEntryQueries.cs`),
   which drops `IsGmOnly` entries for Players; this includes counts (the
   settings list `entryCount` and detail `entryCountsByType`).
+- A `SettingEntryRelationship` is a directed, typed link between two entries.
+  The database rejects a self-link (check constraint
+  `CK_SettingEntryRelationships_NoSelfLink`) and a second link with the same
+  source, target and type (unique index
+  `IX_SettingEntryRelationships_Source_Target_Type`); another type or the
+  reverse direction is a different link. `RelationshipType` is at most 60
+  characters and `Description` at most 1000. The database cannot check that
+  both entries belong to the relationship's setting, so the create endpoint
+  (P5-03) must.
 
 ## DTOs
 
