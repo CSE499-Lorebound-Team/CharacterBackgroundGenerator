@@ -471,6 +471,35 @@ tracked, so an endpoint can change it and call `SaveChangesAsync`.
   removed owner or a GameMaster viewer); it is the flag the character DTOs
   return.
 
+### Character endpoints
+
+`CharactersController` (`api/characters`). `CharacterAccessConventionTests`
+fails if a controller routed under `api/characters` does not inject
+`ICharacterAccess`.
+
+| Endpoint | Anonymous | Non-member, other Player or missing | Owner, member | Owner, removed | GameMaster of the setting |
+| --- | --- | --- | --- | --- | --- |
+| `POST /api/characters` | 401 | 404 (setting) | **201** (any member, GameMasters too) | 404 (setting) | **201**, their own character |
+| `GET /api/characters/{id}` | 401 | 404 | 200 | 200, `isReadOnly: true` | 200, `isReadOnly: true` |
+
+- `POST /api/characters` body `{ settingId, name? }`. The caller must be a
+  member of the setting; a non-member and a missing setting get the same 404
+  "Setting not found.". The new character is owned by the caller, `Draft`,
+  on `currentStep` 1, with no backstory. `name` is trimmed, at most 100
+  characters (400 keyed `Name`); missing or blank becomes "Unnamed
+  Character". Returns **201** with `Location: /api/characters/{id}` and a
+  `CharacterDetailDto`.
+- `CharacterDetailDto`: `{ id, settingId, settingName, ownerUserId,
+  ownerDisplayName, name, status, currentStep, backstory, isOwner,
+  isReadOnly, choices[], createdAt, updatedAt }`. `isOwner` tells the
+  frontend whether to offer delete; `isReadOnly` whether to offer editing.
+- Each choice is `{ stepKey, ordinal, entryId, entryName, entryType,
+  freeText }`, sorted by `stepKey` then `ordinal`. **A chosen entry that
+  later became GM-only keeps showing its name** (decision: never hide or
+  break a character after the fact; only the owner and GameMasters can read
+  a character). A deleted entry leaves `entryId`, `entryName` and
+  `entryType` null.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
