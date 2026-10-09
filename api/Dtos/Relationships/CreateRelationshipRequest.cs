@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using Lorebound.Api.Models;
 
 namespace Lorebound.Api.Dtos.Relationships;
 
@@ -14,7 +15,7 @@ public record CreateRelationshipRequest(
     Guid? TargetEntryId,
 
     [Required]
-    [StringLength(60, MinimumLength = 1)]
+    [StringLength(RelationshipTypes.MaxLength, MinimumLength = 1)]
     string RelationshipType,
 
     [StringLength(1000)]

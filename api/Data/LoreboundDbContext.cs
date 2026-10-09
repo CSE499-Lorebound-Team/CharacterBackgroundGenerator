@@ -107,9 +107,11 @@ public class LoreboundDbContext
           .HasForeignKey(r => r.TargetEntryId)
           .OnDelete(DeleteBehavior.NoAction);
 
+      // Readable labels compared ignoring case (P5-05, ADR 0002). citext has
+      // no length, so a check constraint keeps the 60-character limit.
       relationship.Property(r => r.RelationshipType)
           .IsRequired()
-          .HasMaxLength(60);
+          .HasColumnType("citext");
 
       relationship.Property(r => r.Description)
           .HasMaxLength(1000);
@@ -127,9 +129,16 @@ public class LoreboundDbContext
 
       // An entry cannot relate to itself. Both endpoints belonging to the
       // relationship's setting is a cross-table rule, checked in P5-03.
-      relationship.ToTable(table => table.HasCheckConstraint(
-          "CK_SettingEntryRelationships_NoSelfLink",
-          "\"SourceEntryId\" <> \"TargetEntryId\""));
+      relationship.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_SettingEntryRelationships_NoSelfLink",
+            "\"SourceEntryId\" <> \"TargetEntryId\"");
+
+        table.HasCheckConstraint(
+            "CK_SettingEntryRelationships_RelationshipTypeLength",
+            $"char_length(\"RelationshipType\") <= {RelationshipTypes.MaxLength}");
+      });
     });
 
     modelBuilder.Entity<SettingMembership>(membership =>

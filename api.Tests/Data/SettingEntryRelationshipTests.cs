@@ -7,7 +7,7 @@ using Npgsql;
 namespace Lorebound.Api.Tests.Data;
 
 // P5-01: the database itself rejects self-links, duplicate links and
-// over-long relationship text.
+// over-long relationship text. P5-05 made the type comparison ignore case.
 [Collection(PostgresCollection.Name)]
 public class SettingEntryRelationshipTests : PostgresTestBase
 {
@@ -122,7 +122,21 @@ public class SettingEntryRelationshipTests : PostgresTestBase
     var postgres = await AssertRejectedAsync(
         Link(settingId, brelandId, sharnId, new string('a', 61)));
 
-    Assert.Equal(PostgresErrorCodes.StringDataRightTruncation, postgres.SqlState);
+    Assert.Equal(PostgresErrorCodes.CheckViolation, postgres.SqlState);
+    Assert.Equal("CK_SettingEntryRelationships_RelationshipTypeLength", postgres.ConstraintName);
+  }
+
+  // P5-05: types are citext, so a link differing only by the case of its
+  // type is a duplicate.
+  [Fact]
+  public async Task A_type_differing_only_by_case_is_a_duplicate()
+  {
+    var (settingId, sharnId, brelandId) = await CreateWorldAsync();
+    await AddAsync(Link(settingId, sharnId, brelandId, "Located in"));
+
+    var postgres = await AssertRejectedAsync(Link(settingId, sharnId, brelandId, "LOCATED IN"));
+
+    Assert.Equal(PostgresErrorCodes.UniqueViolation, postgres.SqlState);
   }
 
   [Fact]
