@@ -268,6 +268,12 @@ GET {{HostAddress}}/api/relationship-types
 
 ###
 
+### The builder step catalog (P7-01): 8 ordered steps, the same for every character.
+
+GET {{HostAddress}}/api/builder/steps
+
+###
+
 ### Start a draft character in a setting you belong to (any member). Name is optional.
 
 POST {{HostAddress}}/api/characters

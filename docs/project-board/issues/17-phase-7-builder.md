@@ -10,7 +10,7 @@ depends: P6-01
 ## Summary
 One server-side definition of the 8 builder steps so client and validation agree.
 
-## Proposed default catalog (confirm against the UI)
+## Step catalog (confirmed 2026-10-09; the contract the frontend follows)
 | # | key | title | source | required |
 |---|-----|-------|--------|----------|
 | 1 | setting | Setting | (chosen at character creation) | yes |
@@ -26,12 +26,14 @@ One server-side definition of the 8 builder steps so client and validation agree
 - [ ] Static `BuilderSteps` record list: `Key, Order, Title, Description, EntryType?, AllowFreeText, Required, MaxSelections`.
 - [ ] `GET /api/builder/steps` (authenticated) returns the catalog.
 - [ ] Unit test asserting keys are unique and orders contiguous.
+- [ ] Treat the catalog as the frontend contract: P9-13 replaces the hardcoded list in `frontend/lib/builder/steps.ts` (PR #208: `character`, `faction` and `backstory` steps, homeland from `Nation`/`City`) with this endpoint. Backstory stays on `PUT /api/characters/{id}` and is not a catalog step.
 
 ## Implementation details
 - Adding a step later = add a catalog row; no migration (choices are rows).
 
 ## Acceptance criteria
 - Endpoint returns 8 ordered steps matching the frontend's `totalSteps = 8`.
+- The frontend reads step keys, titles and count from this endpoint; no client-side copy of the catalog remains after P9-13.
 
 @@@ P7-02
 title: GET /api/characters/{id}/steps/{key}/options (relationship-narrowed)

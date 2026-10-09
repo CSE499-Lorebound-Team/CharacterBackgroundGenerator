@@ -563,6 +563,36 @@ GameMasters have no write endpoint for other people's characters.
   (the setting owner always counts as a member). Open one with
   `GET /api/characters/{id}`.
 
+## Builder
+
+The guided character builder's steps are one server-side catalog,
+`BuilderSteps` (P7-01), which the frontend wizard and choice validation
+both read. The frontend takes step keys, titles and the step count from
+`GET /api/builder/steps` and keeps no copy of its own. Adding a step is a
+catalog row (and a `CharacterStepKeys` constant), with no migration; never
+rename a key, because choice rows store it.
+
+`GET /api/builder/steps` (`BuilderController`): any signed-in user, 401
+anonymous. Returns `{ steps: [...] }` in order, each `{ key, order, title,
+description, entryType, allowFreeText, maxFreeTextLength, required,
+maxSelections }`:
+
+| # | `key` | `entryType` (options) | Free text | `required` | `maxSelections` |
+| --- | --- | --- | --- | --- | --- |
+| 1 | `setting` | none: chosen at character creation | no | yes | 0 |
+| 2 | `homeland` | `Location` | no | yes | 1 |
+| 3 | `culture` | `Culture` | no | yes | 1 |
+| 4 | `religion` | `Religion` | no | no | 1 |
+| 5 | `social_class` | `SocialClass` | no | no | 1 |
+| 6 | `profession` | `Profession` | no | yes | 1 |
+| 7 | `motivation` | none | yes, `maxFreeTextLength` 2000 | yes | 1 |
+| 8 | `review` | none: UI only | no | no | 0 |
+
+- Steps with `maxSelections` 0 (`setting`, `review`) are shown but never
+  stored as choices. `setting` is satisfied by the character's `settingId`.
+- `maxFreeTextLength` is null unless `allowFreeText`.
+- The backstory is not a step; it stays on `PUT /api/characters/{id}`.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
