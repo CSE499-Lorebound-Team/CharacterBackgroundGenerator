@@ -305,3 +305,10 @@ Content-Type: application/json
 }
 
 ###
+
+### Delete your character and its choices (owner only, also after leaving the setting).
+
+DELETE {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+
+###

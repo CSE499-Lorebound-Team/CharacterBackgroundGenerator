@@ -715,6 +715,7 @@ Characters (Phase 6) are being built issue by issue; this table grows with each 
 | Create: any member (GameMasters too) starts a draft they own with defaults; name trimmed, blank becomes "Unnamed Character", over 100 is 400; non-member, removed player and missing setting get the same 404; anonymous 401 | `Characters/CharactersCreateTests` |
 | Detail: choices resolved and sorted; owner reads and writes, a removed owner and the setting's GameMasters read only; another player, a non-member and a missing id get the same 404; a chosen entry that became GM-only keeps its name, a deleted one shows a null name | `Characters/CharactersDetailTests` |
 | Update: the owner changes name (trimmed, 1-100) and free-text backstory (up to 10000, stored as sent, blank clears); `updatedAt` always moves; invalid values are 400 and change nothing; a removed owner and the setting's GameMasters get 403; others 404 | `Characters/CharactersUpdateTests` |
+| Delete: the owner deletes (also when read-only after removal) and the choices go with it, the entries stay; a GameMaster gets 403 for another player's character but deletes their own; others 404 | `Characters/CharactersDeleteTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
 

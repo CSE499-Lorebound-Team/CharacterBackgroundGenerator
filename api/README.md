@@ -483,6 +483,7 @@ fails if a controller routed under `api/characters` does not inject
 | `POST /api/characters` | 401 | 404 (setting) | **201** (any member, GameMasters too) | 404 (setting) | **201**, their own character |
 | `GET /api/characters/{id}` | 401 | 404 | 200 | 200, `isReadOnly: true` | 200, `isReadOnly: true` |
 | `PUT /api/characters/{id}` | 401 | 404 | 200 | 403 | 403 |
+| `DELETE /api/characters/{id}` | 401 | 404 | **204** | **204** | 403 (their own: 204) |
 
 - `GET /api/characters` lists **only the caller's own characters** (the
   Characters page and dashboard), most recently updated first. Query:
@@ -520,6 +521,11 @@ fails if a controller routed under `api/characters` does not inject
   display it as text. Missing or blank clears it. Every successful save
   moves `updatedAt`, even with unchanged values. Returns 200
   `CharacterDetailDto`.
+- `DELETE /api/characters/{id}`: only the owner (`RequireOwnerAsync`),
+  **also after removal from the setting**, so a read-only character can
+  still be cleaned up. A GameMaster gets 403 "Only the character's owner
+  can do this." for anyone else's character. The database cascade removes
+  its choices; the chosen entries stay. **204**; deleting again is 404.
 
 ## Email
 

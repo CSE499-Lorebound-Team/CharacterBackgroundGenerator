@@ -194,6 +194,27 @@ public class CharactersController : ControllerBase
     return Ok(await LoadDetailAsync(access, cancellationToken));
   }
 
+  /// <summary>
+  /// Deletes the character and, through the database cascade, its choices.
+  /// Only the owner, also after removal from the setting (a read-only
+  /// character can still be deleted); a GameMaster gets 403.
+  /// </summary>
+  [HttpDelete("{characterId:guid}")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<IActionResult> Delete(
+      Guid characterId,
+      CancellationToken cancellationToken)
+  {
+    var access = await _characterAccess.RequireOwnerAsync(characterId, cancellationToken);
+
+    _db.Characters.Remove(access.Character);
+    await _db.SaveChangesAsync(cancellationToken);
+
+    return NoContent();
+  }
+
   // Choices are not filtered by IsGmOnly: a character keeps showing an entry
   // that became GM-only after it was chosen (decision in P6-05), and only
   // the owner and GameMasters can read a character anyway.
