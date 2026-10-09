@@ -469,8 +469,16 @@ tracked, so an endpoint can change it and call `SaveChangesAsync`.
 | `RequireWriteAsync(id)` | read-write | 403 | 403 | 404 |
 | `RequireOwnerAsync(id)` (delete) | read-write | read-only | 403 | 404 |
 
-- **Removed players keep their characters, read-only.** Membership is checked
-  on every call, so re-joining through a new invite restores write access.
+- **Removed players keep their characters, read-only.** Removing a member or
+  leaving deletes only the membership row; characters and choices stay as
+  they were. Membership is checked on every call, so re-joining through a
+  new invite restores write access.
+- **Every endpoint that changes a character calls `RequireWriteAsync`**
+  (only delete uses `RequireOwnerAsync`). `Characters/CharacterReadOnlyTests`
+  finds every non-GET, non-DELETE route under `api/characters/{characterId}`
+  and expects the read-only 403 for a removed owner, so a new write endpoint
+  (P7 choices, complete, reopen) fails that test until it has a sample body
+  in `WriteBodies` there and returns the 403.
   The read-only owner's 403 says "This character is read-only because you
   are no longer a member of its setting."
 - A GameMaster reads every character in their setting but never edits or

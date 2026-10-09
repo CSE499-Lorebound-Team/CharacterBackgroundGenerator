@@ -120,7 +120,7 @@ public class SettingMembersController : ControllerBase
   /// but the owner may leave; GameMasters remove Players; only the owner
   /// removes a GameMaster; nobody removes the owner. Takes effect at once:
   /// the next request from the removed user gets 404 on the setting. Their
-  /// characters are kept (read-only, P6-10).
+  /// characters are kept, read-only (P6-10, see ICharacterAccess).
   /// </summary>
   [HttpDelete("{userId:guid}")]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
