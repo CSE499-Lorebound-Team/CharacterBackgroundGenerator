@@ -704,10 +704,13 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Rel
 
 ### Characters test suite
 
-Characters (Phase 6) are being built issue by issue; this table grows with each one. Where to find each check:
+Characters are owned by one player, readable by their setting's GameMasters, and read-only once the owner is removed, so Phase 6 (P6-12) is covered through HTTP against the real database, reusing `TestSupport/SharingWorld` (its `AddCharacterAsync`, `AddChoiceAsync` and `RemoveMemberAsync` set up characters and removals). `Characters/CharactersBoundaryTests` checks every character endpoint against every kind of caller at once; the other files test one endpoint or rule each. Where to find each check:
 
 | Requirement | Tests |
 | --- | --- |
+| Ownership matrix: owner (member), owner (removed), GameMaster, setting owner, other player, non-member and anonymous against detail, update, delete, the GameMaster list and create; refused writes change nothing | `Characters/CharactersBoundaryTests` |
+| A character the caller may not see is the identical 404 to a missing one; `isOwner`/`isReadOnly` on the detail and the own list match what the caller may do | `Characters/CharactersBoundaryTests` |
+| Lifecycle through the API: create, edit, removal makes it read-only, re-joining restores write, delete; deleting the setting deletes its characters (removed players' too); force-deleting a chosen entry leaves the character with a null choice | `Characters/CharacterLifecycleTests` |
 | Character storage: draft defaults, status stored as its name, name and backstory limits; choices are an entry or free text but never both, unique per (character, step, ordinal), with text limits | `Data/CharacterTests` |
 | Deleting a setting deletes its characters and their choices; deleting a character deletes its choices; deleting an entry keeps the choice with a null entry; a user who owns characters cannot be deleted | `Data/CharacterTests` |
 | Access matrix: the owner who is still a member reads and writes; a removed owner reads and deletes only (403 on write, with a clear reason); a GameMaster of the setting reads only (403 on write and delete); everyone else and a missing character get the same 404; re-joining restores write access | `Auth/CharacterAccessTests` |
