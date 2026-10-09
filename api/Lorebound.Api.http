@@ -318,3 +318,15 @@ X-Requested-With: Lorebound
 GET {{HostAddress}}/api/settings/<SETTING_ID>/characters?status=Complete
 
 ###
+
+### Delete your account (needs your password). 409 lists owned settings that still have other members.
+
+DELETE {{HostAddress}}/api/users/me
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "password": "<YOUR_PASSWORD>"
+}
+
+###

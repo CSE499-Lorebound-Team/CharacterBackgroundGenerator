@@ -36,7 +36,7 @@ public class RateLimitTests : PostgresTestBase
         .Order();
 
     Assert.Equal(
-        ["api/auth/forgot-password", "api/auth/login", "api/auth/register", "api/auth/resend-confirmation"],
+        ["api/auth/forgot-password", "api/auth/login", "api/auth/register", "api/auth/resend-confirmation", "api/users/me"],
         limited);
   }
 

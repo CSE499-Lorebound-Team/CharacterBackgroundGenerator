@@ -170,6 +170,16 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
 | `POST /api/auth/reset-password` `{ email, code, newPassword }` | **204**; the password changes and the user's other sessions end | **400** "This reset link is invalid or has expired." for an unknown email, a malformed, wrong or used code; **400** keyed by `NewPassword` for a weak password |
 | `GET /api/users/me` (signed in) | **200** `{ id, email, displayName, emailConfirmed, createdAt }` | **401** when not signed in |
 | `PUT /api/users/me` `{ displayName }` (signed in) | **200** with the updated profile; the session stays valid and the display name claim refreshes on the next request | **400** keyed by `DisplayName` (1-60 chars, trimmed); **401** when not signed in. Email and password changes are out of scope for now |
+| `DELETE /api/users/me` `{ password }` (signed in) | **204**; the account and everything it owns are deleted in one transaction, the cookie is cleared and every other session stops working | **400** keyed by `Password` when it is missing or wrong (rate limited like login); **409** with `settings: [{ id, name, otherMemberCount }]` while the user owns a setting that has other members, and nothing is deleted; **401** when not signed in |
+
+- **Deleting an account (P6-11)** is blocked while the user owns a setting
+  that has any other member. There is **no ownership transfer** (a known
+  limitation): the owner must delete those settings, or remove their
+  members, first. Otherwise one transaction deletes the settings the user
+  owns with everything in them (entries, relationships, memberships,
+  invites, and characters, including ones removed players left there), the
+  user's memberships, characters and created invites in other settings,
+  and then the user. Other people's data is never touched.
 
 - `rememberMe: false` gives a session cookie; `true` gives the 14-day cookie.
 - An unknown email still runs a password hash check, so the response time
@@ -571,7 +581,8 @@ GameMasters have no write endpoint for other people's characters.
 
 - Policy `auth` (`Security/RateLimitingSetup.cs`): a fixed window of **10
   requests per minute per client IP**, shared by login, register,
-  forgot-password and resend-confirmation (`[EnableRateLimiting(RateLimitingSetup.AuthPolicy)]`).
+  forgot-password, resend-confirmation and account deletion (`DELETE
+  /api/users/me`, which checks the password) (`[EnableRateLimiting(RateLimitingSetup.AuthPolicy)]`).
 - Policy `invites`: the same limit with its **own counter**, on the
   endpoints that look up an invite code (preview and accept), so
   guessing codes is slow and does not spend the caller's login attempts.

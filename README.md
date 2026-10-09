@@ -641,6 +641,7 @@ The authentication surface (P1-13) is covered end to end, mostly against the rea
 | CSRF header and Origin checks | `Security/CsrfTests`, `Auth/AuthJourneyTests` |
 | Anonymous calls to protected routes return 401 problem JSON; only intended endpoints are public | `Security/FallbackPolicyTests`, `Auth/UsersMeTests` |
 | `ICurrentUser` and `/api/users/me` | `Auth/CurrentUserTests`, `Auth/UsersMeTests` |
+| Account deletion: password re-entry (400); 409 listing owned settings that have other members, deleting nothing; otherwise everything the user owns goes and nobody else's data is touched; signed out and every session ends | `Auth/DeleteAccountTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Auth|FullyQualifiedName~Security"`.
 
