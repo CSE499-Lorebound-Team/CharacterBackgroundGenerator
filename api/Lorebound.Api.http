@@ -220,3 +220,24 @@ DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
 X-Requested-With: Lorebound
 
 ###
+
+### List relationships (any member). entryId matches either end; Players never see links to GM-only entries.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/relationships?entryId=<ENTRY_ID>&type=Capital%20of&page=1&pageSize=20
+
+###
+
+### Link two entries (GameMaster). Both must belong to this setting; 409 if the same link exists.
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/relationships
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "sourceEntryId": "<ENTRY_ID>",
+  "targetEntryId": "<OTHER_ENTRY_ID>",
+  "relationshipType": "Capital of",
+  "description": "Since the Last War."
+}
+
+###

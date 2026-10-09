@@ -682,6 +682,20 @@ GM-only lore must never reach a Player, so entries (P4-07) are covered through H
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Entries|FullyQualifiedName~SettingEntry"`.
 
+### Relationships test suite
+
+The relationship endpoints (Phase 5) are tested through HTTP the same way, reusing `TestSupport/SharingWorld`. P5-06 adds the cross-endpoint checks.
+
+| Requirement | Tests |
+| --- | --- |
+| A Player never sees a link where either end is GM-only, in the list or its `totalCount` | `Relationships/RelationshipsListTests` |
+| `entryId` returns incoming and outgoing links; an entry the caller cannot see is the same 404 as a missing one | `Relationships/RelationshipsListTests` |
+| Links to an entry of another setting, or to a missing entry, are 400 and create nothing; the setting comes from the route | `Relationships/RelationshipsCreateTests` |
+| Self-link 400; duplicate 409, including concurrent creates; another type or direction is allowed | `Relationships/RelationshipsCreateTests` |
+| Anonymous 401, non-member 404, Player write 403 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsCreateTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Relationship"`.
+
 ---
 
 # Testing Frontend and API Together
