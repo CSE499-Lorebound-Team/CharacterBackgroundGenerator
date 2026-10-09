@@ -3,6 +3,7 @@ using Lorebound.Api.Data;
 using Lorebound.Api.Dtos.Common;
 using Lorebound.Api.Dtos.Relationships;
 using Lorebound.Api.Errors;
+using Lorebound.Api.Mapping;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -75,11 +76,10 @@ public class SettingRelationshipsController : ControllerBase
 
     if (!string.IsNullOrWhiteSpace(type))
     {
-      // No wildcards in the pattern, so this is a case-insensitive equality.
-      var pattern = LikePatterns.Escape(type.Trim());
+      // RelationshipType is citext, so this equality ignores case.
+      var relationshipType = RelationshipTypes.Normalize(type);
 
-      query = query.Where(r =>
-          EF.Functions.ILike(r.RelationshipType, pattern, LikePatterns.EscapeCharacter));
+      query = query.Where(r => r.RelationshipType == relationshipType);
     }
 
     var totalCount = await query.CountAsync(cancellationToken);
@@ -161,22 +161,121 @@ public class SettingRelationshipsController : ControllerBase
       CampaignSettingId = settingId,
       SourceEntryId = sourceId,
       TargetEntryId = targetId,
-      RelationshipType = request.RelationshipType.Trim(),
+      RelationshipType = RelationshipTypes.Normalize(request.RelationshipType),
       Description = NormalizeDescription(request.Description),
     };
 
+    // The entries are tracked, so EF fills in SourceEntry and TargetEntry.
+    _db.SettingEntryRelationships.Add(relationship);
+    await SaveUniqueAsync(relationship, cancellationToken);
+
+    return Created(
+        $"/api/settings/{settingId}/relationships/{relationship.Id}",
+        relationship.ToDto());
+  }
+
+  /// <summary>
+  /// Replaces a relationship's type and description. GameMasters only. The
+  /// endpoints are immutable: a <c>sourceEntryId</c> or <c>targetEntryId</c>
+  /// that differs from the current one is 400 (delete and recreate to
+  /// re-link). Changing to a type the same link already has is 409.
+  /// </summary>
+  [HttpPut("{relationshipId:guid}")]
+  [ProducesResponseType<RelationshipDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<ActionResult<RelationshipDto>> Update(
+      Guid settingId,
+      Guid relationshipId,
+      UpdateRelationshipRequest request,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var relationship = await FindRelationshipAsync(settingId, relationshipId, cancellationToken);
+
+    foreach (var (field, requested, current) in new[]
+    {
+      (nameof(request.SourceEntryId), request.SourceEntryId, relationship.SourceEntryId),
+      (nameof(request.TargetEntryId), request.TargetEntryId, relationship.TargetEntryId),
+    })
+    {
+      if (requested is { } id && id != current)
+      {
+        ModelState.AddModelError(field,
+            "A relationship's entries cannot change. Delete it and create a new one.");
+      }
+    }
+
+    if (!ModelState.IsValid)
+    {
+      return ValidationProblem(ModelState);
+    }
+
+    relationship.RelationshipType = RelationshipTypes.Normalize(request.RelationshipType);
+    relationship.Description = NormalizeDescription(request.Description);
+
+    await SaveUniqueAsync(relationship, cancellationToken);
+
+    return Ok(relationship.ToDto());
+  }
+
+  /// <summary>Deletes a relationship. GameMasters only; the entries stay.</summary>
+  [HttpDelete("{relationshipId:guid}")]
+  [ProducesResponseType(StatusCodes.Status204NoContent)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<IActionResult> Delete(
+      Guid settingId,
+      Guid relationshipId,
+      CancellationToken cancellationToken)
+  {
+    await _settingAccess.RequireGameMasterAsync(settingId, cancellationToken);
+
+    var deleted = await _db.SettingEntryRelationships
+        .Where(r => r.Id == relationshipId && r.CampaignSettingId == settingId)
+        .ExecuteDeleteAsync(cancellationToken);
+
+    return deleted == 0 ? throw RelationshipNotFound() : NoContent();
+  }
+
+  // Tracked, with both entries, scoped to the setting so an id from another
+  // setting is 404.
+  private async Task<SettingEntryRelationship> FindRelationshipAsync(
+      Guid settingId,
+      Guid relationshipId,
+      CancellationToken cancellationToken) =>
+      await _db.SettingEntryRelationships
+          .Include(r => r.SourceEntry)
+          .Include(r => r.TargetEntry)
+          .SingleOrDefaultAsync(
+              r => r.Id == relationshipId && r.CampaignSettingId == settingId,
+              cancellationToken)
+      ?? throw RelationshipNotFound();
+
+  /// <summary>
+  /// Saves <paramref name="relationship"/>, answering 409 when the same
+  /// source, target and type (ignoring case) already exist. Checked up front
+  /// for the common case; the unique index catches a concurrent save.
+  /// </summary>
+  private async Task SaveUniqueAsync(
+      SettingEntryRelationship relationship,
+      CancellationToken cancellationToken)
+  {
+    // RelationshipType is citext, so this comparison ignores case.
     var exists = await _db.SettingEntryRelationships.AnyAsync(
-        r => r.SourceEntryId == sourceId
-            && r.TargetEntryId == targetId
-            && r.RelationshipType == relationship.RelationshipType,
+        r => r.SourceEntryId == relationship.SourceEntryId
+            && r.TargetEntryId == relationship.TargetEntryId
+            && r.RelationshipType == relationship.RelationshipType
+            && r.Id != relationship.Id,
         cancellationToken);
 
     if (exists)
     {
       throw DuplicateLink();
     }
-
-    _db.SettingEntryRelationships.Add(relationship);
 
     try
     {
@@ -188,7 +287,6 @@ public class SettingRelationshipsController : ControllerBase
       ConstraintName: UniqueLinkIndex,
     })
     {
-      // A concurrent request created the same link after the check above.
       throw DuplicateLink();
     }
     catch (DbUpdateException error) when (error.InnerException is PostgresException
@@ -199,21 +297,9 @@ public class SettingRelationshipsController : ControllerBase
       // An entry was deleted after it was looked up.
       throw new ConflictException("One of the entries was deleted. Try again.");
     }
-
-    var source = entries[sourceId];
-    var target = entries[targetId];
-
-    return Created(
-        $"/api/settings/{settingId}/relationships/{relationship.Id}",
-        new RelationshipDto(
-            relationship.Id,
-            new RelationshipEndpointDto(source.Id, source.Name, source.EntryType),
-            new RelationshipEndpointDto(target.Id, target.Name, target.EntryType),
-            relationship.RelationshipType,
-            relationship.Description,
-            relationship.CreatedAt,
-            relationship.UpdatedAt));
   }
+
+  private static NotFoundException RelationshipNotFound() => new("Relationship not found.");
 
   private static ConflictException DuplicateLink() =>
       new("These entries are already linked with this relationship type.");

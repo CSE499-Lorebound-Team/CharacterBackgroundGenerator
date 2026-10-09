@@ -46,8 +46,10 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `CK_SettingEntryRelationships_NoSelfLink`) and a second link with the same
   source, target and type (unique index
   `IX_SettingEntryRelationships_Source_Target_Type`); another type or the
-  reverse direction is a different link. `RelationshipType` is at most 60
-  characters and `Description` at most 1000. The database cannot check that
+  reverse direction is a different link. `RelationshipType` is `citext`, so
+  that index ignores case (P5-05), and at most 60 characters (check
+  constraint `CK_SettingEntryRelationships_RelationshipTypeLength`);
+  `Description` is at most 1000. The database cannot check that
   both entries belong to the relationship's setting, so the create endpoint
   (P5-03) does. Relationship reads go through the
   `VisibleTo(role)` overload for relationships, which hides from Players any
@@ -380,31 +382,52 @@ Typed, directed links between a setting's entries
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/settings/{sid}/relationships` | 401 | 404 | 200, no GM-only ends | 200 | 200 |
 | `POST /api/settings/{sid}/relationships` | 401 | 404 | 403 | **201** | **201** |
+| `PUT /api/settings/{sid}/relationships/{id}` | 401 | 404 | 403 | 200 | 200 |
+| `DELETE /api/settings/{sid}/relationships/{id}` | 401 | 404 | 403 | **204** | **204** |
+| `GET /api/relationship-types` | 401 | 200 | 200 | 200 | 200 |
 
+**Relationship types** ([ADR 0002](../docs/decisions/0002-relationship-type-vocabulary.md)):
+a suggested list plus free text, stored as readable labels and compared
+**ignoring case** (`RelationshipType` is `citext`). On create and update,
+`RelationshipTypes.Normalize` trims the type, collapses inner whitespace and
+adopts a suggested type's spelling when it matches ignoring case
+(`" located  IN "` is stored as `"Located in"`); custom types keep the GM's
+casing. The builder (P7-02) narrows by **any** relationship, in **either**
+direction, whatever its type.
+
+- `GET /api/relationship-types` returns `{ suggested: [...] }`, the list to
+  offer when linking. The same for every setting; any signed-in user.
 - `GET` takes `entryId` (links where that entry is the source **or** the
-  target), `type` (the whole relationship type, ignoring case and
-  surrounding spaces; `%` and `_` match literally) and `page`/`pageSize`.
-  An `entryId` the caller cannot see (missing, GM-only for a Player, or in
-  another setting) is **404** "Entry not found.", the same in every case.
-  Sorted by source name, then type, then target name.
+  target), `type` (normalized like input, then matched ignoring case) and
+  `page`/`pageSize`. An `entryId` the caller cannot see (missing, GM-only
+  for a Player, or in another setting) is **404** "Entry not found.", the
+  same in every case. Sorted by source name, then type, then target name.
 - Returns `PagedResult<RelationshipDto>`, each `{ id, source, target,
   relationshipType, description, createdAt, updatedAt }`, where `source`
   and `target` are `{ id, name, entryType }`.
 - `POST` body `{ sourceEntryId, targetEntryId, relationshipType,
-  description? }`: `relationshipType` 1-60 characters (trimmed),
+  description? }`: `relationshipType` 1-60 characters (normalized),
   `description` up to 1000 (blank becomes `null`). The setting is always
   the one in the route; a `campaignSettingId` in the body is ignored.
   Invalid is 400 keyed by the field, including:
   - an entry that is missing or belongs to another setting ("Entry not
     found in this setting.", keyed `SourceEntryId` or `TargetEntryId`);
   - a self-link (keyed `TargetEntryId`).
-- A link with the same source, target and type already exists: **409**
-  (also for concurrent creates, through the unique index). The type
-  comparison is exact until P5-05 decides how types are normalized. Another
-  type or the reverse direction is a new link. GM-only entries can be linked.
-- Returns **201** `RelationshipDto` with a `Location` header
-  (`/api/settings/{sid}/relationships/{id}`; P5-04 adds `PUT` and `DELETE`
-  there).
+- A link with the same source, target and type (ignoring case) already
+  exists: **409** (also for concurrent creates, through the unique index).
+  Another type or the reverse direction is a new link. GM-only entries can
+  be linked. Returns **201** `RelationshipDto` with a `Location` header.
+- `PUT .../relationships/{id}` body `{ relationshipType, description? }`
+  replaces both, with the same rules as `POST` (so omitting `description`
+  clears it). **The endpoints cannot change:** a `sourceEntryId` or
+  `targetEntryId` that differs from the current one is 400 keyed by that
+  field; sending the current value is allowed. To re-link, delete and
+  create. Changing to a type the same link already has is 409; changing
+  only the case of its own type is fine. Returns 200 `RelationshipDto`.
+- `DELETE .../relationships/{id}` removes the link (the entries stay).
+  **204**; deleting again is 404.
+- A relationship id from another setting is **404** "Relationship not
+  found." on `PUT` and `DELETE`, the same as a missing one.
 
 ## Email
 
