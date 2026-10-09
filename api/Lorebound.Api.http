@@ -286,3 +286,9 @@ Content-Type: application/json
 GET {{HostAddress}}/api/characters/<CHARACTER_ID>
 
 ###
+
+### Your own characters, most recently updated first. Optional: status (Draft/Complete), settingId, search, page, pageSize.
+
+GET {{HostAddress}}/api/characters?status=Draft&search=aster
+
+###

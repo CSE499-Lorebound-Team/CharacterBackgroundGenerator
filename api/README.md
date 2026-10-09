@@ -479,9 +479,20 @@ fails if a controller routed under `api/characters` does not inject
 
 | Endpoint | Anonymous | Non-member, other Player or missing | Owner, member | Owner, removed | GameMaster of the setting |
 | --- | --- | --- | --- | --- | --- |
+| `GET /api/characters` | 401 | 200, only the caller's own characters | 200 | 200, listed with `isReadOnly: true` | 200, only their own |
 | `POST /api/characters` | 401 | 404 (setting) | **201** (any member, GameMasters too) | 404 (setting) | **201**, their own character |
 | `GET /api/characters/{id}` | 401 | 404 | 200 | 200, `isReadOnly: true` | 200, `isReadOnly: true` |
 
+- `GET /api/characters` lists **only the caller's own characters** (the
+  Characters page and dashboard), most recently updated first. Query:
+  `status` (`Draft`/`Complete`; another value is 400), `settingId`,
+  `search` (name contains, ignoring case; wildcards match literally),
+  `page`/`pageSize`. Returns `PagedResult<CharacterListItemDto>`: `{ id,
+  name, status, settingId, settingName, homelandName, currentStep,
+  isReadOnly, updatedAt }`. `homelandName` is the first `homeland` choice's
+  entry name or free text (null if none, or if its entry was deleted).
+  `isReadOnly` is true once the caller is no longer a member of the setting;
+  those characters stay listed.
 - `POST /api/characters` body `{ settingId, name? }`. The caller must be a
   member of the setting; a non-member and a missing setting get the same 404
   "Setting not found.". The new character is owned by the caller, `Draft`,

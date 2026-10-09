@@ -1,6 +1,7 @@
 using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
 using Lorebound.Api.Dtos.Characters;
+using Lorebound.Api.Dtos.Common;
 using Lorebound.Api.Errors;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Mvc;
@@ -33,6 +34,74 @@ public class CharactersController : ControllerBase
     _settingAccess = settingAccess;
     _characterAccess = characterAccess;
     _currentUser = currentUser;
+  }
+
+  /// <summary>
+  /// The caller's own characters, most recently updated first. Filters:
+  /// <paramref name="status"/>, <paramref name="settingId"/>, and
+  /// <paramref name="search"/> (name contains, ignoring case). Characters in
+  /// a setting the caller has left are included, flagged read-only.
+  /// </summary>
+  [HttpGet]
+  [ProducesResponseType<PagedResult<CharacterListItemDto>>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  public async Task<ActionResult<PagedResult<CharacterListItemDto>>> List(
+      [FromQuery] CharacterStatus? status,
+      [FromQuery] Guid? settingId,
+      [FromQuery] string? search,
+      [FromQuery] PageQuery pageQuery,
+      CancellationToken cancellationToken)
+  {
+    var userId = _currentUser.UserId;
+
+    var query = _db.Characters
+        .AsNoTracking()
+        .Where(c => c.OwnerUserId == userId);
+
+    if (status is { } characterStatus)
+    {
+      query = query.Where(c => c.Status == characterStatus);
+    }
+
+    if (settingId is { } id)
+    {
+      query = query.Where(c => c.CampaignSettingId == id);
+    }
+
+    if (!string.IsNullOrWhiteSpace(search))
+    {
+      var pattern = LikePatterns.Contains(search.Trim());
+
+      query = query.Where(c => EF.Functions.ILike(c.Name, pattern, LikePatterns.EscapeCharacter));
+    }
+
+    var totalCount = await query.CountAsync(cancellationToken);
+
+    // Read-only matches ICharacterAccess: the setting owner always counts as
+    // a member.
+    var items = await query
+        .OrderByDescending(c => c.UpdatedAt)
+        .ThenBy(c => c.Id)
+        .Skip(pageQuery.Skip)
+        .Take(pageQuery.PageSize)
+        .Select(c => new CharacterListItemDto(
+            c.Id,
+            c.Name,
+            c.Status,
+            c.CampaignSettingId,
+            c.CampaignSetting.Name,
+            c.Choices
+                .Where(choice => choice.StepKey == CharacterStepKeys.Homeland)
+                .OrderBy(choice => choice.Ordinal)
+                .Select(choice => choice.Entry != null ? choice.Entry.Name : choice.FreeText)
+                .FirstOrDefault(),
+            c.CurrentStep,
+            c.CampaignSetting.OwnerUserId != userId
+                && !c.CampaignSetting.Memberships.Any(m => m.UserId == userId),
+            c.UpdatedAt))
+        .ToListAsync(cancellationToken);
+
+    return Ok(new PagedResult<CharacterListItemDto>(items, pageQuery.Page, pageQuery.PageSize, totalCount));
   }
 
   /// <summary>
