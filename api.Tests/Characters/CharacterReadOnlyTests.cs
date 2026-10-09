@@ -28,6 +28,7 @@ public class CharacterReadOnlyTests : PostgresTestBase
   private static readonly Dictionary<string, object> WriteBodies = new()
   {
     ["PUT api/characters/{characterId:guid}"] = new { name = "Renamed", backstory = "Changed." },
+    ["PUT api/characters/{characterId:guid}/choices/{stepKey}"] = new { freeText = "Revenge." },
   };
 
   private async Task<(SharingWorld World, Character Character)> SeedAsync()
@@ -89,7 +90,9 @@ public class CharacterReadOnlyTests : PostgresTestBase
       var key = $"{method} {template}";
       Assert.True(WriteBodies.ContainsKey(key), $"Add a valid sample body for {key} to {nameof(WriteBodies)}.");
 
-      var path = "/" + template.Replace("{characterId:guid}", character.Id.ToString());
+      var path = "/" + template
+          .Replace("{characterId:guid}", character.Id.ToString())
+          .Replace("{stepKey}", CharacterStepKeys.Motivation);
       var request = new HttpRequestMessage(new HttpMethod(method), path)
       {
         Content = JsonContent.Create(WriteBodies[key]),

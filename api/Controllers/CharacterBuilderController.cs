@@ -1,9 +1,12 @@
 using Lorebound.Api.Auth;
 using Lorebound.Api.Data;
 using Lorebound.Api.Dtos.Builder;
+using Lorebound.Api.Dtos.Characters;
 using Lorebound.Api.Errors;
 using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Lorebound.Api.Controllers;
 
@@ -57,6 +60,155 @@ public class CharacterBuilderController : ControllerBase
         options.Narrowed,
         options.Options.Select(option => new StepOptionDto(option.EntryId, option.Name, option.Description)).ToList()));
   }
+
+  /// <summary>
+  /// Replaces one step's answer in a single save and returns the updated
+  /// character. Entries must be of the step's type, in the character's
+  /// setting and visible to the caller, unless already chosen for this step;
+  /// a missing, other-setting or hidden entry gets the same 400. Sending no
+  /// entries and no text clears the step. Moves <c>currentStep</c> past the
+  /// step if it was behind.
+  /// </summary>
+  [HttpPut("choices/{stepKey}")]
+  [ProducesResponseType<CharacterDetailDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  [ProducesResponseType(StatusCodes.Status409Conflict)]
+  public async Task<ActionResult<CharacterDetailDto>> SaveChoice(
+      Guid characterId,
+      string stepKey,
+      SaveChoiceRequest request,
+      CancellationToken cancellationToken)
+  {
+    var access = await _characterAccess.RequireWriteAsync(characterId, cancellationToken);
+    var step = RequireStep(stepKey);
+    var character = access.Character;
+
+    var entryIds = request.EntryIds ?? [];
+    var freeText = string.IsNullOrWhiteSpace(request.FreeText) ? null : request.FreeText.Trim();
+
+    if (!step.StoresChoices)
+    {
+      ModelState.AddModelError(nameof(stepKey), "This step does not take answers.");
+      return ValidationProblem(ModelState);
+    }
+
+    if (step.EntryType is null && entryIds.Count > 0)
+    {
+      ModelState.AddModelError(nameof(request.EntryIds), "This step takes free text, not entries.");
+    }
+
+    if (!step.AllowFreeText && freeText is not null)
+    {
+      ModelState.AddModelError(nameof(request.FreeText), "This step takes entries, not free text.");
+    }
+
+    if (freeText is { Length: > CharacterChoice.FreeTextMaxLength })
+    {
+      ModelState.AddModelError(nameof(request.FreeText),
+          $"The text can be at most {CharacterChoice.FreeTextMaxLength} characters.");
+    }
+
+    if (entryIds.Count > step.MaxSelections)
+    {
+      ModelState.AddModelError(nameof(request.EntryIds),
+          $"This step takes at most {step.MaxSelections} {(step.MaxSelections == 1 ? "entry" : "entries")}.");
+    }
+    else if (entryIds.Distinct().Count() != entryIds.Count)
+    {
+      ModelState.AddModelError(nameof(request.EntryIds), "Each entry can be chosen only once.");
+    }
+
+    if (!ModelState.IsValid)
+    {
+      return ValidationProblem(ModelState);
+    }
+
+    var existing = await _db.CharacterChoices
+        .Where(choice => choice.CharacterId == character.Id && choice.StepKey == step.Key)
+        .ToListAsync(cancellationToken);
+
+    if (step.EntryType is { } entryType && entryIds.Count > 0)
+    {
+      var role = await RequireRoleAsync(character.CampaignSettingId, cancellationToken);
+      var alreadyChosen = existing
+          .Where(choice => choice.EntryId is not null)
+          .Select(choice => choice.EntryId!.Value)
+          .ToArray();
+      var requestedIds = entryIds.ToArray();
+
+      // Scoped to the character's setting; an entry the caller may not see
+      // counts only if it is already this step's answer (it may have become
+      // GM-only since). Missing, other-setting and hidden look the same.
+      var entries = await _db.SettingEntries
+          .AsNoTracking()
+          .Where(entry => entry.CampaignSettingId == character.CampaignSettingId
+              && requestedIds.Contains(entry.Id)
+              && (role == SettingRole.GameMaster || !entry.IsGmOnly || alreadyChosen.Contains(entry.Id)))
+          .ToDictionaryAsync(entry => entry.Id, cancellationToken);
+
+      for (var i = 0; i < entryIds.Count; i++)
+      {
+        var field = $"{nameof(request.EntryIds)}[{i}]";
+
+        if (!entries.TryGetValue(entryIds[i], out var entry))
+        {
+          ModelState.AddModelError(field, "Entry not found in this setting.");
+        }
+        else if (entry.EntryType != entryType)
+        {
+          ModelState.AddModelError(field, $"This step takes a {entryType} entry, not a {entry.EntryType}.");
+        }
+      }
+
+      if (!ModelState.IsValid)
+      {
+        return ValidationProblem(ModelState);
+      }
+    }
+
+    _db.CharacterChoices.RemoveRange(existing);
+    _db.CharacterChoices.AddRange(
+        entryIds.Select((entryId, ordinal) => NewChoice(character, step, ordinal, entryId, null)));
+    if (freeText is not null)
+    {
+      _db.CharacterChoices.Add(NewChoice(character, step, 0, null, freeText));
+    }
+
+    character.CurrentStep = Math.Max(character.CurrentStep, step.Order + 1);
+    // Saving always counts as an update of the character (the list sorts by
+    // UpdatedAt), even when the answer and step are unchanged.
+    _db.Entry(character).Property(c => c.CurrentStep).IsModified = true;
+
+    try
+    {
+      await _db.SaveChangesAsync(cancellationToken);
+    }
+    catch (DbUpdateException error) when (error.InnerException is PostgresException
+    {
+      SqlState: PostgresErrorCodes.UniqueViolation or PostgresErrorCodes.ForeignKeyViolation,
+    })
+    {
+      // Another save of this step, or the deletion of a chosen entry, landed
+      // in between.
+      throw new ConflictException("This step changed while saving. Try again.");
+    }
+
+    return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
+  }
+
+  private static CharacterChoice NewChoice(
+      Character character, BuilderStep step, int ordinal, Guid? entryId, string? freeText) =>
+      new()
+      {
+        Id = Guid.NewGuid(),
+        CharacterId = character.Id,
+        StepKey = step.Key,
+        Ordinal = ordinal,
+        EntryId = entryId,
+        FreeText = freeText,
+      };
 
   private static BuilderStep RequireStep(string stepKey) =>
       BuilderSteps.Find(stepKey) ?? throw new NotFoundException("Builder step not found.");
