@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using Lorebound.Api.Models;
 using Lorebound.Api.Sharing;
+using Microsoft.EntityFrameworkCore;
 
 namespace Lorebound.Api.Tests.TestSupport;
 
@@ -172,6 +173,63 @@ public sealed class SharingWorld
 
     return relationship;
   }
+
+  /// <summary>Inserts a draft character owned by <paramref name="owner"/>.</summary>
+  public async Task<Character> AddCharacterAsync(
+      Caller owner,
+      string name = "Aster",
+      Action<Character>? configure = null)
+  {
+    var character = new Character
+    {
+      Id = Guid.NewGuid(),
+      CampaignSettingId = SettingId,
+      OwnerUserId = UserIds[owner],
+      Name = name,
+    };
+    configure?.Invoke(character);
+
+    await _factory.WithDbAsync(db =>
+    {
+      db.Characters.Add(character);
+      return db.SaveChangesAsync();
+    });
+
+    return character;
+  }
+
+  /// <summary>Inserts a choice: an entry or free text.</summary>
+  public async Task<CharacterChoice> AddChoiceAsync(
+      Character character,
+      string stepKey,
+      SettingEntry? entry = null,
+      string? freeText = null,
+      int ordinal = 0)
+  {
+    var choice = new CharacterChoice
+    {
+      Id = Guid.NewGuid(),
+      CharacterId = character.Id,
+      StepKey = stepKey,
+      Ordinal = ordinal,
+      EntryId = entry?.Id,
+      FreeText = freeText,
+    };
+
+    await _factory.WithDbAsync(db =>
+    {
+      db.CharacterChoices.Add(choice);
+      return db.SaveChangesAsync();
+    });
+
+    return choice;
+  }
+
+  /// <summary>Deletes <paramref name="caller"/>'s membership, as removal (P3-07) does.</summary>
+  public Task<int> RemoveMemberAsync(Caller caller) =>
+      _factory.WithDbAsync(db => db.SettingMemberships
+          .Where(m => m.CampaignSettingId == SettingId && m.UserId == UserIds[caller])
+          .ExecuteDeleteAsync());
 
   private static SettingMembership Membership(Guid settingId, Guid userId, SettingRole role) =>
       new() { Id = Guid.NewGuid(), CampaignSettingId = settingId, UserId = userId, Role = role };
