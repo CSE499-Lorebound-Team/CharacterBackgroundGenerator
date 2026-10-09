@@ -678,6 +678,7 @@ GM-only lore must never reach a Player, so entries (P4-07) are covered through H
 | Delete is 409 with `relationshipCount` unless `force=true`; force removes only that entry's relationships | `Entries/EntriesDeleteTests` |
 | Names are unique per (setting, type) ignoring case, in the database and as 409 from create and update, including concurrent creates | `Data/SettingEntryTests`, `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests` |
 | Validation, search wildcards, paging and type filter | `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests`, `Entries/EntriesListTests` |
+| Relationship storage: self-links and duplicate (source, target, type) links rejected by the database; type and description length limits | `Data/SettingEntryRelationshipTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Entries|FullyQualifiedName~SettingEntry"`.
 
