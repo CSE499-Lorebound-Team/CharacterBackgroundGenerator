@@ -62,6 +62,10 @@ One typed fetch layer for all pages.
 - [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `cookies()` from `next/headers` is async in current Next).
 - [ ] `.env.example` with `API_ORIGIN` (server-only; no `NEXT_PUBLIC_API_URL`).
 - [ ] Shared DTO types in `lib/types.ts` mirroring API DTOs.
+  - `SettingEntryType` matches the API enum: `Location | Culture | Religion | Faction | Organization | Profession | SocialClass | HistoricalEvent | Person | Other`. `Nation` and `City` become `Location`; retire `lib/settings/types.ts` and `lib/characters/types.ts`.
+  - Entries have one `description: string | null` (no `summary`/`content`); `isGmOnly` is optional because the API omits it for players.
+  - Setting role is `myRole: "GameMaster" | "Player"`, not `"GM"`.
+  - Characters carry `isOwner`, `isReadOnly`, `homelandName` (list) and `choices: { stepKey, ordinal, entryId, entryName, entryType, freeText }[]`; `backstory` is nullable.
 - [ ] Never read or store any token in JS; there are none.
 
 ## Implementation details
@@ -170,9 +174,10 @@ Replace hardcoded "Osepia" entries.
 
 ## Tasks
 - [ ] Load `GET /api/settings/{id}` for header (name, role, counts).
-- [ ] `SettingTabs` becomes functional: Overview (counts by type) plus one tab per `SettingEntryType`.
+- [ ] `SettingTabs` becomes functional: Overview (counts by type) plus one tab per `SettingEntryType`. Generate the tabs from the 10 API types (replaces the hardcoded Nations/Cities/Cultures/Religions/Factions); Overview counts come from `entryCountsByType`.
 - [ ] `EntrySearch` filters via `?search=`; paging or "load more".
 - [ ] `SettingEntryCard` shows real type, description, relationship count, and a "GM only" badge for GMs.
+- [ ] `SettingEntryCard` and the entry detail page render `description` in place of `summary` and `content`.
 - [ ] Hide GM-only actions from players.
 
 ## Acceptance criteria
@@ -192,6 +197,8 @@ Make "Add Entry" and "Edit Entry" real.
 
 ## Tasks
 - [ ] Form: name, type `Select`, description `Textarea`, "GM only" switch.
+- [ ] The type `Select` offers all 10 API entry types, so GMs can author the `Location`, `Profession` and `SocialClass` entries that builder steps 2, 5 and 6 draw on.
+- [ ] One description `Textarea` replaces the separate summary and content fields in `SettingEntryDialog`; delete the empty `EntryDialog.tsx` if still unused.
 - [ ] Create and edit through the same dialog component; validation errors displayed per field (including duplicate 409).
 - [ ] Delete with confirmation; on 409 show relationship/character counts and offer "Delete anyway" (`force=true`).
 - [ ] Refresh list after mutations.
@@ -257,6 +264,7 @@ Replace mock characters.
 - [ ] `CharacterListCard` shows setting, homeland, status, and a "Read-only" badge when `isReadOnly`.
 - [ ] "Create Character" flow: choose setting (from joined settings), create draft, go to builder.
 - [ ] Delete with confirmation.
+- [ ] Dashboard `QuickActions` links to the create-character flow instead of `/builder`; the builder needs a character (`/builder/{id}`, PR #208).
 
 ## Acceptance criteria
 - Created draft appears in the list and opens in the builder.
@@ -275,7 +283,8 @@ Turn the hardcoded "step 2 of 8 / Choose Your Homeland" page into a data-driven 
 
 ## Tasks
 - [ ] Route `/builder/[characterId]`; load steps (`/builder/steps`), character detail, and current step options.
-- [ ] `BuilderProgress` and `CharacterSummaryPanel` bind to real step and choice data (setting, homeland, culture, profession, motivation).
+- [ ] Replace the hardcoded catalog in `lib/builder/steps.ts` and `lib/builder/types.ts` (PR #208) with `/api/builder/steps` (P7-01): step 1 `setting`, homeland from `Location`, step 5 `social_class`, step 6 `profession` (required), step 7 `motivation`. Drop the `faction` and `backstory` steps.
+- [ ] `BuilderProgress` and `CharacterSummaryPanel` bind to real step and choice data (rows generated from the catalog plus `character.choices`: setting, homeland, culture, religion, social class, profession, motivation).
 - [ ] Render `BuilderOptionCard` from options; show a "narrowed by your earlier choices" hint when `narrowed` is true.
 - [ ] Free-text step (motivation) with textarea.
 - [ ] Back/Next navigation with disabled states.
@@ -297,10 +306,11 @@ Persistence and finishing.
 
 ## Tasks
 - [ ] Next saves via `PUT /choices/{key}` and advances; resume drafts at `currentStep`.
+- [ ] Replace `lib/builder/builder-store.ts` (localStorage) with `PUT /choices/{key}` and `GET /characters/{id}`.
 - [ ] Show stale-step warnings returned by the API and link to fix them.
 - [ ] Review step lists all choices; "Complete" calls `/complete` and shows API validation errors.
 - [ ] Read-only characters open in a view-only mode.
-- [ ] Optional free-text backstory field saved via `PUT /characters/{id}`.
+- [ ] Optional free-text backstory field saved via `PUT /characters/{id}`, on the Review step or the character page; it is not a catalog step (PR #208's step 7 editor moves here).
 
 ## Acceptance criteria
 - A user can finish a character across sessions and see it as Complete.
