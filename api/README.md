@@ -443,6 +443,34 @@ direction, whatever its type.
 - A relationship id from another setting is **404** "Relationship not
   found." on `PUT` and `DELETE`, the same as a missing one.
 
+## Character access
+
+`ICharacterAccess` (`Auth/CharacterAccess.cs`) is the one place that decides
+what the signed-in user may do with a character. Every character endpoint
+calls it **before** touching the character. Each method returns a
+`CharacterAccessResult { Character, IsOwner, IsReadOnly }`; the character is
+tracked, so an endpoint can change it and call `SaveChangesAsync`.
+
+| Method | Owner, still a member | Owner, removed from the setting | GameMaster or owner of the setting | Other Player, non-member or missing character |
+| --- | --- | --- | --- | --- |
+| `RequireReadAsync(id)` | read-write | read-only | read-only | 404 |
+| `RequireWriteAsync(id)` | read-write | 403 | 403 | 404 |
+| `RequireOwnerAsync(id)` (delete) | read-write | read-only | 403 | 404 |
+
+- **Removed players keep their characters, read-only.** Membership is checked
+  on every call, so re-joining through a new invite restores write access.
+  The read-only owner's 403 says "This character is read-only because you
+  are no longer a member of its setting."
+- A GameMaster reads every character in their setting but never edits or
+  deletes someone else's (403 "Only the character's owner can edit it." or
+  "... can do this."). A GameMaster's own character (an NPC or their PC) is
+  theirs like anyone else's.
+- Anyone else gets **404** "Character not found.", the same as a missing
+  character, so nobody can probe which ids exist.
+- `IsReadOnly` is true whenever the caller cannot edit the character (a
+  removed owner or a GameMaster viewer); it is the flag the character DTOs
+  return.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
