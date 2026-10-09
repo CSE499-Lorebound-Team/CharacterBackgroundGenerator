@@ -280,6 +280,28 @@ GET {{HostAddress}}/api/characters/<CHARACTER_ID>/steps/culture/options
 
 ###
 
+### Save one step's answer (owner with write access): entryIds for entry steps, freeText for motivation; neither clears it.
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>/choices/culture
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "entryIds": ["<ENTRY_ID>"]
+}
+
+###
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>/choices/motivation
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "freeText": "Find the mentor who vanished in the Mourning."
+}
+
+###
+
 ### Start a draft character in a setting you belong to (any member). Name is optional.
 
 POST {{HostAddress}}/api/characters

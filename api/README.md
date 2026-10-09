@@ -602,6 +602,7 @@ use it (`RequireWriteAsync`).
 | Endpoint | Anonymous | Non-member, other Player or missing | Owner, member | Owner, removed | GameMaster of the setting |
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/characters/{id}/steps/{key}/options` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
+| `PUT /api/characters/{id}/choices/{key}` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
 
 - `GET .../steps/{key}/options` returns `{ stepKey, narrowed, options:
   [{ entryId, name, description }] }`, sorted by name. An unknown `key`
@@ -619,6 +620,27 @@ use it (`RequireWriteAsync`).
 - Relationships with a GM-only end do not count for a Player, so narrowing
   never hints at hidden lore; that includes a chosen entry that became
   GM-only after it was chosen.
+- `PUT .../choices/{key}` body `{ entryIds?, freeText? }` replaces that
+  step's answer in one save (old rows removed, new ones added with
+  `ordinal` 0, 1, ...) and returns 200 `CharacterDetailDto`. Validation is
+  400 keyed by field:
+  - `stepKey`: `setting` and `review` take no answers. An unknown key is
+    404 "Builder step not found.".
+  - `EntryIds`: entries on a free-text step; more than `maxSelections`;
+    the same entry twice. `EntryIds[i]`: an entry of another type
+    ("This step takes a Location entry, not a Culture."), or one that is
+    missing, in another setting or GM-only for a Player, which all get the
+    identical "Entry not found in this setting.". An entry already chosen
+    for this step stays allowed even if it became GM-only since.
+  - `FreeText`: text on an entry step; over 2000 characters after
+    trimming. Free text is trimmed and stored as sent (plain text).
+  - Sending no entries and blank or no text **clears** the step; required
+    steps are enforced on completion (P7-05), not here.
+- A save sets `currentStep` to `max(currentStep, order + 1)`, so it never
+  moves back, and always moves the character's `updatedAt`. A refused save
+  changes nothing. If another save of the same step, or the deletion of a
+  chosen entry, lands at the same moment, the save is 409 "This step
+  changed while saving. Try again.".
 
 ## Email
 

@@ -135,7 +135,7 @@ public class CharactersController : ControllerBase
     _db.Characters.Add(character);
     await _db.SaveChangesAsync(cancellationToken);
 
-    var detail = await LoadDetailAsync(
+    var detail = await _db.LoadCharacterDetailAsync(
         new CharacterAccessResult(character, IsOwner: true, IsReadOnly: false),
         cancellationToken);
 
@@ -155,7 +155,7 @@ public class CharactersController : ControllerBase
   {
     var access = await _characterAccess.RequireReadAsync(characterId, cancellationToken);
 
-    return Ok(await LoadDetailAsync(access, cancellationToken));
+    return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
   }
 
   /// <summary>
@@ -191,7 +191,7 @@ public class CharactersController : ControllerBase
     _db.Entry(character).Property(c => c.Name).IsModified = true;
     await _db.SaveChangesAsync(cancellationToken);
 
-    return Ok(await LoadDetailAsync(access, cancellationToken));
+    return Ok(await _db.LoadCharacterDetailAsync(access, cancellationToken));
   }
 
   /// <summary>
@@ -213,50 +213,5 @@ public class CharactersController : ControllerBase
     await _db.SaveChangesAsync(cancellationToken);
 
     return NoContent();
-  }
-
-  // Choices are not filtered by IsGmOnly: a character keeps showing an entry
-  // that became GM-only after it was chosen (decision in P6-05), and only
-  // the owner and GameMasters can read a character anyway.
-  private async Task<CharacterDetailDto> LoadDetailAsync(
-      CharacterAccessResult access,
-      CancellationToken cancellationToken)
-  {
-    var characterId = access.Character.Id;
-    var isOwner = access.IsOwner;
-    var isReadOnly = access.IsReadOnly;
-
-    var detail = await _db.Characters
-        .AsNoTracking()
-        .Where(c => c.Id == characterId)
-        .Select(c => new CharacterDetailDto(
-            c.Id,
-            c.CampaignSettingId,
-            c.CampaignSetting.Name,
-            c.OwnerUserId,
-            c.Owner.DisplayName,
-            c.Name,
-            c.Status,
-            c.CurrentStep,
-            c.Backstory,
-            isOwner,
-            isReadOnly,
-            c.Choices
-                .OrderBy(choice => choice.StepKey)
-                .ThenBy(choice => choice.Ordinal)
-                .Select(choice => new CharacterChoiceDto(
-                    choice.StepKey,
-                    choice.Ordinal,
-                    choice.EntryId,
-                    choice.Entry == null ? null : choice.Entry.Name,
-                    choice.Entry == null ? null : choice.Entry.EntryType,
-                    choice.FreeText))
-                .ToList(),
-            c.CreatedAt,
-            c.UpdatedAt))
-        .SingleOrDefaultAsync(cancellationToken);
-
-    // Deleted between the access check and this read.
-    return detail ?? throw new NotFoundException("Character not found.");
   }
 }
