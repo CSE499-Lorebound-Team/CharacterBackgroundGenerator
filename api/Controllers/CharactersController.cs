@@ -158,6 +158,42 @@ public class CharactersController : ControllerBase
     return Ok(await LoadDetailAsync(access, cancellationToken));
   }
 
+  /// <summary>
+  /// Replaces the name and backstory. Only the owner while still a member
+  /// of the setting; a removed owner or a GameMaster gets 403. The backstory
+  /// is free text, never rendered as HTML by the API.
+  /// </summary>
+  [HttpPut("{characterId:guid}")]
+  [ProducesResponseType<CharacterDetailDto>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
+  [ProducesResponseType(StatusCodes.Status403Forbidden)]
+  [ProducesResponseType(StatusCodes.Status404NotFound)]
+  public async Task<ActionResult<CharacterDetailDto>> Update(
+      Guid characterId,
+      UpdateCharacterRequest request,
+      CancellationToken cancellationToken)
+  {
+    var access = await _characterAccess.RequireWriteAsync(characterId, cancellationToken);
+
+    var name = request.Name.Trim();
+    if (name.Length == 0)
+    {
+      ModelState.AddModelError(nameof(request.Name), "The name cannot be blank.");
+      return ValidationProblem(ModelState);
+    }
+
+    var character = access.Character;
+    character.Name = name;
+    character.Backstory = string.IsNullOrWhiteSpace(request.Backstory) ? null : request.Backstory;
+
+    // Saving always counts as an update, so UpdatedAt moves even when the
+    // values are unchanged (the list sorts by it).
+    _db.Entry(character).Property(c => c.Name).IsModified = true;
+    await _db.SaveChangesAsync(cancellationToken);
+
+    return Ok(await LoadDetailAsync(access, cancellationToken));
+  }
+
   // Choices are not filtered by IsGmOnly: a character keeps showing an entry
   // that became GM-only after it was chosen (decision in P6-05), and only
   // the owner and GameMasters can read a character anyway.

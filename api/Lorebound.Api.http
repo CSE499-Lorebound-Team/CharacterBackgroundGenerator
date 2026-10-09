@@ -292,3 +292,16 @@ GET {{HostAddress}}/api/characters/<CHARACTER_ID>
 GET {{HostAddress}}/api/characters?status=Draft&search=aster
 
 ###
+
+### Rename a character and set its free-text backstory (owner, while still a member of the setting).
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Aster Vane",
+  "backstory": "Born in the shadow of the towers."
+}
+
+###

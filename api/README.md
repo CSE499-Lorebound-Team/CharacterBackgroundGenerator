@@ -482,6 +482,7 @@ fails if a controller routed under `api/characters` does not inject
 | `GET /api/characters` | 401 | 200, only the caller's own characters | 200 | 200, listed with `isReadOnly: true` | 200, only their own |
 | `POST /api/characters` | 401 | 404 (setting) | **201** (any member, GameMasters too) | 404 (setting) | **201**, their own character |
 | `GET /api/characters/{id}` | 401 | 404 | 200 | 200, `isReadOnly: true` | 200, `isReadOnly: true` |
+| `PUT /api/characters/{id}` | 401 | 404 | 200 | 403 | 403 |
 
 - `GET /api/characters` lists **only the caller's own characters** (the
   Characters page and dashboard), most recently updated first. Query:
@@ -510,6 +511,15 @@ fails if a controller routed under `api/characters` does not inject
   break a character after the fact; only the owner and GameMasters can read
   a character). A deleted entry leaves `entryId`, `entryName` and
   `entryType` null.
+- `PUT /api/characters/{id}` body `{ name, backstory? }` replaces both.
+  Only the owner while still a member (`RequireWriteAsync`); a removed owner
+  gets 403 with the read-only reason, a GameMaster 403. `name` is trimmed,
+  1-100 characters (blank is 400 keyed `Name`). **`backstory` is plain free
+  text** up to 10000 characters (400 keyed `Backstory`), stored exactly as
+  sent; the API never renders or sanitizes it as HTML, so the frontend must
+  display it as text. Missing or blank clears it. Every successful save
+  moves `updatedAt`, even with unchanged values. Returns 200
+  `CharacterDetailDto`.
 
 ## Email
 
