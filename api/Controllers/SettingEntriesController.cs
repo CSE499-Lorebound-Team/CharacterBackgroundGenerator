@@ -232,9 +232,11 @@ public class SettingEntriesController : ControllerBase
 
   /// <summary>
   /// Deletes an entry. GameMasters only. An entry that still has
-  /// relationships (either direction) is 409 with <c>relationshipCount</c>
-  /// and nothing changes, unless <paramref name="force"/> is true: then its
-  /// relationships and the entry go together in one transaction.
+  /// relationships (either direction) or that characters have chosen is 409
+  /// with <c>relationshipCount</c> and <c>characterCount</c> and nothing
+  /// changes, unless <paramref name="force"/> is true: then its
+  /// relationships and the entry go together in one transaction, and the
+  /// characters keep their choices without the entry (P6-09).
   /// </summary>
   [HttpDelete("{entryId:guid}")]
   [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -256,17 +258,29 @@ public class SettingEntriesController : ControllerBase
 
     var relationshipCount = await relationships.CountAsync(cancellationToken);
 
-    if (relationshipCount > 0 && !force)
+    // Characters (not choices) that chose this entry, whatever their owner.
+    var characterCount = await _db.CharacterChoices
+        .Where(choice => choice.EntryId == entryId)
+        .Select(choice => choice.CharacterId)
+        .Distinct()
+        .CountAsync(cancellationToken);
+
+    if ((relationshipCount > 0 || characterCount > 0) && !force)
     {
       throw new ConflictException(
-          $"This entry has {relationshipCount} relationship(s). Delete them first, " +
-          "or pass force=true to delete them with the entry.",
-          new Dictionary<string, object?> { ["relationshipCount"] = relationshipCount });
+          $"This entry has {relationshipCount} relationship(s) and is chosen by " +
+          $"{characterCount} character(s). Pass force=true to delete its relationships " +
+          "with it; those characters keep their choice without the entry.",
+          new Dictionary<string, object?>
+          {
+            ["relationshipCount"] = relationshipCount,
+            ["characterCount"] = characterCount,
+          });
     }
 
-    // P6-09 extension point: refuse here (409, before anything is deleted)
-    // when characters have chosen this entry, whatever the value of force.
-
+    // With force, the database sets CharacterChoice.EntryId to null (FK
+    // SetNull, P6-01): the characters stay and show the choice with no
+    // entry name (P6-05).
     await using var transaction = await _db.Database.BeginTransactionAsync(cancellationToken);
 
     await relationships.ExecuteDeleteAsync(cancellationToken);

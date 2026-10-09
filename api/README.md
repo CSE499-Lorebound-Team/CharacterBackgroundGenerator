@@ -101,7 +101,7 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   `ConflictException` (409) from `Errors/`; `ApiExceptionHandler` maps them.
   Their message becomes `detail`, so write it for API clients. A
   `ConflictException` may carry extra members for the client, e.g.
-  `{ relationshipCount }` when deleting a linked entry.
+  `{ relationshipCount, characterCount }` when deleting a linked entry.
 - Invalid request bodies return 400 `ValidationProblemDetails` with an
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
@@ -378,12 +378,14 @@ another entry's relationships.
   `SettingEntryDto` with a new `updatedAt`. Making an entry GM-only does
   **not** change characters that already chose it (P6-05).
 - `DELETE .../entries/{id}` of an entry that has relationships (either
-  direction) is **409** with a `relationshipCount` member in the problem
-  JSON, and nothing changes. With `?force=true` its relationships and the
-  entry are deleted in one transaction (other relationships are kept).
-  **204** on success; deleting again is 404. P6-09 adds a guard against
-  deleting entries characters have chosen, at the marked extension point in
-  `SettingEntriesController.Delete`.
+  direction) **or that characters have chosen** (P6-09) is **409** with
+  `relationshipCount` and `characterCount` members in the problem JSON
+  (`characterCount` counts characters, not choices, of every owner), and
+  nothing changes. With `?force=true` its relationships and the entry are
+  deleted in one transaction (other relationships are kept), and the
+  characters stay: their choices of this entry keep their step but get a
+  null `entryId` (FK SetNull), shown with `entryName: null`. **204** on
+  success; deleting again is 404.
 
 ### Relationship endpoints
 
@@ -479,9 +481,22 @@ fails if a controller routed under `api/characters` does not inject
 
 | Endpoint | Anonymous | Non-member, other Player or missing | Owner, member | Owner, removed | GameMaster of the setting |
 | --- | --- | --- | --- | --- | --- |
+| `GET /api/characters` | 401 | 200, only the caller's own characters | 200 | 200, listed with `isReadOnly: true` | 200, only their own |
 | `POST /api/characters` | 401 | 404 (setting) | **201** (any member, GameMasters too) | 404 (setting) | **201**, their own character |
 | `GET /api/characters/{id}` | 401 | 404 | 200 | 200, `isReadOnly: true` | 200, `isReadOnly: true` |
+| `PUT /api/characters/{id}` | 401 | 404 | 200 | 403 | 403 |
+| `DELETE /api/characters/{id}` | 401 | 404 | **204** | **204** | 403 (their own: 204) |
 
+- `GET /api/characters` lists **only the caller's own characters** (the
+  Characters page and dashboard), most recently updated first. Query:
+  `status` (`Draft`/`Complete`; another value is 400), `settingId`,
+  `search` (name contains, ignoring case; wildcards match literally),
+  `page`/`pageSize`. Returns `PagedResult<CharacterListItemDto>`: `{ id,
+  name, status, settingId, settingName, homelandName, currentStep,
+  isReadOnly, updatedAt }`. `homelandName` is the first `homeland` choice's
+  entry name or free text (null if none, or if its entry was deleted).
+  `isReadOnly` is true once the caller is no longer a member of the setting;
+  those characters stay listed.
 - `POST /api/characters` body `{ settingId, name? }`. The caller must be a
   member of the setting; a non-member and a missing setting get the same 404
   "Setting not found.". The new character is owned by the caller, `Draft`,
@@ -499,6 +514,36 @@ fails if a controller routed under `api/characters` does not inject
   break a character after the fact; only the owner and GameMasters can read
   a character). A deleted entry leaves `entryId`, `entryName` and
   `entryType` null.
+- `PUT /api/characters/{id}` body `{ name, backstory? }` replaces both.
+  Only the owner while still a member (`RequireWriteAsync`); a removed owner
+  gets 403 with the read-only reason, a GameMaster 403. `name` is trimmed,
+  1-100 characters (blank is 400 keyed `Name`). **`backstory` is plain free
+  text** up to 10000 characters (400 keyed `Backstory`), stored exactly as
+  sent; the API never renders or sanitizes it as HTML, so the frontend must
+  display it as text. Missing or blank clears it. Every successful save
+  moves `updatedAt`, even with unchanged values. Returns 200
+  `CharacterDetailDto`.
+- `DELETE /api/characters/{id}`: only the owner (`RequireOwnerAsync`),
+  **also after removal from the setting**, so a read-only character can
+  still be cleaned up. A GameMaster gets 403 "Only the character's owner
+  can do this." for anyone else's character. The database cascade removes
+  its choices; the chosen entries stay. **204**; deleting again is 404.
+
+### GameMaster view of a setting's characters
+
+`GET /api/settings/{sid}/characters` (`SettingCharactersController`): every
+character in the setting, **including those of removed players**, most
+recently updated first. GameMasters only: Player 403, non-member 404
+(identical to a missing setting), anonymous 401. It is read only;
+GameMasters have no write endpoint for other people's characters.
+
+- Query: `status`, `search` (character name **or owner display name**
+  contains, ignoring case; wildcards match literally), `page`/`pageSize`.
+- Returns `PagedResult<SettingCharacterListItemDto>`: `{ id, name, status,
+  ownerUserId, ownerDisplayName, ownerIsMember, homelandName, currentStep,
+  updatedAt }`. `ownerIsMember` is false for a removed player's character
+  (the setting owner always counts as a member). Open one with
+  `GET /api/characters/{id}`.
 
 ## Email
 

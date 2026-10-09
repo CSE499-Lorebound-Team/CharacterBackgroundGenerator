@@ -214,7 +214,7 @@ Content-Type: application/json
 
 ###
 
-### Delete an entry (GameMaster). 409 with relationshipCount if it has relationships; add ?force=true to delete them too.
+### Delete an entry (GameMaster). 409 with relationshipCount and characterCount if it has relationships or characters chose it; ?force=true deletes its relationships too and leaves those characters with a null choice.
 
 DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
 X-Requested-With: Lorebound
@@ -284,5 +284,37 @@ Content-Type: application/json
 ### One character with its choices (its owner, or a GameMaster of its setting).
 
 GET {{HostAddress}}/api/characters/<CHARACTER_ID>
+
+###
+
+### Your own characters, most recently updated first. Optional: status (Draft/Complete), settingId, search, page, pageSize.
+
+GET {{HostAddress}}/api/characters?status=Draft&search=aster
+
+###
+
+### Rename a character and set its free-text backstory (owner, while still a member of the setting).
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Aster Vane",
+  "backstory": "Born in the shadow of the towers."
+}
+
+###
+
+### Delete your character and its choices (owner only, also after leaving the setting).
+
+DELETE {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+
+###
+
+### Every character in a setting, removed players' included (GameMaster). Optional: status, search, page, pageSize.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/characters?status=Complete
 
 ###

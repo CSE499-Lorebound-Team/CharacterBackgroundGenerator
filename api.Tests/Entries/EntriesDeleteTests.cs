@@ -55,6 +55,7 @@ public class EntriesDeleteTests : PostgresTestBase
       Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
       var problem = await JsonAssert.ReadProblemAsync(response);
       Assert.Equal(2, problem.GetProperty("relationshipCount").GetInt32());
+      Assert.Equal(0, problem.GetProperty("characterCount").GetInt32());
       Assert.True(problem.TryGetProperty("traceId", out _));
     }
 
@@ -77,6 +78,80 @@ public class EntriesDeleteTests : PostgresTestBase
     Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
     Assert.Equal((2, 1), await CountsAsync());
     Assert.Equal(kept.Id, await Factory.WithDbAsync(db => db.SettingEntryRelationships.Select(r => r.Id).SingleAsync()));
+  }
+
+  // P6-09: characters that chose the entry block the delete too.
+  [Fact]
+  public async Task An_entry_chosen_by_characters_is_409_with_characterCount_and_nothing_changes()
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var sharn = await world.AddEntryAsync("Sharn");
+    var breland = await world.AddEntryAsync("Breland");
+    await world.LinkAsync(sharn, breland, "Capital of");
+    // Two choices of one character count once; another owner's counts too.
+    var aster = await world.AddCharacterAsync(Caller.Player, "Aster");
+    await world.AddChoiceAsync(aster, "homeland", sharn);
+    await world.AddChoiceAsync(aster, "visited", sharn);
+    var npc = await world.AddCharacterAsync(Caller.GameMaster, "NPC");
+    await world.AddChoiceAsync(npc, "homeland", sharn);
+    await world.AddChoiceAsync(npc, "allegiance", breland);
+
+    var response = await DeleteAsync(world, Caller.GameMaster, sharn.Id);
+
+    Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    var problem = await JsonAssert.ReadProblemAsync(response);
+    Assert.Equal(1, problem.GetProperty("relationshipCount").GetInt32());
+    Assert.Equal(2, problem.GetProperty("characterCount").GetInt32());
+    Assert.Equal((2, 1), await CountsAsync());
+    Assert.Equal(3, await Factory.WithDbAsync(db => db.CharacterChoices.CountAsync(c => c.EntryId == sharn.Id)));
+  }
+
+  [Fact]
+  public async Task An_entry_chosen_only_by_characters_is_409_with_no_relationships()
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var sharn = await world.AddEntryAsync("Sharn");
+    var aster = await world.AddCharacterAsync(Caller.Player);
+    await world.AddChoiceAsync(aster, "homeland", sharn);
+
+    var response = await DeleteAsync(world, Caller.GameMaster, sharn.Id);
+
+    Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    var problem = await JsonAssert.ReadProblemAsync(response);
+    Assert.Equal(0, problem.GetProperty("relationshipCount").GetInt32());
+    Assert.Equal(1, problem.GetProperty("characterCount").GetInt32());
+    Assert.Equal((1, 0), await CountsAsync());
+  }
+
+  [Fact]
+  public async Task Force_keeps_the_characters_with_a_null_choice()
+  {
+    var world = await SharingWorld.SeedAsync(Factory);
+    var sharn = await world.AddEntryAsync("Sharn");
+    var breland = await world.AddEntryAsync("Breland");
+    await world.LinkAsync(sharn, breland, "Capital of");
+    var aster = await world.AddCharacterAsync(Caller.Player, "Aster");
+    var homeland = await world.AddChoiceAsync(aster, "homeland", sharn);
+    var kept = await world.AddChoiceAsync(aster, "allegiance", breland);
+    var personality = await world.AddChoiceAsync(aster, "personality", freeText: "Curious");
+
+    var response = await DeleteAsync(world, Caller.GameMaster, sharn.Id, "?force=true");
+
+    Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+    Assert.Equal((1, 0), await CountsAsync());
+    var choices = await Factory.WithDbAsync(db => db.CharacterChoices.ToDictionaryAsync(c => c.Id));
+    Assert.Equal(3, choices.Count);
+    Assert.Equal(aster.Id, choices[homeland.Id].CharacterId);
+    Assert.Null(choices[homeland.Id].EntryId);
+    Assert.Equal(breland.Id, choices[kept.Id].EntryId);
+    Assert.Equal("Curious", choices[personality.Id].FreeText);
+
+    // The character still reads, with the choice's entry name null.
+    var detail = await world[Caller.Player].GetAsync($"/api/characters/{aster.Id}");
+    Assert.Equal(HttpStatusCode.OK, detail.StatusCode);
+    var homelandChoice = (await JsonAssert.ReadJsonAsync(detail)).GetProperty("choices").EnumerateArray()
+        .Single(c => c.GetProperty("stepKey").GetString() == "homeland");
+    Assert.Equal(System.Text.Json.JsonValueKind.Null, homelandChoice.GetProperty("entryName").ValueKind);
   }
 
   [Fact]

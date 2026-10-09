@@ -675,7 +675,7 @@ GM-only lore must never reach a Player, so entries (P4-07) are covered through H
 | Relationships to GM-only entries are left out of a Player's entry detail | `Entries/EntriesDetailTests` |
 | Anonymous 401 and non-member 404 (identical to a missing setting) on every entries endpoint | `Entries/EntriesBoundaryTests` |
 | Player writes are 403, whether the entry is public, hidden or missing | `Entries/EntriesBoundaryTests` (plus each endpoint's own tests) |
-| Delete is 409 with `relationshipCount` unless `force=true`; force removes only that entry's relationships | `Entries/EntriesDeleteTests` |
+| Delete is 409 with `relationshipCount` and `characterCount` unless `force=true`; force removes only that entry's relationships and keeps characters with a null choice (P6-09) | `Entries/EntriesDeleteTests` |
 | Names are unique per (setting, type) ignoring case, in the database and as 409 from create and update, including concurrent creates | `Data/SettingEntryTests`, `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests` |
 | Validation, search wildcards, paging and type filter | `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests`, `Entries/EntriesListTests` |
 | Relationship storage: self-links and duplicate (source, target, type) links rejected by the database; type and description length limits | `Data/SettingEntryRelationshipTests` |
@@ -711,8 +711,13 @@ Characters (Phase 6) are being built issue by issue; this table grows with each 
 | Deleting a setting deletes its characters and their choices; deleting a character deletes its choices; deleting an entry keeps the choice with a null entry; a user who owns characters cannot be deleted | `Data/CharacterTests` |
 | Access matrix: the owner who is still a member reads and writes; a removed owner reads and deletes only (403 on write, with a clear reason); a GameMaster of the setting reads only (403 on write and delete); everyone else and a missing character get the same 404; re-joining restores write access | `Auth/CharacterAccessTests` |
 | Every controller under `api/characters` authorizes through `ICharacterAccess` | `Conventions/CharacterAccessConventionTests` |
+| List: only the caller's own characters, newest update first; `status`, `settingId` and `search` filters (wildcards literal), paging; `homelandName` from the homeland choice; `isReadOnly` after removal | `Characters/CharactersListTests` |
 | Create: any member (GameMasters too) starts a draft they own with defaults; name trimmed, blank becomes "Unnamed Character", over 100 is 400; non-member, removed player and missing setting get the same 404; anonymous 401 | `Characters/CharactersCreateTests` |
 | Detail: choices resolved and sorted; owner reads and writes, a removed owner and the setting's GameMasters read only; another player, a non-member and a missing id get the same 404; a chosen entry that became GM-only keeps its name, a deleted one shows a null name | `Characters/CharactersDetailTests` |
+| Update: the owner changes name (trimmed, 1-100) and free-text backstory (up to 10000, stored as sent, blank clears); `updatedAt` always moves; invalid values are 400 and change nothing; a removed owner and the setting's GameMasters get 403; others 404 | `Characters/CharactersUpdateTests` |
+| Delete: the owner deletes (also when read-only after removal) and the choices go with it, the entries stay; a GameMaster gets 403 for another player's character but deletes their own; others 404 | `Characters/CharactersDeleteTests` |
+| GameMaster view: every character of the setting (removed players' too, flagged `ownerIsMember: false`) with owner name, newest first; `status` and character-or-owner `search` filters, paging; Player 403, non-member 404 identical to a missing setting | `Characters/SettingCharactersListTests` |
+| Deleting an entry characters chose is 409 with `characterCount` (characters, not choices); `force=true` deletes it and leaves the characters intact with a null choice that still reads | `Entries/EntriesDeleteTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
 
