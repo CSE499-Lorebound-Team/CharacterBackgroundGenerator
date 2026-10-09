@@ -728,13 +728,14 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Cha
 
 ### Builder test suite
 
-Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P7-02) and saving choices (P7-03) so far, with stale detection and completion to follow.
+Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P7-02), saving choices (P7-03) and stale detection (P7-04) so far, with completion to follow.
 
 | Requirement | Tests |
 | --- | --- |
 | Catalog: 8 steps, unique keys, contiguous orders, the agreed key/entry type/required per step; every `CharacterStepKeys` constant is a catalog key; steps that store nothing allow 0 selections; `GET /api/builder/steps` returns it in order (401 anonymous) | `Builder/BuilderStepsTests` |
 | Options: a homeland linked to two cultures offers only those, links followed in either direction; no linked candidate (or no earlier choice) offers all, not narrowed; only the step's type in the character's setting; only earlier steps narrow; a Player never gets GM-only entries and hidden links or hidden chosen entries do not narrow; steps without an entry type have none; unknown step 404; owner-with-write only (removed owner and GameMaster 403, non-member and missing 404, anonymous 401) | `Builder/StepOptionsTests` |
 | Save a choice: stores the entry or trimmed free text and returns the character; saving again replaces only that step; no answer clears it; `currentStep` only moves forward and `updatedAt` always moves; wrong type, too many selections, text on an entry step, entries on a text step and text over 2000 are 400 keyed by field; another setting's, hidden and missing entries get the identical 400; an entry that became GM-only after being chosen can be kept; GameMasters may choose GM-only entries for their own characters; `setting`/`review` 400, unknown step 404; only the owner with write access (removed owner, GameMaster and setting owner 403, non-member 404, anonymous 401), and refusals change nothing | `Builder/SaveChoiceTests`, `Characters/CharacterReadOnlyTests` |
+| Stale steps: switching homeland flags the culture in the save response and on `GET`, keeps the choice, and a fitting answer clears it; several stale steps listed in step order; no narrowing means nothing stale; a new character and a deleted chosen entry are not stale; judged by the owner's view, so a link to a GM-only entry never flags a Player's step (for the GameMaster reader too); `staleSteps` on every character detail | `Builder/StaleStepsTests`, `Characters/CharactersCreateTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
 

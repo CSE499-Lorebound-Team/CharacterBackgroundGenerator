@@ -50,10 +50,21 @@ public static class CharacterQueries
                     choice.FreeText))
                 .ToList(),
             c.CreatedAt,
-            c.UpdatedAt))
+            c.UpdatedAt,
+            Array.Empty<string>()))
         .SingleOrDefaultAsync(cancellationToken);
 
     // Deleted between the access check and this read.
-    return detail ?? throw new NotFoundException("Character not found.");
+    if (detail is null)
+    {
+      throw new NotFoundException("Character not found.");
+    }
+
+    // Stale steps are judged by the owner's view of the setting, whoever
+    // reads the character (P7-04).
+    var ownerRole = await db.LoadOwnerRoleAsync(detail.SettingId, detail.OwnerUserId, cancellationToken);
+    var staleSteps = await db.LoadStaleStepsAsync(detail.Id, detail.SettingId, ownerRole, cancellationToken);
+
+    return detail with { StaleSteps = staleSteps };
   }
 }
