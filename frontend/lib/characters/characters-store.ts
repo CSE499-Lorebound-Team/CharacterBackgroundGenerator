@@ -148,3 +148,37 @@ import type {
   
     return true;
   }
+  export function updateCharacterProgress(
+    id: string,
+    currentStep: number
+  ): Character | undefined {
+    const characters =
+      getAllCharacters();
+  
+    const existing =
+      characters.find(
+        (character) =>
+          character.id === id
+      );
+  
+    if (!existing) {
+      return undefined;
+    }
+  
+    const updated: Character = {
+      ...existing,
+      currentStep,
+      updatedAt:
+        new Date().toISOString(),
+    };
+  
+    saveCharacters(
+      characters.map((character) =>
+        character.id === id
+          ? updated
+          : character
+      )
+    );
+  
+    return updated;
+  }
