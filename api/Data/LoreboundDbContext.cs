@@ -60,7 +60,8 @@ public class LoreboundDbContext
           .HasDatabaseName("EmailIndex")
           .IsUnique();
 
-      // A user who owns settings cannot be hard-deleted (see P6-11).
+      // A user who owns settings cannot be hard-deleted; DELETE /api/users/me
+      // deletes their settings first (P6-11).
       user.HasMany(u => u.CampaignSettings)
           .WithOne(setting => setting.Owner)
           .HasForeignKey(setting => setting.OwnerUserId)
