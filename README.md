@@ -728,7 +728,7 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Cha
 
 ### Builder test suite
 
-Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P7-02), saving choices (P7-03), stale detection (P7-04) and completion (P7-05).
+Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P7-02), saving choices (P7-03), stale detection (P7-04) and completion (P7-05), plus an end-to-end flow suite (P7-06) that drives the whole builder only through HTTP: a GameMaster writes and links the lore, a Player walks the steps from the catalog. Each endpoint file tests one rule; `Builder/BuilderFlowTests` proves they work together.
 
 | Requirement | Tests |
 | --- | --- |
@@ -737,6 +737,7 @@ Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P
 | Save a choice: stores the entry or trimmed free text and returns the character; saving again replaces only that step; no answer clears it; `currentStep` only moves forward and `updatedAt` always moves; wrong type, too many selections, text on an entry step, entries on a text step and text over 2000 are 400 keyed by field; another setting's, hidden and missing entries get the identical 400; an entry that became GM-only after being chosen can be kept; GameMasters may choose GM-only entries for their own characters; `setting`/`review` 400, unknown step 404; only the owner with write access (removed owner, GameMaster and setting owner 403, non-member 404, anonymous 401), and refusals change nothing | `Builder/SaveChoiceTests`, `Characters/CharacterReadOnlyTests` |
 | Stale steps: switching homeland flags the culture in the save response and on `GET`, keeps the choice, and a fitting answer clears it; several stale steps listed in step order; no narrowing means nothing stale; a new character and a deleted chosen entry are not stale; judged by the owner's view, so a link to a GM-only entry never flags a Player's step (for the GameMaster reader too); `staleSteps` on every character detail | `Builder/StaleStepsTests`, `Characters/CharactersCreateTests` |
 | Complete and reopen: every required step answered completes; missing required steps, a stale step, a deleted or mistyped chosen entry and a blank name are 400 keyed by step (or `Name`) and change nothing; completing twice is a no-op; answers are 409 while complete and editable again after reopening; only the owner with write access (removed owner, GameMaster and setting owner 403, non-member 404, anonymous 401) | `Builder/CompleteReopenTests`, `Characters/CharacterReadOnlyTests` |
+| Flow (P7-06): a Player walks every catalog step (options, then save) and completes, seen in their list and the GameMaster's view; narrowing with and without linked candidates (a GM-only linked culture never shown); wrong type, cross-setting, hidden and too many selections rejected with the character unchanged; changing homeland strands the culture, completion refused until it is fixed, then complete, locked, reopened and edited; a removed player reads but cannot build | `Builder/BuilderFlowTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
 
