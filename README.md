@@ -709,6 +709,7 @@ Characters (Phase 6) are being built issue by issue; this table grows with each 
 | --- | --- |
 | Character storage: draft defaults, status stored as its name, name and backstory limits; choices are an entry or free text but never both, unique per (character, step, ordinal), with text limits | `Data/CharacterTests` |
 | Deleting a setting deletes its characters and their choices; deleting a character deletes its choices; deleting an entry keeps the choice with a null entry; a user who owns characters cannot be deleted | `Data/CharacterTests` |
+| Access matrix: the owner who is still a member reads and writes; a removed owner reads and deletes only (403 on write, with a clear reason); a GameMaster of the setting reads only (403 on write and delete); everyone else and a missing character get the same 404; re-joining restores write access | `Auth/CharacterAccessTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
 
