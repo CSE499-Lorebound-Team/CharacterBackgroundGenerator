@@ -728,11 +728,12 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Cha
 
 ### Builder test suite
 
-Phase 7 checks the guided builder: the step catalog (P7-01) so far, with options, choices and completion to follow.
+Phase 7 checks the guided builder: the step catalog (P7-01) and narrowed options (P7-02) so far, with choices and completion to follow.
 
 | Requirement | Tests |
 | --- | --- |
 | Catalog: 8 steps, unique keys, contiguous orders, the agreed key/entry type/required per step; every `CharacterStepKeys` constant is a catalog key; steps that store nothing allow 0 selections; `GET /api/builder/steps` returns it in order (401 anonymous) | `Builder/BuilderStepsTests` |
+| Options: a homeland linked to two cultures offers only those, links followed in either direction; no linked candidate (or no earlier choice) offers all, not narrowed; only the step's type in the character's setting; only earlier steps narrow; a Player never gets GM-only entries and hidden links or hidden chosen entries do not narrow; steps without an entry type have none; unknown step 404; owner-with-write only (removed owner and GameMaster 403, non-member and missing 404, anonymous 401) | `Builder/StepOptionsTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
 

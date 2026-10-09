@@ -274,6 +274,12 @@ GET {{HostAddress}}/api/builder/steps
 
 ###
 
+### Options for one builder step (owner with write access), narrowed by earlier choices when any option is linked to them.
+
+GET {{HostAddress}}/api/characters/<CHARACTER_ID>/steps/culture/options
+
+###
+
 ### Start a draft character in a setting you belong to (any member). Name is optional.
 
 POST {{HostAddress}}/api/characters
