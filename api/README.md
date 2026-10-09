@@ -527,6 +527,22 @@ fails if a controller routed under `api/characters` does not inject
   can do this." for anyone else's character. The database cascade removes
   its choices; the chosen entries stay. **204**; deleting again is 404.
 
+### GameMaster view of a setting's characters
+
+`GET /api/settings/{sid}/characters` (`SettingCharactersController`): every
+character in the setting, **including those of removed players**, most
+recently updated first. GameMasters only: Player 403, non-member 404
+(identical to a missing setting), anonymous 401. It is read only;
+GameMasters have no write endpoint for other people's characters.
+
+- Query: `status`, `search` (character name **or owner display name**
+  contains, ignoring case; wildcards match literally), `page`/`pageSize`.
+- Returns `PagedResult<SettingCharacterListItemDto>`: `{ id, name, status,
+  ownerUserId, ownerDisplayName, ownerIsMember, homelandName, currentStep,
+  updatedAt }`. `ownerIsMember` is false for a removed player's character
+  (the setting owner always counts as a member). Open one with
+  `GET /api/characters/{id}`.
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,

@@ -312,3 +312,9 @@ DELETE {{HostAddress}}/api/characters/<CHARACTER_ID>
 X-Requested-With: Lorebound
 
 ###
+
+### Every character in a setting, removed players' included (GameMaster). Optional: status, search, page, pageSize.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/characters?status=Complete
+
+###
