@@ -241,3 +241,29 @@ Content-Type: application/json
 }
 
 ###
+
+### Change a relationship's type and description (GameMaster). Source and target cannot change.
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>/relationships/<RELATIONSHIP_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "relationshipType": "Largest city of",
+  "description": "And the richest."
+}
+
+###
+
+### Delete a relationship (GameMaster). The entries stay.
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/relationships/<RELATIONSHIP_ID>
+X-Requested-With: Lorebound
+
+###
+
+### Suggested relationship types (any signed-in user). Other text is accepted too.
+
+GET {{HostAddress}}/api/relationship-types
+
+###

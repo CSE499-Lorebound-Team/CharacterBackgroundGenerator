@@ -692,7 +692,9 @@ The relationship endpoints (Phase 5) are tested through HTTP the same way, reusi
 | `entryId` returns incoming and outgoing links; an entry the caller cannot see is the same 404 as a missing one | `Relationships/RelationshipsListTests` |
 | Links to an entry of another setting, or to a missing entry, are 400 and create nothing; the setting comes from the route | `Relationships/RelationshipsCreateTests` |
 | Self-link 400; duplicate 409, including concurrent creates; another type or direction is allowed | `Relationships/RelationshipsCreateTests` |
-| Anonymous 401, non-member 404, Player write 403 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsCreateTests` |
+| Update changes only type and description; changing source or target is 400; a relationship of another setting is 404; delete is 204 and keeps the entries | `Relationships/RelationshipsUpdateDeleteTests` |
+| Types: normalized (trim, single spaces, suggested spelling), compared ignoring case in the database and as 409; `GET /api/relationship-types` | `Relationships/RelationshipTypesTests`, `Data/SettingEntryRelationshipTests` |
+| Anonymous 401, non-member 404, Player write 403 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsCreateTests`, `Relationships/RelationshipsUpdateDeleteTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Relationship"`.
 
