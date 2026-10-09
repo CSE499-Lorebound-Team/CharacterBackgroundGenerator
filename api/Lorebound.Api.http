@@ -214,7 +214,7 @@ Content-Type: application/json
 
 ###
 
-### Delete an entry (GameMaster). 409 with relationshipCount if it has relationships; add ?force=true to delete them too.
+### Delete an entry (GameMaster). 409 with relationshipCount and characterCount if it has relationships or characters chose it; ?force=true deletes its relationships too and leaves those characters with a null choice.
 
 DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
 X-Requested-With: Lorebound

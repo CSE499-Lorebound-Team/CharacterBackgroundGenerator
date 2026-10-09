@@ -101,7 +101,7 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
   `ConflictException` (409) from `Errors/`; `ApiExceptionHandler` maps them.
   Their message becomes `detail`, so write it for API clients. A
   `ConflictException` may carry extra members for the client, e.g.
-  `{ relationshipCount }` when deleting a linked entry.
+  `{ relationshipCount, characterCount }` when deleting a linked entry.
 - Invalid request bodies return 400 `ValidationProblemDetails` with an
   `errors` dictionary keyed by field name.
 - Any other exception returns a generic 500 with no exception details.
@@ -378,12 +378,14 @@ another entry's relationships.
   `SettingEntryDto` with a new `updatedAt`. Making an entry GM-only does
   **not** change characters that already chose it (P6-05).
 - `DELETE .../entries/{id}` of an entry that has relationships (either
-  direction) is **409** with a `relationshipCount` member in the problem
-  JSON, and nothing changes. With `?force=true` its relationships and the
-  entry are deleted in one transaction (other relationships are kept).
-  **204** on success; deleting again is 404. P6-09 adds a guard against
-  deleting entries characters have chosen, at the marked extension point in
-  `SettingEntriesController.Delete`.
+  direction) **or that characters have chosen** (P6-09) is **409** with
+  `relationshipCount` and `characterCount` members in the problem JSON
+  (`characterCount` counts characters, not choices, of every owner), and
+  nothing changes. With `?force=true` its relationships and the entry are
+  deleted in one transaction (other relationships are kept), and the
+  characters stay: their choices of this entry keep their step but get a
+  null `entryId` (FK SetNull), shown with `entryName: null`. **204** on
+  success; deleting again is 404.
 
 ### Relationship endpoints
 
