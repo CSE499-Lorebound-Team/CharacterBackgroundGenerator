@@ -12,15 +12,19 @@ One request for the dashboard page.
 
 ## Tasks
 - [ ] Return `{ counts: { settingsAsGm, settingsAsPlayer, charactersDraft, charactersComplete }, recentSettings (5), recentCharacters (5), recentActivity (10) }`.
+- [ ] `counts`: settings the caller owns or is a GameMaster of (the owner counts even without a membership row), settings where the caller is a Player, and the caller's own characters by status.
+- [ ] `recentSettings` and `recentCharacters` are the 5 most recently updated, with the same item shape as `GET /api/settings` and `GET /api/characters`.
 - [ ] `recentActivity` is derived from `UpdatedAt` across the caller's settings, visible entries, and characters (no activity-log table).
-- [ ] Activity items: `{ kind, text, at }` with texts such as "Edited Osepia" or "Updated Theron Vale".
+- [ ] Activity items: `{ kind, text, at, id, settingId }`. `kind` is `Setting`, `Entry` or `Character`; `id` is that item and `settingId` its setting, so the dashboard can link to it.
+- [ ] Activity text names what changed, not who changed it (nothing records who): "Created Osepia" / "Edited Osepia", "Added Sasymon to Osepia" / "Edited Sasymon", "Started Theron Vale" / "Updated Theron Vale". The first form applies while `UpdatedAt` equals `CreatedAt`.
 - [ ] Respect visibility rules (no hidden entries for players).
 
 ## Implementation details
 - Use three small `AsNoTracking` queries; union in memory; avoid N+1.
 
 ## Acceptance criteria
-- Response matches what the dashboard renders today.
+- The response matches this spec and the Dashboard section of `api/README.md`.
+- The API sets the list sizes (5, 5, 10). The current dashboard page (3 cards, mock data) is a draft; it adapts to this contract in P9-15 unless the team reviews and changes the spec.
 
 @@@ P8-02
 title: Development seed data
