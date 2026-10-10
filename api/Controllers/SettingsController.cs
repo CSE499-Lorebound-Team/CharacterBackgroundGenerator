@@ -164,29 +164,7 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
               setting.UpdatedAt)
           .Skip(pageQuery.Skip)
           .Take(pageQuery.PageSize)
-          .Select(setting =>
-              new SettingListItemDto(
-                  setting.Id,
-                  setting.Name,
-                  setting.Description,
-                  // Players do not count GM-only entries (P4-01).
-                  setting.Entries.Count(entry =>
-                      !entry.IsGmOnly ||
-                      setting.OwnerUserId == userId ||
-                      setting.Memberships.Any(membership =>
-                          membership.UserId == userId &&
-                          membership.Role == SettingRole.GameMaster)),
-                  setting.OwnerUserId == userId
-                      ? "GameMaster"
-                      : setting.Memberships
-                          .Where(membership =>
-                              membership.UserId == userId)
-                          .Select(membership =>
-                              membership.Role.ToString())
-                          .First(),
-                  setting.OwnerUserId == userId,
-                  setting.Owner.DisplayName,
-                  setting.UpdatedAt))
+          .ToListItems(userId)
           .ToListAsync();
 
   return Ok(

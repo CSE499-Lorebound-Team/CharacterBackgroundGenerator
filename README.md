@@ -741,6 +741,19 @@ Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
 
+### Dashboard test suite
+
+`GET /api/dashboard` (P8-01) is covered through HTTP against the real database in `Dashboard/DashboardTests`, reusing `TestSupport/SharingWorld`:
+
+| Check | Where |
+|---|---|
+| Anonymous 401; the response, counts and activity items have exactly the documented fields | `Dashboard/DashboardTests` |
+| Counts by role (owner, GameMaster, Player, non-member; the owner without a membership row still counts as GameMaster) and by character status | `Dashboard/DashboardTests` |
+| Recent settings and characters: the five most recently updated, identical to the first page of `GET /api/settings` and `GET /api/characters`; a Player's `entryCount` leaves out GM-only entries | `Dashboard/DashboardTests` |
+| Activity: settings, entries and characters merged newest first, capped at ten; created vs edited wording; Players never see GM-only entries; other settings and other users' characters left out; a removed player keeps their characters but loses the setting's activity | `Dashboard/DashboardTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Dashboard"`.
+
 ---
 
 # Testing Frontend and API Together

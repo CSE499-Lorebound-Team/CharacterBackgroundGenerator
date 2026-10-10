@@ -1,12 +1,38 @@
 using Lorebound.Api.Auth;
 using Lorebound.Api.Dtos.Characters;
 using Lorebound.Api.Errors;
+using Lorebound.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Lorebound.Api.Data;
 
 public static class CharacterQueries
 {
+  /// <summary>
+  /// Characters as the Characters page and dashboard list them, seen by
+  /// their owner <paramref name="userId"/>. Read-only matches
+  /// <see cref="ICharacterAccess"/>: the setting owner always counts as a
+  /// member.
+  /// </summary>
+  public static IQueryable<CharacterListItemDto> ToListItems(
+      this IQueryable<Character> characters,
+      Guid userId) =>
+      characters.Select(c => new CharacterListItemDto(
+          c.Id,
+          c.Name,
+          c.Status,
+          c.CampaignSettingId,
+          c.CampaignSetting.Name,
+          c.Choices
+              .Where(choice => choice.StepKey == CharacterStepKeys.Homeland)
+              .OrderBy(choice => choice.Ordinal)
+              .Select(choice => choice.Entry != null ? choice.Entry.Name : choice.FreeText)
+              .FirstOrDefault(),
+          c.CurrentStep,
+          c.CampaignSetting.OwnerUserId != userId
+              && !c.CampaignSetting.Memberships.Any(m => m.UserId == userId),
+          c.UpdatedAt));
+
   /// <summary>
   /// The character in <paramref name="access"/> with its choices, as every
   /// character endpoint returns it. Choices are not filtered by

@@ -378,3 +378,9 @@ Content-Type: application/json
 }
 
 ###
+
+### Dashboard: counts, 5 recent settings, 5 recent characters and the 10 latest changes you can see.
+
+GET {{HostAddress}}/api/dashboard
+
+###

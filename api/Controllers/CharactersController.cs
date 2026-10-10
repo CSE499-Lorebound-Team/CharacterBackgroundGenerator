@@ -77,28 +77,12 @@ public class CharactersController : ControllerBase
 
     var totalCount = await query.CountAsync(cancellationToken);
 
-    // Read-only matches ICharacterAccess: the setting owner always counts as
-    // a member.
     var items = await query
         .OrderByDescending(c => c.UpdatedAt)
         .ThenBy(c => c.Id)
         .Skip(pageQuery.Skip)
         .Take(pageQuery.PageSize)
-        .Select(c => new CharacterListItemDto(
-            c.Id,
-            c.Name,
-            c.Status,
-            c.CampaignSettingId,
-            c.CampaignSetting.Name,
-            c.Choices
-                .Where(choice => choice.StepKey == CharacterStepKeys.Homeland)
-                .OrderBy(choice => choice.Ordinal)
-                .Select(choice => choice.Entry != null ? choice.Entry.Name : choice.FreeText)
-                .FirstOrDefault(),
-            c.CurrentStep,
-            c.CampaignSetting.OwnerUserId != userId
-                && !c.CampaignSetting.Memberships.Any(m => m.UserId == userId),
-            c.UpdatedAt))
+        .ToListItems(userId)
         .ToListAsync(cancellationToken);
 
     return Ok(new PagedResult<CharacterListItemDto>(items, pageQuery.Page, pageQuery.PageSize, totalCount));
