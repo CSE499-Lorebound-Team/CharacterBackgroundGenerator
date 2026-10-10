@@ -524,8 +524,9 @@ fails if a controller routed under `api/characters` does not inject
   `CharacterDetailDto`.
 - `CharacterDetailDto`: `{ id, settingId, settingName, ownerUserId,
   ownerDisplayName, name, status, currentStep, backstory, isOwner,
-  isReadOnly, choices[], createdAt, updatedAt }`. `isOwner` tells the
-  frontend whether to offer delete; `isReadOnly` whether to offer editing.
+  isReadOnly, choices[], createdAt, updatedAt, staleSteps }`. `isOwner` tells the
+  frontend whether to offer delete; `isReadOnly` whether to offer editing;
+  `staleSteps` (P7-04) lists builder steps to revisit, see [Builder](#builder).
 - Each choice is `{ stepKey, ordinal, entryId, entryName, entryType,
   freeText }`, sorted by `stepKey` then `ordinal`. **A chosen entry that
   later became GM-only keeps showing its name** (decision: never hide or
@@ -641,6 +642,18 @@ use it (`RequireWriteAsync`).
   changes nothing. If another save of the same step, or the deletion of a
   chosen entry, lands at the same moment, the save is 409 "This step
   changed while saving. Try again.".
+- **Stale steps** (P7-04): every `CharacterDetailDto` (the choice save
+  response and `GET /api/characters/{id}` included) has `staleSteps`, the
+  keys, in step order, of entry steps whose options are now narrowed but
+  no longer include the entry chosen for them, typically because an
+  earlier step changed (switching homeland can strand the culture). The
+  choice is **kept**, never deleted; saving a fitting answer clears the
+  flag, and completing is refused while any step is stale (P7-05).
+  - Judged by the **owner's** view of the setting, whoever reads it (a
+    removed owner counts as a Player), so a link to a GM-only entry never
+    makes a Player's step stale and the GameMaster sees the same list.
+  - A choice whose entry was deleted is not stale; completion reports it
+    as missing.
 
 ## Email
 

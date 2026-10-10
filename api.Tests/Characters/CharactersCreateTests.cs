@@ -20,6 +20,7 @@ public class CharactersCreateTests : PostgresTestBase
   [
     "id", "settingId", "settingName", "ownerUserId", "ownerDisplayName", "name", "status",
     "currentStep", "backstory", "isOwner", "isReadOnly", "choices", "createdAt", "updatedAt",
+    "staleSteps",
   ];
 
   private static Task<HttpResponseMessage> CreateAsync(SharingWorld world, Caller caller, object body) =>

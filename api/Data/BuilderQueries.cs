@@ -76,6 +76,73 @@ public static class BuilderQueries
     return new BuilderOptions(false, await ToOptionsAsync(candidates, cancellationToken));
   }
 
+  /// <summary>
+  /// The keys, in step order, of a character's stale steps (P7-04): entry
+  /// steps whose options are narrowed by earlier choices but no longer
+  /// include an entry chosen for the step, typically after an earlier step
+  /// changed. Computed for <paramref name="role"/>, the owner's role, so a
+  /// Player's character is judged by what the Player may see. A choice whose
+  /// entry was deleted is not stale (P7-05 reports it as missing).
+  /// </summary>
+  public static async Task<IReadOnlyList<string>> LoadStaleStepsAsync(
+      this LoreboundDbContext db,
+      Guid characterId,
+      Guid settingId,
+      SettingRole role,
+      CancellationToken cancellationToken = default)
+  {
+    var chosen = await db.CharacterChoices
+        .AsNoTracking()
+        .Where(choice => choice.CharacterId == characterId && choice.EntryId != null)
+        .Select(choice => new { choice.StepKey, EntryId = choice.EntryId!.Value })
+        .ToListAsync(cancellationToken);
+
+    var stale = new List<string>();
+    foreach (var step in BuilderSteps.All.Where(step => step.EntryType is not null))
+    {
+      var entryIds = chosen.Where(choice => choice.StepKey == step.Key).Select(choice => choice.EntryId).ToList();
+      if (entryIds.Count == 0)
+      {
+        continue;
+      }
+
+      var options = await db.LoadOptionsAsync(characterId, settingId, step, role, cancellationToken);
+      if (options.Narrowed && entryIds.Any(id => options.Options.All(option => option.EntryId != id)))
+      {
+        stale.Add(step.Key);
+      }
+    }
+
+    return stale;
+  }
+
+  /// <summary>
+  /// The role the character's owner holds in its setting: the setting owner
+  /// is a GameMaster; an owner removed from the setting is judged as a
+  /// Player, so a read-only character never reveals hidden lore.
+  /// </summary>
+  public static async Task<SettingRole> LoadOwnerRoleAsync(
+      this LoreboundDbContext db,
+      Guid settingId,
+      Guid ownerUserId,
+      CancellationToken cancellationToken = default)
+  {
+    var row = await db.CampaignSettings
+        .AsNoTracking()
+        .Where(setting => setting.Id == settingId)
+        .Select(setting => new
+        {
+          IsSettingOwner = setting.OwnerUserId == ownerUserId,
+          Role = setting.Memberships
+              .Where(membership => membership.UserId == ownerUserId)
+              .Select(membership => (SettingRole?)membership.Role)
+              .FirstOrDefault(),
+        })
+        .SingleOrDefaultAsync(cancellationToken);
+
+    return row is { IsSettingOwner: true } ? SettingRole.GameMaster : row?.Role ?? SettingRole.Player;
+  }
+
   private static Task<List<BuilderOption>> ToOptionsAsync(
       IQueryable<SettingEntry> entries,
       CancellationToken cancellationToken) =>
