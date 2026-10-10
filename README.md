@@ -32,6 +32,7 @@ The application allows Game Masters to define information about their setting an
 - [Environment Configuration](#environment-configuration)
 - [Database Development](#database-development)
   - [Quick Setup (Recommended)](#quick-setup-recommended)
+  - [Seed Data](#seed-data)
   - [Changing the Database Password](#changing-the-database-password)
 - [Pulling New Dependencies](#pulling-new-dependencies)
 - [Common Development Workflow](#common-development-workflow)
@@ -754,6 +755,10 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Bui
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Dashboard"`.
 
+### Seed data tests
+
+`Data/DevelopmentSeederTests` (P8-02) checks that the seed creates the documented world (one GM-only entry), that running it twice adds nothing and a re-run restores missing rows without changing edited ones, that both seeded users sign in and see role-appropriate data (the Player never sees the GM-only entry), and that `Seed:Enabled` seeds at startup in Development but stops startup in Production and Staging.
+
 ---
 
 # Testing Frontend and API Together
@@ -1052,6 +1057,29 @@ This applies every migration in `api/Data/Migrations/`. Run it again whenever yo
 ### 5. Verify
 
 Run the API (`dotnet run` in `api/`) and open `/api/health`. It should report `"database": "connected"`.
+
+## Seed data
+
+To make a fresh database look like the wireframes, start the API once with `--seed` from `api/`:
+
+```powershell
+dotnet run -- --seed
+```
+
+It seeds, then keeps running as usual. The database must be up to date first (step 4, or `scripts/onboard.ps1`); otherwise it stops and names the missing migrations. To seed on every start instead, set `Seed:Enabled` (`dotnet user-secrets set "Seed:Enabled" "true"`, or the `Seed__Enabled=true` environment variable).
+
+| Sign in as | Email | Password | Role in "Osepia" |
+|---|---|---|---|
+| Joseph Marlow | `gm@lorebound.local` | `lorebound-gm-dev` | GameMaster (owner) |
+| Lyra Holt | `player@lorebound.local` | `lorebound-player-dev` | Player |
+
+What you get:
+
+- The setting **Osepia** with 9 entries: Sasymon, Ymenite Region and Northern Marches (locations), River Cities and Nigallu (cultures), Merchant Guild (organization), Caravan Guard and Scholar (professions), and **Cult of Beléna** (religion, **GM-only**: the Player never sees it).
+- 7 relationships between them, so the builder narrows cultures by homeland (Sasymon to River Cities, Northern Marches to Nigallu). The one involving the Cult is hidden from the Player too.
+- The Player's draft character **Theron Vale**, with Sasymon as homeland, on the culture step.
+
+Seeding is **safe to run again**: it only adds what is missing and never changes or resets existing rows, including passwords. It runs **only in Development**: with seeding on in any other environment the API refuses to start, so these passwords never reach Production. To start over, recreate the database (`docker compose down -v`, `docker compose up -d`, then step 4).
 
 ## Changing the database password
 

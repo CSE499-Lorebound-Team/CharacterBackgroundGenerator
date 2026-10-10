@@ -7,7 +7,16 @@ using Lorebound.Api.Errors;
 using Lorebound.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
-var builder = WebApplication.CreateBuilder(args);
+// `dotnet run -- --seed` turns on the Development seed data (P8-02). The
+// bare flag is removed first: the command-line config provider expects a
+// value after it.
+var seed = args.Contains(DevelopmentSeedingSetup.CommandLineFlag);
+var builder = WebApplication.CreateBuilder(
+    args.Where(arg => arg != DevelopmentSeedingSetup.CommandLineFlag).ToArray());
+if (seed)
+{
+    builder.Configuration[DevelopmentSeedingSetup.EnabledKey] = "true";
+}
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -66,6 +75,7 @@ builder.Services.AddDbContext<LoreboundDbContext>(options =>
 builder.Services.AddLoreboundAuthentication();
 builder.Services.AddLoreboundEmail(builder.Environment);
 builder.Services.AddLoreboundRateLimiting();
+builder.Services.AddDevelopmentSeeding();
 
 var app = builder.Build();
 
