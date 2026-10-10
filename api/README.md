@@ -18,6 +18,13 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   "Migrations" in the root README for commands and rules.
 - User emails are unique at the database level (`EmailIndex` on
   `NormalizedEmail`), not only through Identity's app-level check.
+- Development seed data (P8-02) is `Data/DevelopmentSeeder.cs`, run at
+  startup by `DevelopmentSeedingSetup` when `Seed:Enabled` is true
+  (`dotnet run -- --seed` sets it). It finds every row by its natural key
+  before adding it, so it is idempotent and never overwrites; outside
+  Development, enabling it stops startup. Users, passwords and contents are
+  in "Seed data" in the root README. When a model change breaks the seed,
+  update the seeder in the same PR (`Data/DevelopmentSeederTests` fails).
 - Entities implementing `ITimestamped` get `CreatedAt`/`UpdatedAt` set on save.
   `ExecuteUpdate`/`ExecuteDelete` bypass this, so set `UpdatedAt` yourself.
 - Access to a setting is a `SettingMembership` row (`GameMaster` or `Player`),

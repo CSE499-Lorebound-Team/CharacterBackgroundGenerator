@@ -39,14 +39,16 @@ depends: P5-03, P6-03
 A fresh clone should look like the wireframes.
 
 ## Tasks
-- [ ] Dev-only seeder behind `--seed` or `Seed:Enabled` config.
-- [ ] Users: a GM and a Player (documented dev passwords, never in Production).
-- [ ] Setting "Osepia" with entries (Sasymon, Ymenite Region, Northern Marches, Nigallu, Merchant Guild, Cult of Beléna), at least one GM-only entry, and relationships.
-- [ ] Player membership and a draft character (Theron Vale).
-- [ ] Idempotent (safe to run twice).
+- [ ] Dev-only seeder behind `--seed` (`dotnet run -- --seed`, which seeds and then keeps running) or `Seed:Enabled` config.
+- [ ] Users: a GM and a Player (documented dev passwords, never in Production): `gm@lorebound.local` / `lorebound-gm-dev` (Joseph Marlow) and `player@lorebound.local` / `lorebound-player-dev` (Lyra Holt).
+- [ ] Setting "Osepia" with entries (Sasymon, Ymenite Region, Northern Marches, Nigallu, Merchant Guild, Cult of Beléna), at least one GM-only entry, and relationships. Also River Cities (culture), Caravan Guard and Scholar (professions), so the builder has a culture to narrow to and professions to pick. Cult of Beléna is the GM-only entry.
+- [ ] Player membership and a draft character (Theron Vale), with Sasymon as homeland, on the culture step.
+- [ ] Idempotent (safe to run twice): rows are found by natural key and only missing ones are added; existing rows, passwords included, are never changed.
+- [ ] With seeding on outside Development (Production, Staging, ...), the API refuses to start.
 
 ## Acceptance criteria
 - After seeding, both users can log in and see role-appropriate data.
+- The users, passwords and seeded contents are documented in the root README ("Seed data").
 
 @@@ P8-03
 title: OpenAPI polish and API explorer in Development
