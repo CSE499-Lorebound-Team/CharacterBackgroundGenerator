@@ -39,6 +39,7 @@ public class UsersController : ControllerBase
     _logger = logger;
   }
 
+  /// <summary>The signed-in user's profile.</summary>
   [HttpGet("me")]
   [ProducesResponseType<UserProfileDto>(StatusCodes.Status200OK)]
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]

@@ -86,6 +86,47 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   (`record CreateX([Required] string Name)`), not `[property: Required]`;
   MVC rejects the latter with a 500.
 
+## OpenAPI and the API explorer
+
+In **Development only** (P8-03):
+
+- `/openapi/v1.json` is the OpenAPI document.
+- `/scalar` is the Scalar explorer for browsing every endpoint and trying it.
+  - "Try it" runs in the API's own origin. Call `POST /api/auth/login`
+    first; the browser then keeps and sends the cookie.
+  - Writes need the `X-Requested-With: Lorebound` header, which the
+    explorer lists as a required header on every write.
+- Neither is served in other environments.
+
+How the document is built:
+
+- **Your job, per action:**
+  - a `/// <summary>` XML doc comment, which becomes the operation summary;
+  - `[ProducesResponseType]` for its success status (with the DTO type)
+    and for the domain errors it can return (400 validation, 403, 404,
+    409).
+
+  `OpenApiDocumentTests` fails if an action has no summary or no success
+  response, if a success body has no schema, or if an action is missing
+  from the document.
+- **Derived from metadata, never written by hand** (`OpenApi/OpenApiSetup.cs`):
+  - **401** and the `cookieAuth` security requirement (the
+    `lorebound.auth` cookie) on every action without `[AllowAnonymous]`;
+  - the required **`X-Requested-With`** header parameter and its **403**
+    on every POST, PUT, PATCH and DELETE;
+  - **429** on every action with `[EnableRateLimiting]`.
+
+  Adding an endpoint therefore documents these automatically.
+- **JSON only:**
+  - bodies are `application/json`;
+  - error responses are `application/problem+json`, with `ProblemDetails`,
+    or the validation shape with `errors` for 400;
+  - the exception is an action that declares its own error body type
+    (`/api/health`'s 503 returns `HealthResponse`).
+- The document description covers the cookie sign-in flow, the CSRF
+  header, problem+json errors with `traceId`, and the 404-for-non-members
+  rule.
+
 ## Paging
 
 - List endpoints take `[FromQuery] PageQuery` (`page` defaults to 1,
@@ -199,7 +240,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension
 - **Secure by default:** a fallback policy requires a signed-in user on every
   endpoint. Mark public actions `[AllowAnonymous]` (minimal endpoints:
   `.AllowAnonymous()`). Today only `/api/health`, the anonymous `/api/auth`
-  actions and the Development OpenAPI document are public;
+  actions, the Development OpenAPI document and the Development API explorer
+  (`/scalar/...`) are public;
   `FallbackPolicyTests` lists them, so adding one is a deliberate change.
   Never put `[AllowAnonymous]` on a controller class: it overrides
   `[Authorize]` on every action.

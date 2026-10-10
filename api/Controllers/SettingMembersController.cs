@@ -36,6 +36,7 @@ public class SettingMembersController : ControllerBase
   /// <summary>Owner first, then GameMasters, then Players, each oldest first.</summary>
   [HttpGet]
   [ProducesResponseType<PagedResult<MemberDto>>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
   [ProducesResponseType(StatusCodes.Status404NotFound)]
   public async Task<ActionResult<PagedResult<MemberDto>>> List(
       Guid settingId,

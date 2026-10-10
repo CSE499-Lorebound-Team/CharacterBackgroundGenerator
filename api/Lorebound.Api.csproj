@@ -5,6 +5,11 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>b0953554-3abc-43bb-9441-d90046cc2d8f</UserSecretsId>
+    <!-- XML doc comments become OpenAPI summaries and descriptions (P8-03).
+         CS1591 (undocumented public member) is off: only actions and DTOs
+         need comments, and OpenApiDocumentTests checks the actions. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,6 +22,7 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.12" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="Scalar.AspNetCore" Version="2.17.14" />
   </ItemGroup>
 
 </Project>

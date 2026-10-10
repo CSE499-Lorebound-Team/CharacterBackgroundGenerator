@@ -54,6 +54,9 @@ public class FallbackPolicyTests : IClassFixture<ApiFactory>
         .Where(endpoint => endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()
             ?.ControllerTypeInfo.Assembly != typeof(FallbackPolicyTests).Assembly)
         .Select(endpoint => endpoint.RoutePattern.RawText!.Trim('/').ToLowerInvariant())
+        // The Development-only API explorer and its assets (P8-03); not
+        // mapped outside Development (OpenApiDocumentTests).
+        .Where(route => !route.StartsWith("scalar/"))
         .Order();
 
     Assert.Equal(

@@ -12,6 +12,11 @@ namespace Lorebound.Api.Controllers;
 [Route("api/builder")]
 public class BuilderController : ControllerBase
 {
+  /// <summary>
+  /// The builder steps in order, with what each one stores: an entry type
+  /// from the setting or free text, whether it is required, and how many
+  /// answers it allows.
+  /// </summary>
   [HttpGet("steps")]
   [ProducesResponseType<BuilderStepsDto>(StatusCodes.Status200OK)]
   public ActionResult<BuilderStepsDto> GetSteps() =>

@@ -12,6 +12,10 @@ namespace Lorebound.Api.Controllers;
 [Route("api/relationship-types")]
 public class RelationshipTypesController : ControllerBase
 {
+  /// <summary>
+  /// The suggested relationship types, in display order. Any other label
+  /// is allowed too; these keep wording consistent.
+  /// </summary>
   [HttpGet]
   [ProducesResponseType<RelationshipTypesDto>(StatusCodes.Status200OK)]
   public ActionResult<RelationshipTypesDto> Get() =>
