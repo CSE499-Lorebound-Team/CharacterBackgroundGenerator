@@ -29,6 +29,8 @@ public class CharacterReadOnlyTests : PostgresTestBase
   {
     ["PUT api/characters/{characterId:guid}"] = new { name = "Renamed", backstory = "Changed." },
     ["PUT api/characters/{characterId:guid}/choices/{stepKey}"] = new { freeText = "Revenge." },
+    ["POST api/characters/{characterId:guid}/complete"] = new { },
+    ["POST api/characters/{characterId:guid}/reopen"] = new { },
   };
 
   private async Task<(SharingWorld World, Character Character)> SeedAsync()

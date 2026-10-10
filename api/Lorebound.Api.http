@@ -302,6 +302,20 @@ Content-Type: application/json
 
 ###
 
+### Complete a character: 400 lists each missing, invalid or stale step by key.
+
+POST {{HostAddress}}/api/characters/<CHARACTER_ID>/complete
+X-Requested-With: Lorebound
+
+###
+
+### Reopen a complete character so its answers can change again.
+
+POST {{HostAddress}}/api/characters/<CHARACTER_ID>/reopen
+X-Requested-With: Lorebound
+
+###
+
 ### Start a draft character in a setting you belong to (any member). Name is optional.
 
 POST {{HostAddress}}/api/characters

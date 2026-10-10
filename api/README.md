@@ -604,6 +604,8 @@ use it (`RequireWriteAsync`).
 | --- | --- | --- | --- | --- | --- |
 | `GET /api/characters/{id}/steps/{key}/options` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
 | `PUT /api/characters/{id}/choices/{key}` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
+| `POST /api/characters/{id}/complete` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
+| `POST /api/characters/{id}/reopen` | 401 | 404 | 200 | 403 | 403 (their own: 200) |
 
 - `GET .../steps/{key}/options` returns `{ stepKey, narrowed, options:
   [{ entryId, name, description }] }`, sorted by name. An unknown `key`
@@ -654,6 +656,26 @@ use it (`RequireWriteAsync`).
     makes a Player's step stale and the GameMaster sees the same list.
   - A choice whose entry was deleted is not stale; completion reports it
     as missing.
+- `POST .../complete` (P7-05) sets `status` to `Complete` and returns 200
+  `CharacterDetailDto`, once:
+  - every required step (`homeland`, `culture`, `profession`,
+    `motivation`) has an answer; a choice whose entry was deleted does not
+    count ("Culture needs an answer.");
+  - every chosen entry is still in the character's setting with the
+    step's type ("The chosen entry no longer fits this step. Choose
+    again.");
+  - no step is stale ("This answer no longer fits your earlier choices.
+    Choose again.");
+  - the name is not blank (keyed `Name`).
+
+  Otherwise 400 with **one error per failing step, keyed by step key**,
+  and nothing changes. Completing a complete character again is 200 and a
+  no-op.
+- While a character is `Complete`, `PUT .../choices/{key}` is **409**
+  "This character is complete. Reopen it to change its answers."; name
+  and backstory (`PUT /api/characters/{id}`) stay editable.
+- `POST .../reopen` sets `status` back to `Draft` (200
+  `CharacterDetailDto`; a no-op for a draft), so answers can change again.
 
 ## Email
 
