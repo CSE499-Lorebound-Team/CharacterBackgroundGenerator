@@ -187,10 +187,9 @@ public class DevelopmentSeeder
 
     await _db.SaveChangesAsync(cancellationToken);
 
+    // No emails in logs (P8-05); the logins are in the README.
     _logger.LogInformation(
-        "Development seed data is in place: sign in as {GmEmail} (GameMaster) or {PlayerEmail} (Player).",
-        GmEmail,
-        PlayerEmail);
+        "Development seed data is in place. Sign-in details: README, \"Seed data\".");
   }
 
   private async Task<ApplicationUser> EnsureUserAsync(string email, string displayName, string password)

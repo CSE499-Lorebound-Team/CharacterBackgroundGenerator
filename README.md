@@ -439,6 +439,8 @@ A successful response should look similar to:
 
 If the database is not running, the endpoint returns `503` with `"database": "unreachable"`.
 
+Every request writes one log line to the terminal, such as `HTTP GET api/settings/{id:guid} responded 404 in 3.1 ms`, tagged with a `TraceId`. When an API error shows a `traceId`, search the terminal for it to find every log line from that request. See "Health and logging" in [api/README.md](api/README.md).
+
 ## Stop the API
 
 Press:
@@ -754,6 +756,10 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Bui
 | Activity: settings, entries and characters merged newest first, capped at ten; created vs edited wording; Players never see GM-only entries; other settings and other users' characters left out; a removed player keeps their characters but loses the setting's activity | `Dashboard/DashboardTests` |
 
 Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Dashboard"`.
+
+### Logging and health tests
+
+`Logging/RequestLoggingTests` (P8-05) checks that each request logs its method, route template and status with a `TraceId` scope equal to the problem+json `traceId` (also for an unhandled 500), that every log line of a request shares that `TraceId` and no line carries the raw path (unmatched routes log `(unmatched)`), and that no password, auth cookie, invite code or email reaches the logs across sign-up, login, password reset and invites. It also checks that `/api/health` uses the registered DbContext check. `Controllers/HealthControllerTests` (database down: 503 `unreachable`) and `Integration/HealthSmokeTests` (200 `connected`) cover the health responses.
 
 ### Seed data tests
 
