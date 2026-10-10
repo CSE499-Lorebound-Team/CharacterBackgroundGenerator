@@ -96,9 +96,66 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   { "items": [], "page": 1, "pageSize": 20, "totalCount": 0 }
   ```
 
+## Health and logging
+
+### `GET /api/health`
+
+Anonymous. It reports the registered `AddDbContextCheck<LoreboundDbContext>`
+(named `database`, P8-05); the response shape has not changed since P0-08:
+
+| Database | Status | Body |
+|---|---|---|
+| Reachable | 200 | `{ "status": "healthy", "application": "Lorebound API", "database": "connected" }` |
+| Down | 503 | `{ "status": "unhealthy", "application": "Lorebound API", "database": "unreachable" }` |
+
+### Request logging and `traceId`
+
+- `Logging/RequestLoggingMiddleware` writes **one line per request**:
+  `HTTP {Method} {Route} responded {StatusCode} in {ElapsedMs} ms`
+  (Information; Error for 5xx). `{Route}` is the matched **route
+  template** (`api/invites/{code}`), or `(unmatched)`, never the raw path
+  or query string.
+- Every log line written during a request (EF Core, Identity, the
+  exception handler's error log) carries a **`TraceId` scope** equal to the
+  `traceId` in that request's problem+json body. Both come from
+  `Logging/RequestTrace.Id`. Given a client's `traceId`, search the logs
+  for it.
+- **Output:** stdout only (console and Debug providers). Outside
+  Development it is one JSON object per line with scopes and UTC
+  timestamps, for log collectors. In Development it is readable text with
+  the scopes shown (`appsettings.Development.json`).
+- ASP.NET Core's own request logging
+  (`Microsoft.AspNetCore.Hosting.Diagnostics`) is set to `None`, because its
+  scope puts the raw path on every line. That is also why `Program.cs`
+  drops the Windows Event Log provider: its own filter would switch that
+  logger back on.
+
+### Never log secrets
+
+Do not log passwords, cookies or tokens, invite codes, or full emails.
+Log user ids instead (`"User {UserId} deleted their account."`).
+
+- Never log request or response bodies or headers, and never call
+  `EnableSensitiveDataLogging`. EF Core logs SQL with parameter
+  placeholders (`@p='?'`), never values.
+- The one deliberate exception is the **Development-only**
+  `ConsoleEmailSender`. It is the local mailbox, so it logs confirmation
+  and reset links, which contain tokens (and, for reset, the email).
+  Outside Development it is never registered.
+- `Logging/RequestLoggingTests` signs up, logs in (right and wrong
+  password), asks for a reset, previews, accepts and creates invites, and
+  asserts that none of the password, auth-cookie value, invite codes or
+  emails appears anywhere in what was logged: messages, values or scopes.
+  Tests read logs through `Factory.Logs` (`TestSupport/LogCapture`),
+  which is cleared before every test. The server can log a request just
+  after the client has its response, so wait for request lines with
+  `Factory.Logs.WaitForAsync(...)` rather than reading the list at once.
+
 ## Errors
 
-Every error is RFC 7807 `application/problem+json` with a `traceId` extension:
+Every error is RFC 7807 `application/problem+json` with a `traceId` extension
+(the same id as the request's `TraceId` log scope, see
+[Health and logging](#health-and-logging)):
 
 ```json
 { "type": "...", "title": "Not Found", "status": 404, "detail": "Setting not found.", "traceId": "00-..." }

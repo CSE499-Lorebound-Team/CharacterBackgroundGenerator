@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Lorebound.Api.Tests.TestSupport;
 
@@ -42,6 +43,8 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     // RateLimitTests restores it with WithConfig.
     builder.UseSetting("RateLimiting:Auth:PermitLimit", "100000");
 
+    builder.ConfigureLogging(logging => logging.AddProvider(Logs.CreateProvider()));
+
     // Test-only controllers (routes under /test), e.g. a protected route to
     // prove a login cookie authenticates.
     builder.ConfigureServices(services =>
@@ -57,6 +60,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
   /// <summary>Emails the API "sent" during the current test.</summary>
   public TestEmailSender Emails { get; } = new();
+
+  /// <summary>What the API logged during the current test (P8-05).</summary>
+  public LogCapture Logs { get; } = new();
 
   public const string DefaultPassword = "correct horse battery";
 

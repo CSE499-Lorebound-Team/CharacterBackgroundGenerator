@@ -1,9 +1,10 @@
-using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Lorebound.Api.Auth;
+using Lorebound.Api.Controllers;
 using Lorebound.Api.Data;
 using Lorebound.Api.Email;
 using Lorebound.Api.Errors;
+using Lorebound.Api.Logging;
 using Lorebound.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -18,6 +19,13 @@ if (seed)
     builder.Configuration[DevelopmentSeedingSetup.EnabledKey] = "true";
 }
 
+// Logs go to stdout only, as structured JSON outside Development (P8-05;
+// see Logging in appsettings*.json). The Windows Event Log provider is
+// dropped: its own filter would re-enable ASP.NET Core's hosting logger,
+// whose request scope carries the raw path (invite codes, ids) into every
+// log line.
+builder.Logging.ClearProviders().AddConsole().AddDebug();
+
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -27,11 +35,11 @@ builder.Services
         // Enums travel as names ("Location"), not numbers.
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-// Every error response is RFC 7807 problem+json carrying a traceId.
+// Every error response is RFC 7807 problem+json carrying a traceId, the
+// same id as the TraceId scope on that request's log lines (P8-05).
 builder.Services.AddProblemDetails(options =>
     options.CustomizeProblemDetails = context =>
-        context.ProblemDetails.Extensions["traceId"] =
-            Activity.Current?.Id ?? context.HttpContext.TraceIdentifier);
+        context.ProblemDetails.Extensions["traceId"] = RequestTrace.Id(context.HttpContext));
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 // Explicit origin allowlist from Cors:AllowedOrigins (in production, set
@@ -71,6 +79,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddDbContext<LoreboundDbContext>(options =>
     options.UseNpgsql(connectionString));
 
+// GET /api/health reports this check (P8-05).
+builder.Services
+    .AddHealthChecks()
+    .AddDbContextCheck<LoreboundDbContext>(HealthController.DatabaseCheck);
+
 // Identity with the httpOnly lorebound.auth cookie; no tokens anywhere.
 builder.Services.AddLoreboundAuthentication();
 builder.Services.AddLoreboundEmail(builder.Environment);
@@ -83,6 +96,9 @@ var app = builder.Build();
 // First, so everything after sees the real client IP and scheme behind a
 // trusted proxy (see RateLimitingSetup).
 app.UseForwardedHeaders();
+// Before the exception handler, so its error logs carry the TraceId scope
+// and the logged status is the final one.
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseExceptionHandler();
 // Bodyless error statuses (e.g. unmatched routes) also become problem+json.
 // The auth cookie writes its own 401/403 problem bodies.

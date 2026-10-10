@@ -105,12 +105,14 @@ depends: P0-08
 Operational visibility.
 
 ## Tasks
-- [ ] Extend `/api/health` with a DB check (`AddDbContextCheck`), keeping the current JSON shape and adding `database: "up|down"`.
-- [ ] Request logging with correlation id (`traceId`) that matches ProblemDetails.
-- [ ] Never log passwords, cookies, invite codes, or full emails.
+- [ ] Extend `/api/health` with a DB check (`AddDbContextCheck`), keeping the current JSON shape. The existing `database` field (P0-08) keeps its values: `"connected"` (200) or `"unreachable"` (503). Decided on review instead of the originally proposed `"up|down"`, so the delivered contract and its docs do not change.
+- [ ] Request logging with correlation id (`traceId`) that matches ProblemDetails: one line per request with method, **route template** (never the raw path or query string), status and duration, and a `TraceId` scope on every log line of the request.
+- [ ] Structured output: stdout only, one JSON object per line outside Development; readable text with scopes in Development.
+- [ ] Never log passwords, cookies, invite codes, or full emails. ASP.NET Core's hosting request logger (raw path in its scope) is off. The only exception is the Development-only console email sender, which is the local mailbox and logs the emailed links.
 
 ## Acceptance criteria
-- Stopping Postgres makes health report database down (HTTP 503).
+- Stopping Postgres makes health report database down (HTTP 503, `"database": "unreachable"`).
+- A test proves no password, cookie, invite code or email reaches the logs, and that the `TraceId` scope equals the problem `traceId`.
 
 @@@ P8-06
 title: Final README and API documentation pass

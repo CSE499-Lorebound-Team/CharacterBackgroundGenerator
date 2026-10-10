@@ -20,6 +20,7 @@ public abstract class PostgresTestBase : IAsyncLifetime
   public Task InitializeAsync()
   {
     Factory.Emails.Clear();
+    Factory.Logs.Clear();
     return Fixture.ResetAsync();
   }
 
