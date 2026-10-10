@@ -84,12 +84,14 @@ Total: **102 work items + 10 epics = 112 issues.**
 5. Merge into `dev` (never `main`). The default branch stays `main` (decided in P0-12), so `Closes #N` links the PR but does **not** close the issue. After merging, close each issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
 6. Migrations: one per PR, announce schema changes to the team before merging.
 7. Found something new? Open an issue from the forms (Task, Bug, Feature); it is auto-added to this board.
+8. **Spec and code always agree.** An issue's spec (here in `issues/` and the GitHub issue body) is the API contract, and the frontend builds against it. If the implementation has to differ (an added field, a changed rule), update the spec, both copies, and the API docs (`api/README.md`) in the same PR, and say so in the PR description. A spec is never left describing behavior the code does not have.
+9. **API specs rule over mock-data UI.** Pages that still run on mock data are drafts. Where one disagrees with an API issue (list sizes, fields, wording), the API issue wins, and the page adapts when it is wired up (Phase 9). Changing the contract takes a team review and a spec update, not a UI draft.
 
 ## Definition of Ready / Done
 
 **Ready:** clear acceptance criteria, all "Blocked by" issues closed, size S or M.
 
-**Done:** acceptance criteria met, tests written and green in CI, permission matrix tested (anonymous 401, non-member 404, player 403 on writes), docs updated, merged into `dev`.
+**Done:** acceptance criteria met, tests written and green in CI, permission matrix tested (anonymous 401, non-member 404, player 403 on writes), docs updated, the issue's spec matches what was built (Working agreement step 8), merged into `dev`.
 
 ## How issues are linked
 

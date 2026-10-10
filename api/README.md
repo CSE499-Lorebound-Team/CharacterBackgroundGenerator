@@ -677,6 +677,45 @@ use it (`RequireWriteAsync`).
 - `POST .../reopen` sets `status` back to `Draft` (200
   `CharacterDetailDto`; a no-op for a draft), so answers can change again.
 
+## Dashboard
+
+`DashboardController` (`GET /api/dashboard`, P8-01) returns the dashboard
+page in one request. Any signed-in user gets 200 (anonymous 401); a user
+with no settings gets zero counts and empty lists.
+
+```json
+{
+  "counts": { "settingsAsGm": 1, "settingsAsPlayer": 0, "charactersDraft": 1, "charactersComplete": 0 },
+  "recentSettings": [ /* up to 5 SettingListItemDto */ ],
+  "recentCharacters": [ /* up to 5 CharacterListItemDto */ ],
+  "recentActivity": [
+    { "kind": "Character", "text": "Updated Theron Vale", "at": "...", "id": "...", "settingId": "..." }
+  ]
+}
+```
+
+- `counts`: settings the caller owns or is a GameMaster of (the owner
+  counts even without a membership row), settings where they are a
+  Player, and their own characters by status.
+- `recentSettings` and `recentCharacters` are the first five items of
+  `GET /api/settings` and `GET /api/characters`, built by the same
+  projections (`SettingQueries.ToListItems`, `CharacterQueries.ToListItems`),
+  so the cards match the list pages (Players' `entryCount` leaves out
+  GM-only entries; `isReadOnly` after removal).
+- `recentActivity` is the ten most recent changes, derived from `UpdatedAt`
+  (there is no activity-log table): settings the caller belongs to, the
+  entries they may see in them (a Player never sees a GM-only entry), and
+  their own characters. One capped query per source, merged in memory.
+  `kind` is `Setting`, `Entry` or `Character`; `id` is that item and
+  `settingId` its setting, for links. Because nothing records who made a
+  change, the text names what changed, not who changed it:
+
+  | Kind | Never edited (`UpdatedAt = CreatedAt`) | Edited since |
+  |---|---|---|
+  | `Setting` | Created Osepia | Edited Osepia |
+  | `Entry` | Added Sasymon to Osepia | Edited Sasymon |
+  | `Character` | Started Theron Vale | Updated Theron Vale |
+
 ## Email
 
 - Confirmation and reset emails go through `IEmailSender<ApplicationUser>`,
