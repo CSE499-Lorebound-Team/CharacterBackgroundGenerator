@@ -14,7 +14,7 @@ namespace Lorebound.Api.Controllers;
 /// <summary>
 /// A setting's lore entries (Phase 4). Any member reads; only GameMasters
 /// write. GM-only entries are invisible to Players everywhere: every read
-/// goes through <see cref="SettingEntryQueries.VisibleTo"/>, and links to a
+/// goes through <see cref="SettingEntryQueries.VisibleTo(IQueryable{SettingEntry}, SettingRole)"/>, and links to a
 /// hidden entry are left out of a Player's relationship lists and counts.
 /// </summary>
 [ApiController]

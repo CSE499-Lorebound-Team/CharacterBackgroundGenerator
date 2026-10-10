@@ -585,7 +585,7 @@ dotnet run
 Test the affected endpoint using:
 
 - a browser
-- Swagger
+- the API explorer at `http://localhost:5110/scalar` (Development only): every endpoint with its request and response shapes. Sign in with `POST /api/auth/login` there first; writes need the `X-Requested-With: Lorebound` header it lists
 - Postman
 - another API client
 - the frontend application
@@ -760,6 +760,18 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Das
 ### Logging and health tests
 
 `Logging/RequestLoggingTests` (P8-05) checks that each request logs its method, route template and status with a `TraceId` scope equal to the problem+json `traceId` (also for an unhandled 500), that every log line of a request shares that `TraceId` and no line carries the raw path (unmatched routes log `(unmatched)`), and that no password, auth cookie, invite code or email reaches the logs across sign-up, login, password reset and invites. It also checks that `/api/health` uses the registered DbContext check. `Controllers/HealthControllerTests` (database down: 503 `unreachable`) and `Integration/HealthSmokeTests` (200 `connected`) cover the health responses.
+
+### OpenAPI tests
+
+`Conventions/OpenApiDocumentTests` (P8-03) reads `/openapi/v1.json` and checks that:
+
+- every API action appears in it, with a summary, a success response and JSON schemas for its bodies;
+- errors are `application/problem+json` (400 with validation `errors`);
+- exactly the public endpoints lack the cookie requirement, and every other one declares 401;
+- every write declares the required `X-Requested-With` header and 403, while reads don't;
+- exactly the rate-limited endpoints declare 429;
+- the description documents cookie auth and the CSRF header;
+- the document and the `/scalar` explorer are served in Development only.
 
 ### Seed data tests
 

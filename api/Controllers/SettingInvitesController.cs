@@ -110,6 +110,7 @@ public class SettingInvitesController : ControllerBase
   /// <summary>Every invite of the setting, newest first, with its current status.</summary>
   [HttpGet]
   [ProducesResponseType<PagedResult<InviteDto>>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
   [ProducesResponseType(StatusCodes.Status403Forbidden)]
   [ProducesResponseType(StatusCodes.Status404NotFound)]
   public async Task<ActionResult<PagedResult<InviteDto>>> List(

@@ -63,13 +63,15 @@ depends: P7-05
 Make the API self-documenting.
 
 ## Tasks
-- [ ] `ProducesResponseType` on all actions (200/201/204/400/401/403/404/409).
-- [ ] XML doc comments surfaced as operation descriptions.
-- [ ] Add an explorer UI in Development only (for example Scalar) against the built-in OpenAPI document.
+- [ ] `ProducesResponseType` on all actions for their success status and domain errors (200/201/204, 400, 403, 404, 409).
+- [ ] The cross-cutting statuses are derived from endpoint metadata by an OpenAPI transformer rather than repeated on every action, so they cannot drift: 401 plus the cookie security scheme on every non-`[AllowAnonymous]` action, the required `X-Requested-With` header and its 403 on every POST/PUT/PATCH/DELETE, and 429 on every rate-limited action.
+- [ ] Bodies are documented as `application/json` only, and errors as `application/problem+json` (400 with validation `errors`).
+- [ ] XML doc comments surfaced as operation descriptions (every action has a summary).
+- [ ] Add an explorer UI in Development only: Scalar at `/scalar`, against the built-in OpenAPI document at `/openapi/v1.json`. Neither is served outside Development.
 - [ ] Document the cookie auth flow and the `X-Requested-With` requirement in the OpenAPI description.
 
 ## Acceptance criteria
-- Every endpoint appears with request/response schemas.
+- Every endpoint appears with request/response schemas, enforced by `Conventions/OpenApiDocumentTests`.
 
 @@@ P8-04
 title: Query performance and index review

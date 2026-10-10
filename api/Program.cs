@@ -5,6 +5,8 @@ using Lorebound.Api.Data;
 using Lorebound.Api.Email;
 using Lorebound.Api.Errors;
 using Lorebound.Api.Logging;
+using Lorebound.Api.OpenApi;
+using Scalar.AspNetCore;
 using Lorebound.Api.Security;
 using Microsoft.EntityFrameworkCore;
 
@@ -27,8 +29,8 @@ if (seed)
 builder.Logging.ClearProviders().AddConsole().AddDebug();
 
 // Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// The OpenAPI document and its cross-cutting rules (P8-03); see OpenApiSetup.
+builder.Services.AddLoreboundOpenApi();
 builder.Services
     .AddControllers()
     .AddJsonOptions(options =>
@@ -119,6 +121,10 @@ app.UseAuthorization();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().AllowAnonymous();
+    // API explorer at /scalar (Development only). "Try it" runs in this
+    // origin, so sign in with POST /api/auth/login first and the cookie is
+    // sent; writes need the X-Requested-With header the document declares.
+    app.MapScalarApiReference(options => options.WithTitle("Lorebound API")).AllowAnonymous();
 }
 
 app.MapControllers();

@@ -25,9 +25,14 @@ public class HealthController : ControllerBase
         _healthChecks = healthChecks;
     }
 
+    /// <summary>
+    /// Whether the API is up and can reach its database. Public, for load
+    /// balancers and uptime checks: 200 with <c>database: "connected"</c>,
+    /// or 503 with <c>database: "unreachable"</c>.
+    /// </summary>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<HealthResponse>(StatusCodes.Status503ServiceUnavailable)]
     public async Task<IActionResult> Get(CancellationToken cancellationToken)
     {
         var report = await _healthChecks.CheckHealthAsync(cancellationToken);
@@ -35,15 +40,19 @@ public class HealthController : ControllerBase
             report.Entries.TryGetValue(DatabaseCheck, out var database)
             && database.Status == HealthStatus.Healthy;
 
-        var body = new
-        {
-            status = databaseReachable ? "healthy" : "unhealthy",
-            application = "Lorebound API",
-            database = databaseReachable ? "connected" : "unreachable"
-        };
+        var body = new HealthResponse(
+            databaseReachable ? "healthy" : "unhealthy",
+            "Lorebound API",
+            databaseReachable ? "connected" : "unreachable");
 
         return databaseReachable
             ? Ok(body)
             : StatusCode(StatusCodes.Status503ServiceUnavailable, body);
     }
 }
+
+/// <summary>
+/// <c>status</c> is <c>healthy</c> or <c>unhealthy</c>; <c>database</c> is
+/// <c>connected</c> or <c>unreachable</c>.
+/// </summary>
+public record HealthResponse(string Status, string Application, string Database);

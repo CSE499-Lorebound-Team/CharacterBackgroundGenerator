@@ -42,6 +42,7 @@ public class SettingRelationshipsController : ControllerBase
   /// </summary>
   [HttpGet]
   [ProducesResponseType<PagedResult<RelationshipDto>>(StatusCodes.Status200OK)]
+  [ProducesResponseType(StatusCodes.Status400BadRequest)]
   [ProducesResponseType(StatusCodes.Status404NotFound)]
   public async Task<ActionResult<PagedResult<RelationshipDto>>> List(
       Guid settingId,

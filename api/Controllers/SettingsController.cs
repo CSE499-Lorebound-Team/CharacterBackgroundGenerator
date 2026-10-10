@@ -9,6 +9,10 @@ using Lorebound.Api.Dtos.Common;
 
 namespace Lorebound.Api.Controllers;
 
+/// <summary>
+/// Campaign settings (Phase 2). Everyone sees only the settings they own or
+/// belong to; any other id is 404, like a missing one.
+/// </summary>
 [ApiController]
 [Route("api/settings")]
 public class SettingsController : ControllerBase
@@ -27,6 +31,11 @@ private readonly ISettingAccess _settingAccess;
     _settingAccess = settingAccess;
   }
 
+  /// <summary>
+  /// Creates a setting owned by the caller, who becomes its GameMaster. The
+  /// name is trimmed and must be unique among the caller's own settings,
+  /// ignoring case (409 otherwise).
+  /// </summary>
   [HttpPost]
 [ProducesResponseType<SettingDetailDto>(
     StatusCodes.Status201Created)]
@@ -92,12 +101,16 @@ public async Task<ActionResult<SettingDetailDto>> Create(
         dto);
     }
 
-  [HttpGet]
-  [ProducesResponseType<IEnumerable<SettingListItemDto>>(
-      StatusCodes.Status200OK)]
+  /// <summary>
+  /// The settings the caller owns or belongs to, most recently updated
+  /// first. <paramref name="search"/> matches the name (contains, ignoring
+  /// case); <paramref name="role"/> is <c>gm</c> or <c>player</c> (400
+  /// otherwise). Players' entry counts leave out GM-only entries.
+  /// </summary>
   [HttpGet]
 [ProducesResponseType<PagedResult<SettingListItemDto>>(
     StatusCodes.Status200OK)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
 public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
     [FromQuery] string? search,
     [FromQuery] string? role,
@@ -175,6 +188,11 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
           totalCount));
 }
 
+  /// <summary>
+  /// One setting with the caller's role, the member count and entry counts
+  /// by type (GM-only entries left out for Players). Any member may read
+  /// it; anyone else gets 404.
+  /// </summary>
   [HttpGet("{id:guid}")]
 [ProducesResponseType<SettingDetailDto>(
     StatusCodes.Status200OK)]
@@ -237,10 +255,16 @@ public async Task<ActionResult<SettingDetailDto>> GetById(
           setting.UpdatedAt));
 }
 
- [HttpPut("{id:guid}")]
+  /// <summary>
+  /// Renames the setting and replaces its description. GameMasters only
+  /// (Players get 403); the name must stay unique among the owner's
+  /// settings (409).
+  /// </summary>
+  [HttpPut("{id:guid}")]
 [ProducesResponseType<SettingDetailDto>(
     StatusCodes.Status200OK)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 [ProducesResponseType(StatusCodes.Status404NotFound)]
 [ProducesResponseType(StatusCodes.Status409Conflict)]
 public async Task<ActionResult<SettingDetailDto>> Update(
@@ -325,8 +349,13 @@ public async Task<ActionResult<SettingDetailDto>> Update(
           entryCounts));
 }
 
+  /// <summary>
+  /// Deletes the setting with its entries, relationships, memberships,
+  /// invites and characters. The owner only; other members get 403.
+  /// </summary>
   [HttpDelete("{id:guid}")]
 [ProducesResponseType(StatusCodes.Status204NoContent)]
+[ProducesResponseType(StatusCodes.Status403Forbidden)]
 [ProducesResponseType(StatusCodes.Status404NotFound)]
 public async Task<IActionResult> Delete(
     Guid id)

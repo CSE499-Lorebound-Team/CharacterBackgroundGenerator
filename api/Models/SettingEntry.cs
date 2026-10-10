@@ -3,7 +3,7 @@ namespace Lorebound.Api.Models;
 /// <summary>
 /// One piece of lore in a setting. <see cref="Name"/> is citext, unique per
 /// (setting, type) ignoring case. Read entries through
-/// <see cref="Data.SettingEntryQueries.VisibleTo"/> so Players never see
+/// <see cref="Data.SettingEntryQueries.VisibleTo(IQueryable{SettingEntry}, SettingRole)"/> so Players never see
 /// <see cref="IsGmOnly"/> ones.
 /// </summary>
 public class SettingEntry : ITimestamped
