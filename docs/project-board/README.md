@@ -74,6 +74,7 @@ Total: **102 work items + 10 epics = 112 issues.**
 5. **Account deletion is blocked** while the user owns a setting that has other members.
 6. **Backstory is free text only.** No generated or AI-written backstory.
 7. **Production must be same-site** so the cookie is sent. Decided in `P1-12`: the frontend proxies `/api/*` to the API, so the browser sees one origin ([ADR 0001](../decisions/0001-same-origin-api-proxy.md)).
+8. **Production is a free course demo.** Vercel hosts the frontend, Render the API (Docker) and Supabase the Postgres database only, keeping ADR 0001's `/api/*` rewrite. The deployment work is `P8-08` to `P8-11` ([ADR 0003](../decisions/0003-production-hosting.md)).
 
 ## Working agreement
 

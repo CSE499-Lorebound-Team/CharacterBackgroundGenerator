@@ -1133,6 +1133,8 @@ API_ORIGIN=http://localhost:5110
 
 The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
+The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings.
+
 Files containing local secrets should not be committed.
 
 ---

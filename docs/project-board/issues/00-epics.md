@@ -168,12 +168,13 @@ size: L
 depends:
 @@@
 ## Goal
-Dashboard aggregate, seed data, OpenAPI docs, observability, performance and security review.
+Dashboard aggregate, seed data, OpenAPI docs, observability, performance and security review, and the course-demo deployment (ADR 0003).
 
 ## Exit criteria
 - `/api/dashboard` serves the dashboard page.
 - Fresh clone can run with seed data in minutes.
 - Security and performance review findings resolved or ticketed.
+- The demo runs on Vercel, Render and Supabase, with a runbook in `docs/deployment.md`.
 
 @@@ E9
 title: Phase 9 - Frontend Integration (epic)
