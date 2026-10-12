@@ -269,7 +269,8 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension
   `MapIdentityApi`/`AddIdentityApiEndpoints` (their `/login` can return tokens
   in the body; `AuthenticationTests` fails if those routes appear).
 - Cookie `lorebound.auth`: `HttpOnly`, `Secure`, `SameSite=Lax`, 14-day sliding
-  expiry when persistent, session cookie otherwise.
+  expiry when persistent, session cookie otherwise. No `Domain`, so it belongs
+  only to the host the browser sees (the Vercel host in production).
 - **Secure by default:** a fallback policy requires a signed-in user on every
   endpoint. Mark public actions `[AllowAnonymous]` (minimal endpoints:
   `.AllowAnonymous()`). Today only `/api/health`, the anonymous `/api/auth`
@@ -917,3 +918,29 @@ No CSRF token is used, so nothing secret is ever readable by JavaScript.
   and applies to anonymous endpoints too (login CSRF).
 - The frontend API client (P9-03) sends the header on every request; tests get
   it from the factories; `Lorebound.Api.http` includes it on each unsafe request.
+
+## Production hardening (P8-07)
+
+The security review is recorded in
+[`docs/security/p8-07-security-review.md`](../docs/security/p8-07-security-review.md),
+with the checklist the deploy (P8-11) must follow.
+
+- **HSTS:** every response outside Development carries
+  `Strict-Transport-Security: max-age=31536000`
+  (`Security/StrictTransportSecurityMiddleware.cs`).
+  - It is added to every response, not via `UseHsts`, which only marks
+    HTTPS requests. Behind Render, TLS ends at the proxy, and
+    `X-Forwarded-Proto` is not trusted (ADR 0003).
+  - Browsers ignore the header when it doesn't arrive over HTTPS.
+- **`AllowedHosts`:** `*` in `appsettings.json`. In production, set
+  `AllowedHosts` to the API's own host (the Render host). Other `Host` headers
+  then get 400.
+  - Nothing in the API builds URLs from `Host`: links use
+    `App:FrontendBaseUrl`.
+- **Every protected endpoint answers 401 to anonymous callers:**
+  `FallbackPolicyTests` calls each one, so a new controller is covered
+  without its own test.
+- `confirm-email` and `reset-password` are not rate limited. Their tokens are
+  protected with Data Protection, cannot be guessed, and are single-use.
+- `ProductionHardeningTests` checks HSTS, the Production cookie flags, the
+  CSRF origin check against a Vercel origin, and `AllowedHosts` filtering.
