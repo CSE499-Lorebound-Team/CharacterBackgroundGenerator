@@ -73,7 +73,7 @@ public class SettingCharactersController : ControllerBase
     var items = await query
         .OrderByDescending(c => c.UpdatedAt)
         .ThenBy(c => c.Id)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .Select(c => new SettingCharacterListItemDto(
             c.Id,

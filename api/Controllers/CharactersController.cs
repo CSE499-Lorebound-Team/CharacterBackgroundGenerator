@@ -80,7 +80,7 @@ public class CharactersController : ControllerBase
     var items = await query
         .OrderByDescending(c => c.UpdatedAt)
         .ThenBy(c => c.Id)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .ToListItems(userId)
         .ToListAsync(cancellationToken);

@@ -87,7 +87,7 @@ public class SettingEntriesController : ControllerBase
     var items = await query
         .OrderBy(entry => entry.Name)
         .ThenBy(entry => entry.Id)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .Select(entry => new EntryListItemDto(
             entry.Id,

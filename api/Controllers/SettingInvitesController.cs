@@ -131,7 +131,7 @@ public class SettingInvitesController : ControllerBase
     var invites = await query
         .OrderByDescending(invite => invite.CreatedAt)
         .ThenBy(invite => invite.Id)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .ToListAsync(cancellationToken);
 

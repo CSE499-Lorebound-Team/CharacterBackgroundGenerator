@@ -175,7 +175,7 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
       await query
           .OrderByDescending(setting =>
               setting.UpdatedAt)
-          .Skip(pageQuery.Skip)
+          .Skip(pageQuery.Skip())
           .Take(pageQuery.PageSize)
           .ToListItems(userId)
           .ToListAsync();

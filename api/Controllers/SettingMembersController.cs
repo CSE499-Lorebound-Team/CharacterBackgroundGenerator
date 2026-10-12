@@ -56,7 +56,7 @@ public class SettingMembersController : ControllerBase
         .ThenBy(m => m.Role == SettingRole.GameMaster ? 0 : 1)
         .ThenBy(m => m.JoinedAt)
         .ThenBy(m => m.UserId)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .Select(m => new MemberDto(
             m.UserId,

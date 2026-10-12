@@ -11,7 +11,7 @@ public class PageQueryTests
 
     Assert.Equal(1, query.Page);
     Assert.Equal(20, query.PageSize);
-    Assert.Equal(0, query.Skip);
+    Assert.Equal(0, query.Skip());
   }
 
   [Theory]
@@ -30,6 +30,6 @@ public class PageQueryTests
   [Fact]
   public void Skip_accounts_for_page_size()
   {
-    Assert.Equal(100, new PageQuery { Page = 3, PageSize = 50 }.Skip);
+    Assert.Equal(100, new PageQuery { Page = 3, PageSize = 50 }.Skip());
   }
 }
