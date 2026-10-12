@@ -1,10 +1,13 @@
 using System.Net.Http.Json;
 using Lorebound.Api.Data;
 using Lorebound.Api.Models;
+using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Lorebound.Api.Tests.TestSupport;
 
@@ -22,6 +25,17 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     _connectionString = connectionString;
   }
 
+  /// <summary>
+  /// Every client sends the CSRF header like the real frontend, so tests
+  /// exercise endpoints rather than the CSRF check; CsrfTests removes it.
+  /// </summary>
+  protected override void ConfigureClient(HttpClient client)
+  {
+    base.ConfigureClient(client);
+    client.DefaultRequestHeaders.Add(
+        CsrfProtectionMiddleware.HeaderName, CsrfProtectionMiddleware.HeaderValue);
+  }
+
   protected override void ConfigureWebHost(IWebHostBuilder builder)
   {
     builder.UseSetting("ConnectionStrings:DefaultConnection", _connectionString);
@@ -29,6 +43,8 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
     // Every test client shares one IP partition, so lift the auth rate limit;
     // RateLimitTests restores it with WithConfig.
     builder.UseSetting("RateLimiting:Auth:PermitLimit", "100000");
+
+    builder.ConfigureLogging(logging => logging.AddProvider(Logs.CreateProvider()));
 
     // Test-only controllers (routes under /test), e.g. a protected route to
     // prove a login cookie authenticates.
@@ -40,11 +56,20 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
       // One shared instance, so copies made with WithConfig record here too.
       services.AddSingleton<IEmailSender<ApplicationUser>>(Emails);
+
+      // Every DbContext, the API's and WithDbAsync's, reports its SQL (P8-04).
+      services.ConfigureDbContext<LoreboundDbContext>(options => options.AddInterceptors(Sql));
     });
   }
 
   /// <summary>Emails the API "sent" during the current test.</summary>
   public TestEmailSender Emails { get; } = new();
+
+  /// <summary>What the API logged during the current test (P8-05).</summary>
+  public LogCapture Logs { get; } = new();
+
+  /// <summary>The SQL the API ran during the current test (P8-04).</summary>
+  public SqlCapture Sql { get; } = new();
 
   public const string DefaultPassword = "correct horse battery";
 

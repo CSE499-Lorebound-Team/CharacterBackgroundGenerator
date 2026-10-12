@@ -18,6 +18,7 @@ import { getSetting } from "@/lib/settings/settings-store";
 import type { Setting, SettingEntry } from "@/lib/settings/types";
 import {
   createEntry,
+  duplicateNameError,
   getEntriesForSetting,
   updateEntry,
 } from "@/lib/settings/entries-store";
@@ -78,13 +79,23 @@ function SettingDetailContent({
         (entry) => !entry.isGmOnly
       );
 
-const filteredEntries =
-  activeTab === "Overview"
-    ? visibleEntries
-    : visibleEntries.filter(
-        (entry) =>
-          entry.type === tabTypeMap[activeTab]
-      );
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+
+  // Like the API: case-insensitive match on name or text.
+  const filteredEntries = visibleEntries
+    .filter(
+      (entry) =>
+        activeTab === "Overview" ||
+        entry.type === tabTypeMap[activeTab]
+    )
+    .filter(
+      (entry) =>
+        !query ||
+        [entry.name, entry.summary, entry.content].some(
+          (text) => text.toLowerCase().includes(query)
+        )
+    );
 
   const [entryDialogOpen, setEntryDialogOpen] = useState(false);
 
@@ -102,6 +113,17 @@ const filteredEntries =
       content: string;
       isGmOnly: boolean;
     }) {
+      const duplicate = duplicateNameError(
+        settingId,
+        data.type,
+        data.name,
+        editingEntry?.id
+      );
+
+      if (duplicate) {
+        return duplicate;
+      }
+
       if (editingEntry) {
         const updated = updateEntry(
           editingEntry.id,
@@ -174,7 +196,10 @@ const filteredEntries =
         onTabChange={setActiveTab}
       />
 
-        <EntrySearch />
+        <EntrySearch
+          value={search}
+          onChange={setSearch}
+        />
 
         {filteredEntries.length > 0 ? (
           <div className="grid gap-4 lg:grid-cols-2">
@@ -194,9 +219,11 @@ const filteredEntries =
         ) : (
           <div className="border border-dashed border-border p-10 text-center">
             <p className="font-medium">
-              {activeTab === "Overview"
-                ? "No lore entries yet"
-                : `No ${activeTab.toLowerCase()} yet`}
+              {query
+                ? "No entries match your search"
+                : activeTab === "Overview"
+                  ? "No lore entries yet"
+                  : `No ${activeTab.toLowerCase()} yet`}
             </p>
 
             <p className="mt-2 text-sm text-muted-foreground">

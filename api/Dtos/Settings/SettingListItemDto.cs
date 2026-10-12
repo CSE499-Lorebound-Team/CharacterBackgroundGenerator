@@ -5,6 +5,7 @@ public record SettingListItemDto(
     string Name,
     string? Description,
     int EntryCount,
-    DateTimeOffset UpdatedAt,
     string MyRole,
-    bool IsOwner);
+    bool IsOwner,
+    string OwnerDisplayName,
+    DateTimeOffset UpdatedAt);

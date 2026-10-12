@@ -1,3 +1,5 @@
+using Lorebound.Api.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -15,6 +17,17 @@ public class ApiFactory : WebApplicationFactory<Program>
   public const string UnusedConnectionString =
       "Host=127.0.0.1;Port=1;Database=unused;Username=unused;Password=unused;Timeout=1";
 
+  /// <summary>
+  /// Every client sends the CSRF header like the real frontend, so tests
+  /// exercise endpoints rather than the CSRF check; CsrfTests removes it.
+  /// </summary>
+  protected override void ConfigureClient(HttpClient client)
+  {
+    base.ConfigureClient(client);
+    client.DefaultRequestHeaders.Add(
+        CsrfProtectionMiddleware.HeaderName, CsrfProtectionMiddleware.HeaderValue);
+  }
+
   protected override void ConfigureWebHost(IWebHostBuilder builder)
   {
     builder.UseSetting("ConnectionStrings:DefaultConnection", UnusedConnectionString);
@@ -29,6 +42,9 @@ public class ApiFactory : WebApplicationFactory<Program>
       // request; there is none here, and /test/auth/sign-in users are made up.
       services.Configure<SecurityStampValidatorOptions>(options =>
           options.ValidationInterval = TimeSpan.FromDays(365));
+
+      // The real keys live in the database (P8-08); there is none here.
+      services.AddDataProtection().UseEphemeralDataProtectionProvider();
     });
   }
 }

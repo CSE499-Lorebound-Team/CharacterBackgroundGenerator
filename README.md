@@ -11,10 +11,57 @@ Unlike traditional character builders that primarily focus on game mechanics suc
 
 The application allows Game Masters to define information about their setting and allows players to use that information through a guided character background creation process.
 
+Work is tracked on the **[Lorebound API Roadmap](https://github.com/orgs/CSE499-Lorebound-Team/projects/3)** project board (team members only). Its issue definitions and working agreement are in [docs/project-board/](docs/project-board/README.md).
+
+---
+
+# Quick Start
+
+From a fresh clone to signed in with sample data, on Windows:
+
+1. **Install** Git, the .NET 10 SDK, Node.js and Docker Desktop (see [Prerequisites](#prerequisites)). Start Docker Desktop.
+2. **Clone and switch to `dev`:**
+
+   ```powershell
+   git clone https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator.git
+   cd CharacterBackgroundGenerator
+   git checkout dev
+   ```
+
+3. **Set up the database** (creates `.env`, starts Postgres, stores the connection string, applies migrations):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
+   ```
+
+4. **Run the API with sample data:**
+
+   ```powershell
+   cd api
+   dotnet run -- --seed
+   ```
+
+   It seeds the setting "Osepia" with lore, a GameMaster, a Player and a draft character, then keeps running on `http://localhost:5110`. Running it again is safe. See [Seed data](#seed-data).
+5. **Sign in.** Open `http://localhost:5110/scalar`, the API explorer:
+   1. Choose **Auth → POST /api/auth/login**, set the header `X-Requested-With` to `Lorebound` (without it the API answers 403), and send:
+
+      ```json
+      { "email": "gm@lorebound.local", "password": "lorebound-gm-dev" }
+      ```
+
+      Use `player@lorebound.local` / `lorebound-player-dev` for the Player.
+   2. The explorer keeps the sign-in cookie. Try **Dashboard → GET /api/dashboard** or **Settings → GET /api/settings**.
+   3. Every request that changes data (POST, PUT, PATCH, DELETE), login included, needs that same `X-Requested-With: Lorebound` header. The explorer lists it on those requests.
+6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Until Phase 9 wires the pages to the API, the frontend shows mock data and has no working sign-in.
+7. **Run the tests** with `dotnet test Lorebound.slnx` from the repository root (Docker Desktop must be running).
+
+New to the codebase? Read [How the API Works](#how-the-api-works) next.
+
 ---
 
 # Table of Contents
 
+- [Quick Start](#quick-start)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Cloning the Repository](#cloning-the-repository)
@@ -23,6 +70,7 @@ The application allows Game Masters to define information about their setting an
 - [Running the Frontend](#running-the-frontend)
 - [Running the API](#running-the-api)
 - [Running the Full Application](#running-the-full-application)
+- [How the API Works](#how-the-api-works)
 - [Testing](#testing)
 - [Testing Frontend and API Together](#testing-frontend-and-api-together)
 - [Submitting Changes](#submitting-changes)
@@ -32,6 +80,7 @@ The application allows Game Masters to define information about their setting an
 - [Environment Configuration](#environment-configuration)
 - [Database Development](#database-development)
   - [Quick Setup (Recommended)](#quick-setup-recommended)
+  - [Seed Data](#seed-data)
   - [Changing the Database Password](#changing-the-database-password)
 - [Pulling New Dependencies](#pulling-new-dependencies)
 - [Common Development Workflow](#common-development-workflow)
@@ -49,28 +98,44 @@ This means the frontend and backend API are stored inside the same Git repositor
 ```text
 CharacterBackgroundGenerator/
 │
-├── frontend/
-│   ├── app/
+├── frontend/              (Next.js app)
+│   ├── app/               (pages, App Router)
 │   ├── components/
+│   ├── lib/               (API client, stores, types)
 │   ├── public/
-│   ├── package.json
-│   └── ...
+│   └── package.json
 │
-├── api/
-│   ├── Controllers/
-│   ├── Data/
-│   │   └── Migrations/
-│   ├── Dtos/
-│   ├── Errors/
-│   ├── Mapping/
-│   ├── Models/
+├── api/                   (ASP.NET Core API)
+│   ├── Controllers/       (one per resource; thin, call the helpers below)
+│   ├── Auth/              (cookie sign-in, ICurrentUser, SettingAccess and CharacterAccess checks)
+│   ├── Data/              (LoreboundDbContext, Data Protection keys, shared queries, DevelopmentSeeder)
+│   │   └── Migrations/    (EF Core migrations)
+│   ├── Dtos/              (request and response records, one folder per resource)
+│   ├── Models/            (EF Core entities)
+│   ├── Mapping/           (entity -> DTO extension methods)
+│   ├── Sharing/           (invite codes and rules)
+│   ├── Security/          (CSRF check, rate limiting, HSTS)
+│   ├── Errors/            (domain exceptions -> problem+json)
+│   ├── Logging/           (request logging, traceId)
+│   ├── OpenApi/           (OpenAPI document rules)
+│   ├── Email/             (email senders; off for the demo with Email:Provider=None)
+│   ├── Dockerfile         (production image for Render)
 │   ├── Program.cs
-│   ├── Lorebound.Api.csproj
-│   ├── README.md          (API conventions)
-│   └── ...
+│   ├── Lorebound.Api.http (sample requests)
+│   └── README.md          (API conventions and permission matrices)
 │
-├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
+├── api.Tests/             (xUnit; real Postgres via Testcontainers)
+│   ├── <Area>/            (Auth, Settings, Sharing, Entries, Relationships, Characters,
+│   │                        Builder, Dashboard, Security, Logging, Performance, ...)
+│   ├── Conventions/       (rules every endpoint must follow, OpenAPI checks)
+│   └── TestSupport/       (test host, SharingWorld, log and SQL capture)
+│
+├── docs/api/              (endpoint reference and openapi.json, generated)
 ├── docs/project-board/    (roadmap and issue definitions)
+├── docs/decisions/        (architecture decision records)
+├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
+├── docs/security/         (security review and deploy checklist)
+├── .github/               (CI workflows, issue forms)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
@@ -104,6 +169,8 @@ Technology:
 - PostgreSQL
 
 The frontend and API are stored in the same Git repository but run as separate applications.
+
+There is no separate services layer. Controllers stay thin by calling shared helpers: access checks in `Auth/`, queries and projections in `Data/`, and invite rules in `Sharing/`.
 
 ---
 
@@ -200,7 +267,7 @@ Pull the latest changes:
 git pull origin dev
 ```
 
-Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1` from the repository root (see [Database Development](#database-development)).
+Next, set up the local database: with Docker Desktop running, run `powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1` from the repository root (see [Database Development](#database-development)).
 
 You are now ready to begin development.
 
@@ -437,6 +504,8 @@ A successful response should look similar to:
 
 If the database is not running, the endpoint returns `503` with `"database": "unreachable"`.
 
+Every request writes one log line to the terminal, such as `HTTP GET api/settings/{id:guid} responded 404 in 3.1 ms`, tagged with a `TraceId`. When an API error shows a `traceId`, search the terminal for it to find every log line from that request. See "Health and logging" in [api/README.md](api/README.md).
+
 ## Stop the API
 
 Press:
@@ -446,6 +515,29 @@ Ctrl + C
 ```
 
 in the terminal running the API.
+
+## Run the API as a Docker image
+
+Production (Render, [ADR 0003](docs/decisions/0003-production-hosting.md)) runs the API from `api/Dockerfile`. CI builds the same image on every pull request. To build and run it locally against the docker-compose database, from the repository root (Docker Desktop running, `docker compose up -d` done):
+
+```powershell
+docker build -t lorebound-api api
+$pw = (Select-String '^POSTGRES_PASSWORD=(.*)' .env).Matches.Groups[1].Value
+docker run --rm -p 8080:8080 `
+  -e ASPNETCORE_ENVIRONMENT=Production `
+  -e "ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=lorebound;Username=lorebound;Password=$pw;Gss Encryption Mode=Disable" `
+  -e App__FrontendBaseUrl=http://localhost:3000 `
+  -e Email__Provider=None `
+  -e Auth__RequireConfirmedEmail=false `
+  lorebound-api
+```
+
+Then open `http://localhost:8080/api/health`. It should report `"database": "connected"`. Press `Ctrl + C` to stop.
+
+- **The image:** a multi-stage build (.NET 10 SDK, then the ASP.NET runtime), running as the image's non-root `app` user and listening on port 8080. Configuration comes only from environment variables; nothing secret is in the image.
+- **Production defaults:** `ASPNETCORE_ENVIRONMENT=Production` gives you JSON logs, HSTS, no `/scalar` and no seeding.
+- **Migrations:** the container never applies them. Run `dotnet ef database update` first.
+- **`Gss Encryption Mode=Disable`:** stops Npgsql looking for Kerberos, which the slim runtime image does not include. Without it the log shows a harmless `Cannot load library libgssapi_krb5.so.2` message.
 
 ---
 
@@ -494,6 +586,85 @@ Database
 The frontend communicates with the API through HTTP requests.
 
 Both applications must be running for features that require backend data.
+
+---
+
+# How the API Works
+
+This section is the overview. Every endpoint, with its request and response shapes, is in the generated **[API reference](docs/api/README.md)**. The detailed rules per endpoint, with every permission cell, are in **[api/README.md](api/README.md)**. To try things, run the API and open `http://localhost:5110/scalar`.
+
+## Signing in: one cookie, no tokens
+
+- `POST /api/auth/register` creates an account, then `POST /api/auth/login` sets an **httpOnly cookie** named `lorebound.auth`. The cookie is Secure and SameSite=Lax, and lasts 14 days, sliding.
+- Browsers send it automatically. The frontend calls `fetch` with `credentials: "include"`.
+- The API never issues bearer, access or refresh tokens, and JavaScript cannot read the cookie.
+- `POST /api/auth/logout` ends the session on every device. So do a password reset and account deletion.
+- Every endpoint requires sign-in unless it is public: health, registration, login, email confirmation and password reset. Without the cookie the answer is **401**.
+- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent. The course demo turns email off entirely (`Email__Provider=None` with `Auth__RequireConfirmedEmail=false`, [ADR 0003](docs/decisions/0003-production-hosting.md)): accounts sign in without confirming, and no email is ever sent.
+
+## The CSRF header
+
+Every **POST, PUT, PATCH and DELETE** must send:
+
+```http
+X-Requested-With: Lorebound
+```
+
+If the request has an `Origin` header, it must come from an allowed frontend origin (`http://localhost:3000` in Development). Otherwise the API answers **403** before the endpoint runs. GET requests need neither. The header works because another website cannot add a custom header without a CORS preflight, which the API refuses.
+
+Outside Development the API also sends HSTS on every response and, once `AllowedHosts` is set, answers only to its own host name. The security review behind these rules, and the checklist the production deploy follows, are in [docs/security/p8-07-security-review.md](docs/security/p8-07-security-review.md).
+
+## Settings, roles and sharing
+
+- **A setting** is a campaign world with its lore (**entries** such as places, cultures and factions) and the **relationships** between entries.
+- **Roles:** every member of a setting is either a **GameMaster** or a **Player**.
+  - The creator is the **owner** and always a GameMaster.
+  - GameMasters edit the lore and manage invites.
+  - Players read it and build characters.
+  - Only the owner changes roles or deletes the setting. There are no co-owners.
+- **Sharing is by invite code.**
+  - A GameMaster creates a code (optional expiry and use limit) and shares the join link.
+  - Whoever accepts it joins as a **Player**.
+  - A dead code (unknown, expired, revoked or used up) is always the same 404.
+- **Secret lore:** entries marked **GM-only** never reach Players. They are left out of lists, search, counts, relationships and the builder.
+- **Leaving and removal:**
+  - Players and GameMasters can leave.
+  - GameMasters remove Players; the owner removes anyone.
+  - The owner can't leave, only delete the setting.
+  - A removed player's characters stay, **read-only**.
+- **Characters** belong to one player in one setting. The setting's GameMasters can read them but not change them.
+- **Account deletion** is refused while you own a setting that still has other members.
+
+## Who can do what
+
+The status each kind of caller gets; **2xx** means allowed (200, 201 or 204 depending on the action). **Non-member** means signed in but not in the setting. A setting you don't belong to is **404**, exactly like a missing one, so nobody can probe which ids exist. A member without the needed role gets **403**.
+
+| Action | Non-member | Player | GameMaster | Owner |
+|---|---|---|---|---|
+| Create a setting | 201 (becomes owner) | 201 | 201 | 201 |
+| Read a setting, its entries, relationships and members | 404 | 2xx (no GM-only lore) | 2xx | 2xx |
+| Edit the setting; create, edit or delete entries and relationships | 404 | 403 | 2xx | 2xx |
+| Delete the setting | 404 | 403 | 403 | 204 |
+| Create, list or revoke invites | 404 | 403 | 2xx | 2xx |
+| Change a member's role | 404 | 403 | 403 | 2xx |
+| Remove a member | 404 | 403 (may leave) | Players only (may leave) | anyone but self |
+| Create a character in the setting | 404 | 201 | 201 | 201 |
+| See the setting's characters (GameMaster view) | 404 | 403 | 2xx | 2xx |
+
+| Action on a character | Its owner (member) | Its owner (removed from the setting) | GameMaster of its setting | Anyone else |
+|---|---|---|---|---|
+| Read | 200 | 200, read-only | 200, read-only | 404 |
+| Edit, build, complete or reopen | 200 | 403 | 403 | 404 |
+| Delete | 204 | 204 | 403 | 404 |
+
+Anonymous callers get **401** on all of these.
+
+## Errors
+
+- Every error is `application/problem+json` with a `traceId`. Search the API terminal for the `traceId` to find that request's log lines.
+- Invalid input is **400** with an `errors` object keyed by field.
+- Conflicts are **409**, for example a duplicate name or deleting an entry that is still linked.
+- Too many requests are **429**. Registration, login, resending a confirmation, forgot-password, account deletion and the invite preview and accept endpoints are rate limited.
 
 ---
 
@@ -581,7 +752,7 @@ dotnet run
 Test the affected endpoint using:
 
 - a browser
-- Swagger
+- the API explorer at `http://localhost:5110/scalar` (Development only): every endpoint with its request and response shapes. Sign in with `POST /api/auth/login` there first; writes need the `X-Requested-With: Lorebound` header it lists
 - Postman
 - another API client
 - the frontend application
@@ -617,9 +788,170 @@ Database tests share one migrated database, and every test starts with empty tab
 - `CreateSignedInClientAsync(email, displayName)` creates a confirmed user, signs it in through `POST /api/auth/login`, and returns `(Client, User)`; the client keeps the auth cookie.
 - `WithConfig(key, value)` (on any factory) returns a copy with one config value overridden, e.g. `Factory.WithConfig("Auth:RequireConfirmedEmail", "true").CreateCookieClient()`.
 - `CreateCookieClient()` returns an `HttpClient` that keeps cookies like a browser, for cookie auth. It uses `https://localhost` because the auth cookie is `Secure`.
+- Every client from either factory sends `X-Requested-With: Lorebound`, like the real frontend, so requests pass the CSRF check. To test the check itself, remove it: `client.DefaultRequestHeaders.Remove(CsrfProtectionMiddleware.HeaderName)`.
 - The test-only controllers under `/test` are available in both factories; `GET /test/auth/protected` returns 204 only for a signed-in client. Every endpoint requires sign-in by default, so a new test-only controller that should be public needs `[AllowAnonymous]`.
 - `WithDbAsync(db => ...)` runs a query with a fresh `LoreboundDbContext`.
 - `Emails` records what the API "sent" (`Factory.Emails.Sent`: kind, user id, address, link or code) in place of a real sender; it is cleared before each test.
+
+### Auth test suite
+
+The authentication surface (P1-13) is covered end to end, mostly against the real database (`Security/CsrfTests` and `Security/AuthenticationTests` need none). Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Register, confirm, log in, use the session, log out, end to end | `Auth/AuthJourneyTests` |
+| Login cookie is `HttpOnly`, `Secure`, `SameSite=Lax`; session vs 14-day cookie; only the auth cookie is set | `Auth/LoginTests`, `Auth/AuthJourneyTests`, `Security/AuthenticationTests` |
+| No response carries a `token`, `access` or `refresh` field, or the cookie value; no token-issuing routes are mapped | `Auth/AuthJourneyTests`, `Security/AuthenticationTests` |
+| Logout ends the session everywhere, including a copied cookie; a tampered cookie is rejected | `Auth/LogoutTests`, `Auth/AuthJourneyTests` |
+| Lockout after 5 failures (423), per account only; same 401 for unknown email, wrong password and unconfirmed email; unknown emails never report a lockout | `Auth/LoginTests`, `Auth/AuthJourneyTests` |
+| Register validation and duplicate handling | `Auth/RegisterTests` |
+| Confirm email and resend: happy and failure paths | `Auth/ConfirmEmailTests` |
+| Forgot and reset password: happy and failure paths; old sessions end | `Auth/ResetPasswordTests` |
+| Rate limit: the 11th request in a minute returns 429 | `Security/RateLimitTests` |
+| CSRF header and Origin checks | `Security/CsrfTests`, `Auth/AuthJourneyTests` |
+| Anonymous calls to protected routes return 401 problem JSON (every protected API endpoint is called); only intended endpoints are public | `Security/FallbackPolicyTests`, `Auth/UsersMeTests` |
+| Production: HSTS on every response, cookie flags, writes only from the Vercel origin, `AllowedHosts` filtering (P8-07) | `Security/ProductionHardeningTests` |
+| `ICurrentUser` and `/api/users/me` | `Auth/CurrentUserTests`, `Auth/UsersMeTests` |
+| Account deletion: password re-entry (400); 409 listing owned settings that have other members, deleting nothing; otherwise everything the user owns goes and nobody else's data is touched; signed out and every session ends | `Auth/DeleteAccountTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Auth|FullyQualifiedName~Security"`.
+
+### Sharing test suite
+
+Invites are a security boundary, so sharing (P3-08) is covered through HTTP against the real database. `TestSupport/SharingWorld` seeds one setting with an owner, a GameMaster, a Player, a signed-in non-member and an anonymous client. Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Expired, revoked, exhausted, unknown and malformed codes all return the identical 404, on preview and accept | `Sharing/InvitePreviewTests`, `Sharing/InviteAcceptTests` |
+| Parallel accepts of a 1-use code create exactly one membership; parallel accepts by one user create one membership and use one use | `Sharing/InviteAcceptTests` |
+| Accepting when already a member returns 200 and uses nothing | `Sharing/InviteAcceptTests` |
+| The owner cannot be demoted, removed or leave | `Sharing/SettingMembersTests`, `Sharing/MemberRemovalTests` |
+| A Player cannot create, list or revoke invites, change roles or remove others | `Sharing/InviteCreateTests`, `Sharing/InviteManagementTests`, `Sharing/SettingMembersTests`, `Sharing/MemberRemovalTests` |
+| A non-member gets 404 on every sharing endpoint, identical to a missing setting; anonymous gets 401 | `Sharing/SharingBoundaryTests` (plus each endpoint's own matrix) |
+| No sharing response contains an email; the members list never does | `Sharing/SharingBoundaryTests`, `Sharing/SettingMembersTests` |
+| An invite joins only its own setting; another setting's invites and members cannot be reached through this setting's URLs; a deleted setting's codes stop working | `Sharing/SharingBoundaryTests`, `Sharing/InviteManagementTests` |
+| Code lookups are rate limited (10/min, preview and accept share one counter, separate from login) | `Security/RateLimitTests` |
+| Invite storage: unique codes, `UseCount` within `MaxUses`, cascade with the setting; code format | `Data/SettingInviteTests`, `Sharing/InviteCodesTests`, `Sharing/InviteCodeNormalizeTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Sharing|FullyQualifiedName~SettingInvite"`.
+
+### Entries test suite
+
+GM-only lore must never reach a Player, so entries (P4-07) are covered through HTTP against the real database, reusing `TestSupport/SharingWorld` (its `AddEntryAsync` and `LinkAsync` insert entries and relationships directly). Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| No Player response (entries list, type filter, search, `gmOnly=true`, entry detail, setting detail, settings list) contains a GM-only entry's id, name, description or the `isGmOnly` flag | `Entries/EntriesBoundaryTests` |
+| A Player asking for a GM-only entry gets the identical 404 as for a missing one | `Entries/EntriesBoundaryTests`, `Entries/EntriesDetailTests` |
+| `relationshipCount`, settings list `entryCount` and detail `entryCountsByType` exclude hidden entries and links to them for Players only | `Entries/EntriesBoundaryTests`, `Entries/EntriesListTests` |
+| Relationships to GM-only entries are left out of a Player's entry detail | `Entries/EntriesDetailTests` |
+| Anonymous 401 and non-member 404 (identical to a missing setting) on every entries endpoint | `Entries/EntriesBoundaryTests` |
+| Player writes are 403, whether the entry is public, hidden or missing | `Entries/EntriesBoundaryTests` (plus each endpoint's own tests) |
+| Delete is 409 with `relationshipCount` and `characterCount` unless `force=true`; force removes only that entry's relationships and keeps characters with a null choice (P6-09) | `Entries/EntriesDeleteTests` |
+| Names are unique per (setting, type) ignoring case, in the database and as 409 from create and update, including concurrent creates | `Data/SettingEntryTests`, `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests` |
+| Validation, search wildcards, paging and type filter | `Entries/EntriesCreateTests`, `Entries/EntriesUpdateTests`, `Entries/EntriesListTests` |
+| Relationship storage: self-links and duplicate (source, target, type) links rejected by the database; type and description length limits | `Data/SettingEntryRelationshipTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Entries|FullyQualifiedName~SettingEntry"`.
+
+### Relationships test suite
+
+A link must never reveal a GM-only entry to a Player, so relationships (P5-06) are covered through HTTP against the real database, reusing `TestSupport/SharingWorld` like the entries suite. `Relationships/RelationshipsBoundaryTests` checks every relationship endpoint at once; the other files test one endpoint each. Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| No Player response (relationships list, `entryId` and `type` filters, entries list, entry detail) contains a GM-only entry's id, name or description, or the id or type of a link to it | `Relationships/RelationshipsBoundaryTests`, `Entries/EntriesDetailTests` |
+| A Player never sees a link where either end is GM-only, in the list or its `totalCount`; hiding an entry hides its links at once, unhiding restores them | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsBoundaryTests` |
+| `entryId` returns incoming and outgoing links; an entry the caller cannot see (hidden, missing or of another setting) is the same 404 | `Relationships/RelationshipsListTests`, `Relationships/RelationshipsBoundaryTests` |
+| Cross-setting links are 400 and create nothing; another setting's links are the same 404 as a missing one on `PUT` and `DELETE` and never listed; the setting comes from the route | `Relationships/RelationshipsCreateTests`, `Relationships/RelationshipsBoundaryTests` |
+| Self-link 400; duplicate 409, including concurrent creates; another type or direction is allowed | `Relationships/RelationshipsCreateTests`, `Data/SettingEntryRelationshipTests` |
+| Update changes only type and description; changing source or target is 400; delete is 204 and keeps the entries | `Relationships/RelationshipsUpdateDeleteTests` |
+| Types: normalized (trim, single spaces, suggested spelling), compared ignoring case in the database and as 409; `GET /api/relationship-types` | `Relationships/RelationshipTypesTests`, `Data/SettingEntryRelationshipTests` |
+| Anonymous 401 and non-member 404 (identical to a missing setting) on every relationship endpoint | `Relationships/RelationshipsBoundaryTests` (plus each endpoint's own tests) |
+| Player writes are 403 with the identical problem, whether the link is public, to a hidden entry or missing | `Relationships/RelationshipsBoundaryTests` |
+| Deleting an entry is 409 while it has links; with `force=true` its links in both directions go and the rest stay | `Relationships/RelationshipsBoundaryTests`, `Entries/EntriesDeleteTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Relationship"`.
+
+### Characters test suite
+
+Characters are owned by one player, readable by their setting's GameMasters, and read-only once the owner is removed, so Phase 6 (P6-12) is covered through HTTP against the real database, reusing `TestSupport/SharingWorld` (its `AddCharacterAsync`, `AddChoiceAsync` and `RemoveMemberAsync` set up characters and removals). `Characters/CharactersBoundaryTests` checks every character endpoint against every kind of caller at once; the other files test one endpoint or rule each. Where to find each check:
+
+| Requirement | Tests |
+| --- | --- |
+| Ownership matrix: owner (member), owner (removed), GameMaster, setting owner, other player, non-member and anonymous against detail, update, delete, the GameMaster list and create; refused writes change nothing | `Characters/CharactersBoundaryTests` |
+| A character the caller may not see is the identical 404 to a missing one; `isOwner`/`isReadOnly` on the detail and the own list match what the caller may do | `Characters/CharactersBoundaryTests` |
+| Lifecycle through the API: create, edit, removal makes it read-only, re-joining restores write, delete; deleting the setting deletes its characters (removed players' too); force-deleting a chosen entry leaves the character with a null choice | `Characters/CharacterLifecycleTests` |
+| Character storage: draft defaults, status stored as its name, name and backstory limits; choices are an entry or free text but never both, unique per (character, step, ordinal), with text limits | `Data/CharacterTests` |
+| Deleting a setting deletes its characters and their choices; deleting a character deletes its choices; deleting an entry keeps the choice with a null entry; a user who owns characters cannot be deleted | `Data/CharacterTests` |
+| Access matrix: the owner who is still a member reads and writes; a removed owner reads and deletes only (403 on write, with a clear reason); a GameMaster of the setting reads only (403 on write and delete); everyone else and a missing character get the same 404; re-joining restores write access | `Auth/CharacterAccessTests` |
+| Every controller under `api/characters` authorizes through `ICharacterAccess` | `Conventions/CharacterAccessConventionTests` |
+| List: only the caller's own characters, newest update first; `status`, `settingId` and `search` filters (wildcards literal), paging; `homelandName` from the homeland choice; `isReadOnly` after removal | `Characters/CharactersListTests` |
+| Create: any member (GameMasters too) starts a draft they own with defaults; name trimmed, blank becomes "Unnamed Character", over 100 is 400; non-member, removed player and missing setting get the same 404; anonymous 401 | `Characters/CharactersCreateTests` |
+| Detail: choices resolved and sorted; owner reads and writes, a removed owner and the setting's GameMasters read only; another player, a non-member and a missing id get the same 404; a chosen entry that became GM-only keeps its name, a deleted one shows a null name | `Characters/CharactersDetailTests` |
+| Update: the owner changes name (trimmed, 1-100) and free-text backstory (up to 10000, stored as sent, blank clears); `updatedAt` always moves; invalid values are 400 and change nothing; a removed owner and the setting's GameMasters get 403; others 404 | `Characters/CharactersUpdateTests` |
+| Delete: the owner deletes (also when read-only after removal) and the choices go with it, the entries stay; a GameMaster gets 403 for another player's character but deletes their own; others 404 | `Characters/CharactersDeleteTests` |
+| GameMaster view: every character of the setting (removed players' too, flagged `ownerIsMember: false`) with owner name, newest first; `status` and character-or-owner `search` filters, paging; Player 403, non-member 404 identical to a missing setting | `Characters/SettingCharactersListTests` |
+| Read-only after removal (P6-10): removal by a GameMaster or the owner, or leaving, leaves characters and choices untouched; every character write route (found from the app's endpoints) is 403 with the read-only reason while GET, list and DELETE still work; a new invite restores write access; GameMasters still see the character | `Characters/CharacterReadOnlyTests` |
+| Deleting an entry characters chose is 409 with `characterCount` (characters, not choices); `force=true` deletes it and leaves the characters intact with a null choice that still reads | `Entries/EntriesDeleteTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Character"`.
+
+### Builder test suite
+
+Phase 7 checks the guided builder: the step catalog (P7-01), narrowed options (P7-02), saving choices (P7-03), stale detection (P7-04) and completion (P7-05), plus an end-to-end flow suite (P7-06) that drives the whole builder only through HTTP: a GameMaster writes and links the lore, a Player walks the steps from the catalog. Each endpoint file tests one rule; `Builder/BuilderFlowTests` proves they work together.
+
+| Requirement | Tests |
+| --- | --- |
+| Catalog: 8 steps, unique keys, contiguous orders, the agreed key/entry type/required per step; every `CharacterStepKeys` constant is a catalog key; steps that store nothing allow 0 selections; `GET /api/builder/steps` returns it in order (401 anonymous) | `Builder/BuilderStepsTests` |
+| Options: a homeland linked to two cultures offers only those, links followed in either direction; no linked candidate (or no earlier choice) offers all, not narrowed; only the step's type in the character's setting; only earlier steps narrow; a Player never gets GM-only entries and hidden links or hidden chosen entries do not narrow; steps without an entry type have none; unknown step 404; owner-with-write only (removed owner and GameMaster 403, non-member and missing 404, anonymous 401) | `Builder/StepOptionsTests` |
+| Save a choice: stores the entry or trimmed free text and returns the character; saving again replaces only that step; no answer clears it; `currentStep` only moves forward and `updatedAt` always moves; wrong type, too many selections, text on an entry step, entries on a text step and text over 2000 are 400 keyed by field; another setting's, hidden and missing entries get the identical 400; an entry that became GM-only after being chosen can be kept; GameMasters may choose GM-only entries for their own characters; `setting`/`review` 400, unknown step 404; only the owner with write access (removed owner, GameMaster and setting owner 403, non-member 404, anonymous 401), and refusals change nothing | `Builder/SaveChoiceTests`, `Characters/CharacterReadOnlyTests` |
+| Stale steps: switching homeland flags the culture in the save response and on `GET`, keeps the choice, and a fitting answer clears it; several stale steps listed in step order; no narrowing means nothing stale; a new character and a deleted chosen entry are not stale; judged by the owner's view, so a link to a GM-only entry never flags a Player's step (for the GameMaster reader too); `staleSteps` on every character detail | `Builder/StaleStepsTests`, `Characters/CharactersCreateTests` |
+| Complete and reopen: every required step answered completes; missing required steps, a stale step, a deleted or mistyped chosen entry and a blank name are 400 keyed by step (or `Name`) and change nothing; completing twice is a no-op; answers are 409 while complete and editable again after reopening; only the owner with write access (removed owner, GameMaster and setting owner 403, non-member 404, anonymous 401) | `Builder/CompleteReopenTests`, `Characters/CharacterReadOnlyTests` |
+| Flow (P7-06): a Player walks every catalog step (options, then save) and completes, seen in their list and the GameMaster's view; narrowing with and without linked candidates (a GM-only linked culture never shown); wrong type, cross-setting, hidden and too many selections rejected with the character unchanged; changing homeland strands the culture, completion refused until it is fixed, then complete, locked, reopened and edited; a removed player reads but cannot build | `Builder/BuilderFlowTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Builder"`.
+
+### Dashboard test suite
+
+`GET /api/dashboard` (P8-01) is covered through HTTP against the real database in `Dashboard/DashboardTests`, reusing `TestSupport/SharingWorld`:
+
+| Check | Where |
+|---|---|
+| Anonymous 401; the response, counts and activity items have exactly the documented fields | `Dashboard/DashboardTests` |
+| Counts by role (owner, GameMaster, Player, non-member; the owner without a membership row still counts as GameMaster) and by character status | `Dashboard/DashboardTests` |
+| Recent settings and characters: the five most recently updated, identical to the first page of `GET /api/settings` and `GET /api/characters`; a Player's `entryCount` leaves out GM-only entries | `Dashboard/DashboardTests` |
+| Activity: settings, entries and characters merged newest first, capped at ten; created vs edited wording; Players never see GM-only entries; other settings and other users' characters left out; a removed player keeps their characters but loses the setting's activity | `Dashboard/DashboardTests` |
+
+Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Dashboard"`.
+
+### Logging and health tests
+
+`Logging/RequestLoggingTests` (P8-05) checks that each request logs its method, route template and status with a `TraceId` scope equal to the problem+json `traceId` (also for an unhandled 500), that every log line of a request shares that `TraceId` and no line carries the raw path (unmatched routes log `(unmatched)`), and that no password, auth cookie, invite code or email reaches the logs across sign-up, login, password reset and invites. It also checks that `/api/health` uses the registered DbContext check. `Controllers/HealthControllerTests` (database down: 503 `unreachable`) and `Integration/HealthSmokeTests` (200 `connected`) cover the health responses.
+
+### API reference tests
+
+`Conventions/ApiReferenceTests` (P8-06) fails when [docs/api/](docs/api/README.md) no longer matches the API's OpenAPI document. After an API change, regenerate it with `$env:UPDATE_API_DOCS = "1"; dotnet test api.Tests --filter ApiReference; Remove-Item Env:UPDATE_API_DOCS` and commit the result with your change.
+
+### Query budget tests
+
+`Performance/QueryBudgetTests` (P8-04) counts the SQL commands each read endpoint runs, with 1 row and then with 12. The count must be the same both times (no N+1) and within the endpoint's ceiling. The review behind it, with `EXPLAIN ANALYZE` at about 80,000 entries, is in [docs/performance/p8-04-query-review.md](docs/performance/p8-04-query-review.md).
+
+### OpenAPI tests
+
+`Conventions/OpenApiDocumentTests` (P8-03) reads `/openapi/v1.json` and checks that:
+
+- every API action appears in it, with a summary, a success response and JSON schemas for its bodies;
+- errors are `application/problem+json` (400 with validation `errors`);
+- exactly the public endpoints lack the cookie requirement, and every other one declares 401;
+- every write declares the required `X-Requested-With` header and 403, while reads don't;
+- exactly the rate-limited endpoints declare 429;
+- the description documents cookie auth and the CSRF header;
+- the document and the `/scalar` explorer are served in Development only.
+
+### Seed data tests
+
+`Data/DevelopmentSeederTests` (P8-02) checks that the seed creates the documented world (one GM-only entry), that running it twice adds nothing and a re-run restores missing rows without changing edited ones, that both seeded users sign in and see role-appropriate data (the Player never sees the GM-only entry), and that `Seed:Enabled` seeds at startup in Development but stops startup in Production and Staging.
 
 ---
 
@@ -824,10 +1156,12 @@ frontend/.env.local
 For example:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5110
+API_ORIGIN=http://localhost:5110
 ```
 
-This matches the API port in `api/Properties/launchSettings.json`. The API only accepts browser requests from `http://localhost:3000` (CORS, set in `api/appsettings.Development.json`), so run the frontend on its default port.
+The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
+
+The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings.
 
 Files containing local secrets should not be committed.
 
@@ -864,7 +1198,7 @@ The API uses PostgreSQL 17, run locally with Docker Compose.
 With Docker Desktop running, from the repository root:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
 ```
 
 The script checks the .NET 10 SDK and Docker, creates `.env` with a random password if it is missing, starts the database, restores tools and packages, sets the connection-string user secret if it is missing, and applies migrations. It never overwrites an existing `.env` or user secret, so it is safe to re-run.
@@ -903,7 +1237,7 @@ The connection string is stored with .NET user secrets, outside the repository. 
 dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Host=localhost;Port=5432;Database=lorebound;Username=lorebound;Password=<POSTGRES_PASSWORD from .env>"
 ```
 
-Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
+Never put credentials in `appsettings*.json`. Outside development, set the `ConnectionStrings__DefaultConnection` environment variable instead. Likewise set `App__FrontendBaseUrl` (the frontend address used in emailed links and invite join links). Behind a reverse proxy, also set `ForwardedHeaders__KnownProxies__0` to the proxy's IP so rate limiting sees real client IPs.
 
 ### 4. Create the tables
 
@@ -919,6 +1253,29 @@ This applies every migration in `api/Data/Migrations/`. Run it again whenever yo
 ### 5. Verify
 
 Run the API (`dotnet run` in `api/`) and open `/api/health`. It should report `"database": "connected"`.
+
+## Seed data
+
+To make a fresh database look like the wireframes, start the API once with `--seed` from `api/`:
+
+```powershell
+dotnet run -- --seed
+```
+
+It seeds, then keeps running as usual. The database must be up to date first (step 4, or `scripts/onboard.ps1`); otherwise it stops and names the missing migrations. To seed on every start instead, set `Seed:Enabled` (`dotnet user-secrets set "Seed:Enabled" "true"`, or the `Seed__Enabled=true` environment variable).
+
+| Sign in as | Email | Password | Role in "Osepia" |
+|---|---|---|---|
+| Joseph Marlow | `gm@lorebound.local` | `lorebound-gm-dev` | GameMaster (owner) |
+| Lyra Holt | `player@lorebound.local` | `lorebound-player-dev` | Player |
+
+What you get:
+
+- The setting **Osepia** with 9 entries: Sasymon, Ymenite Region and Northern Marches (locations), River Cities and Nigallu (cultures), Merchant Guild (organization), Caravan Guard and Scholar (professions), and **Cult of Beléna** (religion, **GM-only**: the Player never sees it).
+- 7 relationships between them, so the builder narrows cultures by homeland (Sasymon to River Cities, Northern Marches to Nigallu). The one involving the Cult is hidden from the Player too.
+- The Player's draft character **Theron Vale**, with Sasymon as homeland, on the culture step.
+
+Seeding is **safe to run again**: it only adds what is missing and never changes or resets existing rows, including passwords. It runs **only in Development**: with seeding on in any other environment the API refuses to start, so these passwords never reach Production. To start over, recreate the database (`docker compose down -v`, `docker compose up -d`, then step 4).
 
 ## Changing the database password
 
@@ -975,7 +1332,7 @@ dotnet restore
 If the pull adds a database migration (new files in `api/Data/Migrations/`), re-run the onboarding script, or `dotnet ef database update` from `api/`:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .scriptsonboard.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
 ```
 
 ---

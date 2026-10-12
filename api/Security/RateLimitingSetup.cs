@@ -25,6 +25,13 @@ public static class RateLimitingSetup
   /// </summary>
   public const string AuthPolicy = "auth";
 
+  /// <summary>
+  /// Same limits as <see cref="AuthPolicy"/> but its own counter, for the
+  /// endpoints that look up an invite code (P3-04, P3-05), so guessing codes
+  /// is slow and does not use up the caller's login attempts.
+  /// </summary>
+  public const string InvitePolicy = "invites";
+
   public static IServiceCollection AddLoreboundRateLimiting(this IServiceCollection services)
   {
     // Defaults are 10 requests / 60 seconds; tests raise the limit through
@@ -35,20 +42,8 @@ public static class RateLimitingSetup
 
     services.AddRateLimiter(options =>
     {
-      options.AddPolicy(AuthPolicy, httpContext =>
-      {
-        var settings = httpContext.RequestServices
-            .GetRequiredService<IOptions<AuthRateLimitOptions>>().Value;
-
-        return RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
-            _ => new FixedWindowRateLimiterOptions
-            {
-              PermitLimit = settings.PermitLimit,
-              Window = TimeSpan.FromSeconds(settings.WindowSeconds),
-              QueueLimit = 0,
-            });
-      });
+      options.AddPolicy(AuthPolicy, httpContext => PerClientIp(httpContext, AuthPolicy));
+      options.AddPolicy(InvitePolicy, httpContext => PerClientIp(httpContext, InvitePolicy));
 
       options.OnRejected = WriteRejectionAsync;
     });
@@ -71,6 +66,22 @@ public static class RateLimitingSetup
         });
 
     return services;
+  }
+
+  // The policy name is part of the key so each policy counts separately.
+  private static RateLimitPartition<string> PerClientIp(HttpContext httpContext, string policy)
+  {
+    var settings = httpContext.RequestServices
+        .GetRequiredService<IOptions<AuthRateLimitOptions>>().Value;
+
+    return RateLimitPartition.GetFixedWindowLimiter(
+        $"{policy}:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+        _ => new FixedWindowRateLimiterOptions
+        {
+          PermitLimit = settings.PermitLimit,
+          Window = TimeSpan.FromSeconds(settings.WindowSeconds),
+          QueueLimit = 0,
+        });
   }
 
   private static async ValueTask WriteRejectionAsync(

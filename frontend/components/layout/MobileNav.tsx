@@ -8,7 +8,6 @@ import {
   Menu,
   ScrollText,
   Users,
-  WandSparkles,
   X,
 } from "lucide-react";
 import { useState } from "react";
@@ -28,11 +27,6 @@ const navigationItems = [
     label: "Characters",
     href: "/characters",
     icon: Users,
-  },
-  {
-    label: "Builder",
-    href: "/builder",
-    icon: WandSparkles,
   },
 ];
 

@@ -126,7 +126,9 @@ public class AuthController : ControllerBase
   }
 
   /// <summary>
-  /// Signs out by expiring the auth cookie (same name and path as at sign-in).
+  /// Signs out everywhere: changes the security stamp, so every copy of the
+  /// user's cookie stops working, and expires this browser's cookie (same
+  /// name and path as at sign-in).
   /// </summary>
   [Authorize]
   [HttpPost("logout")]
@@ -134,6 +136,14 @@ public class AuthController : ControllerBase
   [ProducesResponseType(StatusCodes.Status401Unauthorized)]
   public async Task<IActionResult> Logout()
   {
+    // Signs out everywhere: a new security stamp invalidates every copy of
+    // this user's cookie (checked on each request), not just the browser's.
+    var user = await _userManager.GetUserAsync(User);
+    if (user is not null)
+    {
+      await _userManager.UpdateSecurityStampAsync(user);
+    }
+
     await _signInManager.SignOutAsync();
     return NoContent();
   }

@@ -9,7 +9,6 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { SettingCard } from "@/components/dashboard/SettingCard";
 import { CharacterCard } from "@/components/dashboard/CharacterCard";
-import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { Button } from "@/components/ui/button";
 
 import { getSettings } from "@/lib/settings/settings-store";
@@ -163,14 +162,6 @@ export default function DashboardPage() {
             </div>
           )}
         </section>
-
-        <RecentActivity
-          items={[
-            "Edited Osepia setting",
-            "Added faction: Merchant Guild",
-            "Updated Theron Vale",
-          ]}
-        />
       </div>
     </AppShell>
   );

@@ -59,7 +59,7 @@ export function SettingListCard({
         )}
 
         <div>
-          <p>{entryCount} entries</p>
+          <p>{entryCount} {entryCount === 1 ? "entry" : "entries"}</p>
           <p>Updated {updatedText}</p>
         </div>
       </CardContent>

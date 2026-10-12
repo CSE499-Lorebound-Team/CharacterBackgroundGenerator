@@ -1,11 +1,14 @@
 @HostAddress = http://localhost:5110
 
+# Every POST/PUT/PATCH/DELETE must send X-Requested-With: Lorebound (CSRF check).
+
 GET {{HostAddress}}/api/health
 Accept: application/json
 
 ###
 
 POST {{HostAddress}}/api/auth/register
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "password": "correct horse battery", "displayName": "Player" }
@@ -14,6 +17,7 @@ Content-Type: application/json
 
 # Sets the lorebound.auth cookie (Secure: use the https profile in a browser).
 POST {{HostAddress}}/api/auth/login
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "password": "correct horse battery", "rememberMe": false }
@@ -21,11 +25,13 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/logout
+X-Requested-With: Lorebound
 
 ###
 
 # userId and code come from the [dev email] link in the API log.
 POST {{HostAddress}}/api/auth/confirm-email
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "userId": "<userId>", "code": "<code>" }
@@ -33,6 +39,7 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/resend-confirmation
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com" }
@@ -40,6 +47,7 @@ Content-Type: application/json
 ###
 
 POST {{HostAddress}}/api/auth/forgot-password
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com" }
@@ -48,6 +56,7 @@ Content-Type: application/json
 
 # email and code come from the [dev email] reset link in the API log.
 POST {{HostAddress}}/api/auth/reset-password
+X-Requested-With: Lorebound
 Content-Type: application/json
 
 { "email": "player@example.com", "code": "<code>", "newPassword": "a brand new passphrase" }
@@ -57,8 +66,8 @@ Content-Type: application/json
 ### Update setting
 
 PUT {{HostAddress}}/api/settings/<SETTING_ID>
-Content-Type: application/json
 X-Requested-With: Lorebound
+Content-Type: application/json
 
 {
   "name": "Osepia Revised",
@@ -69,3 +78,309 @@ X-Requested-With: Lorebound
 
 DELETE {{HostAddress}}/api/settings/<SETTING_ID>
 X-Requested-With: Lorebound
+
+# Needs the cookie from a login above.
+GET {{HostAddress}}/api/users/me
+
+###
+
+PUT {{HostAddress}}/api/users/me
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "displayName": "Renamed Player" }
+
+###
+
+### Create an invite (GameMaster). Body is optional.
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/invites
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "expiresInDays": 7, "maxUses": 5 }
+
+###
+
+### List invites (GameMaster)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/invites
+
+### Revoke an invite (GameMaster)
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/invites/<INVITE_ID>
+X-Requested-With: Lorebound
+
+###
+
+### Preview an invite (any signed-in user). Case and hyphens are ignored.
+
+GET {{HostAddress}}/api/invites/<CODE>
+
+###
+
+### Create setting
+
+POST {{HostAddress}}/api/settings
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Osepia",
+  "description": "A campaign setting inspired by the ancient Near East."
+}
+
+###
+
+### List settings
+
+GET {{HostAddress}}/api/settings?search=Osepia&role=gm&page=1&pageSize=20
+
+###
+
+### Get setting detail
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>
+
+###
+
+### Accept an invite (any signed-in user). Safe to repeat.
+
+POST {{HostAddress}}/api/invites/<CODE>/accept
+X-Requested-With: Lorebound
+
+###
+
+### List members (any member)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/members
+
+### Change a member's role (owner only)
+
+PATCH {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{ "role": "GameMaster" }
+
+###
+
+### Remove a member, or leave (your own user id)
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/members/<USER_ID>
+X-Requested-With: Lorebound
+
+###
+
+### List entries (any member). Players never see GM-only entries.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries?type=Location&search=tower&page=1&pageSize=20
+
+###
+
+### Create an entry (GameMaster)
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/entries
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers.",
+  "isGmOnly": false
+}
+
+###
+
+### Get an entry with its relationships (any member; GM-only entries are 404 for Players)
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+
+###
+
+### Update an entry (GameMaster). Replaces every field.
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Sharn",
+  "entryType": "Location",
+  "description": "The City of Towers, capital of crime.",
+  "isGmOnly": true
+}
+
+###
+
+### Delete an entry (GameMaster). 409 with relationshipCount and characterCount if it has relationships or characters chose it; ?force=true deletes its relationships too and leaves those characters with a null choice.
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/entries/<ENTRY_ID>?force=false
+X-Requested-With: Lorebound
+
+###
+
+### List relationships (any member). entryId matches either end; Players never see links to GM-only entries.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/relationships?entryId=<ENTRY_ID>&type=Capital%20of&page=1&pageSize=20
+
+###
+
+### Link two entries (GameMaster). Both must belong to this setting; 409 if the same link exists.
+
+POST {{HostAddress}}/api/settings/<SETTING_ID>/relationships
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "sourceEntryId": "<ENTRY_ID>",
+  "targetEntryId": "<OTHER_ENTRY_ID>",
+  "relationshipType": "Capital of",
+  "description": "Since the Last War."
+}
+
+###
+
+### Change a relationship's type and description (GameMaster). Source and target cannot change.
+
+PUT {{HostAddress}}/api/settings/<SETTING_ID>/relationships/<RELATIONSHIP_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "relationshipType": "Largest city of",
+  "description": "And the richest."
+}
+
+###
+
+### Delete a relationship (GameMaster). The entries stay.
+
+DELETE {{HostAddress}}/api/settings/<SETTING_ID>/relationships/<RELATIONSHIP_ID>
+X-Requested-With: Lorebound
+
+###
+
+### Suggested relationship types (any signed-in user). Other text is accepted too.
+
+GET {{HostAddress}}/api/relationship-types
+
+###
+
+### The builder step catalog (P7-01): 8 ordered steps, the same for every character.
+
+GET {{HostAddress}}/api/builder/steps
+
+###
+
+### Options for one builder step (owner with write access), narrowed by earlier choices when any option is linked to them.
+
+GET {{HostAddress}}/api/characters/<CHARACTER_ID>/steps/culture/options
+
+###
+
+### Save one step's answer (owner with write access): entryIds for entry steps, freeText for motivation; neither clears it.
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>/choices/culture
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "entryIds": ["<ENTRY_ID>"]
+}
+
+###
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>/choices/motivation
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "freeText": "Find the mentor who vanished in the Mourning."
+}
+
+###
+
+### Complete a character: 400 lists each missing, invalid or stale step by key.
+
+POST {{HostAddress}}/api/characters/<CHARACTER_ID>/complete
+X-Requested-With: Lorebound
+
+###
+
+### Reopen a complete character so its answers can change again.
+
+POST {{HostAddress}}/api/characters/<CHARACTER_ID>/reopen
+X-Requested-With: Lorebound
+
+###
+
+### Start a draft character in a setting you belong to (any member). Name is optional.
+
+POST {{HostAddress}}/api/characters
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "settingId": "<SETTING_ID>",
+  "name": "Aster"
+}
+
+###
+
+### One character with its choices (its owner, or a GameMaster of its setting).
+
+GET {{HostAddress}}/api/characters/<CHARACTER_ID>
+
+###
+
+### Your own characters, most recently updated first. Optional: status (Draft/Complete), settingId, search, page, pageSize.
+
+GET {{HostAddress}}/api/characters?status=Draft&search=aster
+
+###
+
+### Rename a character and set its free-text backstory (owner, while still a member of the setting).
+
+PUT {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "name": "Aster Vane",
+  "backstory": "Born in the shadow of the towers."
+}
+
+###
+
+### Delete your character and its choices (owner only, also after leaving the setting).
+
+DELETE {{HostAddress}}/api/characters/<CHARACTER_ID>
+X-Requested-With: Lorebound
+
+###
+
+### Every character in a setting, removed players' included (GameMaster). Optional: status, search, page, pageSize.
+
+GET {{HostAddress}}/api/settings/<SETTING_ID>/characters?status=Complete
+
+###
+
+### Delete your account (needs your password). 409 lists owned settings that still have other members.
+
+DELETE {{HostAddress}}/api/users/me
+X-Requested-With: Lorebound
+Content-Type: application/json
+
+{
+  "password": "<YOUR_PASSWORD>"
+}
+
+###
+
+### Dashboard: counts, 5 recent settings, 5 recent characters and the 10 latest changes you can see.
+
+GET {{HostAddress}}/api/dashboard
+
+###

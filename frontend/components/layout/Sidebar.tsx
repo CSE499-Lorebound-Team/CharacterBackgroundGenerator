@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   ScrollText,
   Users,
-  WandSparkles,
 } from "lucide-react";
 
 const navigationItems = [
@@ -25,11 +24,6 @@ const navigationItems = [
     label: "Characters",
     href: "/characters",
     icon: Users,
-  },
-  {
-    label: "Builder",
-    href: "/builder",
-    icon: WandSparkles,
   },
 ];
 

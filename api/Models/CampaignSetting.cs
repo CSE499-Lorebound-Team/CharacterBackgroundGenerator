@@ -24,4 +24,10 @@ public class CampaignSetting : ITimestamped
 
   public ICollection<SettingMembership> Memberships { get; set; }
     = new List<SettingMembership>();
+
+  public ICollection<SettingInvite> Invites { get; set; }
+      = new List<SettingInvite>();
+
+  public ICollection<Character> Characters { get; set; }
+      = new List<Character>();
 }

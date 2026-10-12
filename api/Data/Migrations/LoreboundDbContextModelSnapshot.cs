@@ -20,6 +20,7 @@ namespace Lorebound.Api.Data.Migrations
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "citext");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("Lorebound.Api.Models.ApplicationUser", b =>
@@ -125,6 +126,86 @@ namespace Lorebound.Api.Data.Migrations
                     b.ToTable("CampaignSettings");
                 });
 
+            modelBuilder.Entity("Lorebound.Api.Models.Character", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Backstory")
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)");
+
+                    b.Property<Guid>("CampaignSettingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CurrentStep")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("OwnerUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignSettingId");
+
+                    b.HasIndex("OwnerUserId", "UpdatedAt");
+
+                    b.ToTable("Characters");
+                });
+
+            modelBuilder.Entity("Lorebound.Api.Models.CharacterChoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CharacterId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("EntryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FreeText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<int>("Ordinal")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StepKey")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EntryId");
+
+                    b.HasIndex("CharacterId", "StepKey", "Ordinal")
+                        .IsUnique();
+
+                    b.ToTable("CharacterChoices", t =>
+                        {
+                            t.HasCheckConstraint("CK_CharacterChoices_EntryOrFreeText", "\"EntryId\" IS NULL OR \"FreeText\" IS NULL");
+                        });
+                });
+
             modelBuilder.Entity("Lorebound.Api.Models.SettingEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -144,16 +225,28 @@ namespace Lorebound.Api.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<bool>("IsGmOnly")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("citext");
 
                     b.Property<DateTimeOffset>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CampaignSettingId");
+                    b.HasIndex("CampaignSettingId", "EntryType");
+
+                    b.HasIndex("CampaignSettingId", "IsGmOnly");
+
+                    b.HasIndex("CampaignSettingId", "UpdatedAt");
+
+                    b.HasIndex("CampaignSettingId", "EntryType", "Name")
+                        .IsUnique();
+
+                    b.HasIndex("CampaignSettingId", "Name", "Id");
 
                     b.ToTable("SettingEntries");
                 });
@@ -171,11 +264,12 @@ namespace Lorebound.Api.Data.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("Description")
-                        .HasColumnType("text");
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
 
                     b.Property<string>("RelationshipType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("citext");
 
                     b.Property<Guid>("SourceEntryId")
                         .HasColumnType("uuid");
@@ -190,11 +284,67 @@ namespace Lorebound.Api.Data.Migrations
 
                     b.HasIndex("CampaignSettingId");
 
-                    b.HasIndex("SourceEntryId");
-
                     b.HasIndex("TargetEntryId");
 
-                    b.ToTable("SettingEntryRelationships");
+                    b.HasIndex("SourceEntryId", "TargetEntryId", "RelationshipType")
+                        .IsUnique()
+                        .HasDatabaseName("IX_SettingEntryRelationships_Source_Target_Type");
+
+                    b.ToTable("SettingEntryRelationships", t =>
+                        {
+                            t.HasCheckConstraint("CK_SettingEntryRelationships_NoSelfLink", "\"SourceEntryId\" <> \"TargetEntryId\"");
+
+                            t.HasCheckConstraint("CK_SettingEntryRelationships_RelationshipTypeLength", "char_length(\"RelationshipType\") <= 60");
+                        });
+                });
+
+            modelBuilder.Entity("Lorebound.Api.Models.SettingInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignSettingId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("MaxUses")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UseCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CampaignSettingId");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("SettingInvites", t =>
+                        {
+                            t.HasCheckConstraint("CK_SettingInvites_MaxUses", "\"MaxUses\" IS NULL OR \"MaxUses\" > 0");
+
+                            t.HasCheckConstraint("CK_SettingInvites_UseCount", "\"UseCount\" >= 0 AND (\"MaxUses\" IS NULL OR \"UseCount\" <= \"MaxUses\")");
+                        });
                 });
 
             modelBuilder.Entity("Lorebound.Api.Models.SettingMembership", b =>
@@ -230,6 +380,25 @@ namespace Lorebound.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("SettingMemberships");
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FriendlyName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Xml")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DataProtectionKeys");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<System.Guid>", b =>
@@ -373,6 +542,43 @@ namespace Lorebound.Api.Data.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("Lorebound.Api.Models.Character", b =>
+                {
+                    b.HasOne("Lorebound.Api.Models.CampaignSetting", "CampaignSetting")
+                        .WithMany("Characters")
+                        .HasForeignKey("CampaignSettingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lorebound.Api.Models.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CampaignSetting");
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("Lorebound.Api.Models.CharacterChoice", b =>
+                {
+                    b.HasOne("Lorebound.Api.Models.Character", "Character")
+                        .WithMany("Choices")
+                        .HasForeignKey("CharacterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lorebound.Api.Models.SettingEntry", "Entry")
+                        .WithMany()
+                        .HasForeignKey("EntryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Character");
+
+                    b.Navigation("Entry");
+                });
+
             modelBuilder.Entity("Lorebound.Api.Models.SettingEntry", b =>
                 {
                     b.HasOne("Lorebound.Api.Models.CampaignSetting", "CampaignSetting")
@@ -395,13 +601,13 @@ namespace Lorebound.Api.Data.Migrations
                     b.HasOne("Lorebound.Api.Models.SettingEntry", "SourceEntry")
                         .WithMany("OutgoingRelationships")
                         .HasForeignKey("SourceEntryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.HasOne("Lorebound.Api.Models.SettingEntry", "TargetEntry")
                         .WithMany("IncomingRelationships")
                         .HasForeignKey("TargetEntryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("CampaignSetting");
@@ -409,6 +615,25 @@ namespace Lorebound.Api.Data.Migrations
                     b.Navigation("SourceEntry");
 
                     b.Navigation("TargetEntry");
+                });
+
+            modelBuilder.Entity("Lorebound.Api.Models.SettingInvite", b =>
+                {
+                    b.HasOne("Lorebound.Api.Models.CampaignSetting", "CampaignSetting")
+                        .WithMany("Invites")
+                        .HasForeignKey("CampaignSettingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Lorebound.Api.Models.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CampaignSetting");
+
+                    b.Navigation("CreatedBy");
                 });
 
             modelBuilder.Entity("Lorebound.Api.Models.SettingMembership", b =>
@@ -490,11 +715,20 @@ namespace Lorebound.Api.Data.Migrations
 
             modelBuilder.Entity("Lorebound.Api.Models.CampaignSetting", b =>
                 {
+                    b.Navigation("Characters");
+
                     b.Navigation("Entries");
+
+                    b.Navigation("Invites");
 
                     b.Navigation("Memberships");
 
                     b.Navigation("Relationships");
+                });
+
+            modelBuilder.Entity("Lorebound.Api.Models.Character", b =>
+                {
+                    b.Navigation("Choices");
                 });
 
             modelBuilder.Entity("Lorebound.Api.Models.SettingEntry", b =>

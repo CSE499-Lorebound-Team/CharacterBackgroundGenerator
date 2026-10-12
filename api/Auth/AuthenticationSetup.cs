@@ -3,6 +3,7 @@ using Lorebound.Api.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +12,12 @@ namespace Lorebound.Api.Auth;
 public static class AuthenticationSetup
 {
   public const string CookieName = "lorebound.auth";
+
+  /// <summary>
+  /// Part of every Data Protection purpose. Changing it makes every existing
+  /// cookie and emailed link invalid.
+  /// </summary>
+  public const string DataProtectionApplicationName = "Lorebound";
 
   /// <summary>
   /// Registers ASP.NET Core Identity with a cookie scheme only. The API never
@@ -59,6 +66,16 @@ public static class AuthenticationSetup
         .AddAuthentication(IdentityConstants.ApplicationScheme)
         .AddIdentityCookies();
 
+    // The cookie and the emailed tokens are encrypted with Data Protection
+    // keys. Kept in Postgres (P8-08), they survive restarts on hosts whose
+    // disk does not last (Render's free plan, ADR 0003); kept in memory or on
+    // disk, a restart would sign everyone out. The fixed application name
+    // keeps the keys valid when the container or content path changes.
+    services
+        .AddDataProtection()
+        .SetApplicationName(DataProtectionApplicationName)
+        .PersistKeysToDbContext<LoreboundDbContext>();
+
     // Check the cookie's security stamp against the database on every
     // request (default: every 30 minutes), so a password reset ends the
     // user's other sessions immediately. Costs one user lookup per signed-in
@@ -94,6 +111,7 @@ public static class AuthenticationSetup
     services.AddHttpContextAccessor();
     services.AddScoped<ICurrentUser, CurrentUser>();
     services.AddScoped<ISettingAccess, SettingAccess>();
+    services.AddScoped<ICharacterAccess, CharacterAccess>();
 
     return services;
   }

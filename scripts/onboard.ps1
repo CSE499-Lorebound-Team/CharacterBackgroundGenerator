@@ -222,6 +222,7 @@ Write-Step 7 'Done'
 Write-Host ''
 Write-Host 'Your local environment is ready.' -ForegroundColor Green
 Write-Host '  Run the API:      cd api; dotnet run      then open http://localhost:5110/api/health'
+Write-Host '  Add sample data:  cd api; dotnet run -- --seed   (logins in README "Seed data")'
 Write-Host '  Run the frontend: cd frontend; npm install; npm run dev'
 Write-Host '  Run the tests:    dotnet test Lorebound.slnx   (Docker Desktop must be running)'
 Write-Host '  Re-run this script after pulling changes that add a migration.'

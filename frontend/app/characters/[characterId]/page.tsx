@@ -15,12 +15,26 @@ import { EditCharacterDialog } from "@/components/characters/EditCharacterDialog
 import { Button } from "@/components/ui/button";
 
 import {
+  getBuilderState,
+} from "@/lib/builder/builder-store";
+
+import {
   deleteCharacter,
   getCharacter,
   updateCharacter,
 } from "@/lib/characters/characters-store";
 
-import type { Character } from "@/lib/characters/types";
+import {
+  getEntriesForSetting,
+} from "@/lib/settings/entries-store";
+
+import type {
+  CharacterBuilderState,
+} from "@/lib/builder/types";
+
+import type {
+  Character,
+} from "@/lib/characters/types";
 
 import { useIsClient } from "@/lib/use-is-client";
 
@@ -61,6 +75,13 @@ function CharacterDetailContent({
         : undefined
     );
 
+  const [builderState] =
+    useState<CharacterBuilderState | undefined>(() =>
+      loaded
+        ? getBuilderState(characterId)
+        : undefined
+    );
+
   const [editOpen, setEditOpen] =
     useState(false);
 
@@ -90,7 +111,9 @@ function CharacterDetailContent({
             className="mt-6"
             variant="outline"
             nativeButton={false}
-            render={<Link href="/characters" />}
+            render={
+              <Link href="/characters" />
+            }
           >
             Back to Characters
           </Button>
@@ -99,7 +122,45 @@ function CharacterDetailContent({
     );
   }
 
-  const currentCharacter = character;
+  const currentCharacter =
+    character;
+
+  const entries =
+    getEntriesForSetting(
+      currentCharacter.settingId
+    );
+
+  const homeland =
+    entries.find(
+      (entry) =>
+        entry.id ===
+        builderState?.choices
+          .homelandEntryId
+    );
+
+  const culture =
+    entries.find(
+      (entry) =>
+        entry.id ===
+        builderState?.choices
+          .cultureEntryId
+    );
+
+  const religion =
+    entries.find(
+      (entry) =>
+        entry.id ===
+        builderState?.choices
+          .religionEntryId
+    );
+
+  const faction =
+    entries.find(
+      (entry) =>
+        entry.id ===
+        builderState?.choices
+          .factionEntryId
+    );
 
   function handleSave(data: {
     name: string;
@@ -193,7 +254,7 @@ function CharacterDetailContent({
                 nativeButton={false}
                 render={
                   <Link
-                    href={`/builder?characterId=${currentCharacter.id}`}
+                    href={`/builder/${currentCharacter.id}`}
                   />
                 }
               >
@@ -288,12 +349,44 @@ function CharacterDetailContent({
             Background Choices
           </h2>
 
-          <p className="mt-2 text-sm text-muted-foreground">
-            Homeland, culture,
-            relationships, profession,
-            life events, and other builder
-            choices will appear here.
-          </p>
+          <div className="mt-6 grid gap-5 sm:grid-cols-2">
+            <BackgroundChoice
+              label="Homeland"
+              value={
+                homeland?.name
+              }
+            />
+
+            <BackgroundChoice
+              label="Culture"
+              value={
+                culture?.name
+              }
+            />
+
+            <BackgroundChoice
+              label="Religion"
+              value={
+                religion?.name
+              }
+            />
+
+            <BackgroundChoice
+              label="Faction"
+              value={
+                faction?.name
+              }
+            />
+
+            <BackgroundChoice
+              label="Motivation"
+              value={
+                builderState?.choices
+                  .motivation
+              }
+              wide
+            />
+          </div>
         </section>
 
         <footer className="border-t border-border pt-6 text-sm text-muted-foreground">
@@ -309,9 +402,41 @@ function CharacterDetailContent({
       <EditCharacterDialog
         open={editOpen}
         onOpenChange={setEditOpen}
-        character={currentCharacter}
-        onSave={handleSave}
+        character={
+          currentCharacter
+        }
+        onSave={
+          handleSave
+        }
       />
     </AppShell>
+  );
+}
+
+function BackgroundChoice({
+  label,
+  value,
+  wide = false,
+}: {
+  label: string;
+  value?: string;
+  wide?: boolean;
+}) {
+  return (
+    <div
+      className={
+        wide
+          ? "sm:col-span-2"
+          : undefined
+      }
+    >
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </p>
+
+      <p className="mt-1 whitespace-pre-wrap">
+        {value || "Not selected"}
+      </p>
+    </div>
   );
 }

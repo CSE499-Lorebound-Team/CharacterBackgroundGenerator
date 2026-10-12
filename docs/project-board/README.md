@@ -2,7 +2,7 @@
 
 Single source of truth for building the Lorebound backend (auth, sharing, settings, characters, builder) and wiring the frontend to it. Every piece of work is a GitHub issue on this board.
 
-**Repo:** [CSE499-Lorebound-Team/CharacterBackgroundGenerator](https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator) | **Integration branch:** `dev` | **Team workflow:** see the repository README
+**Board:** [Lorebound API Roadmap](https://github.com/orgs/CSE499-Lorebound-Team/projects/3) | **Repo:** [CSE499-Lorebound-Team/CharacterBackgroundGenerator](https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator) | **Integration branch:** `dev` | **Team workflow:** see the repository README | **API reference:** [docs/api](../api/README.md)
 
 ---
 
@@ -52,14 +52,14 @@ WIP limit: **max 2 items In Progress per person**. Finish or unblock before star
 | 1 Authentication | Cookie-only auth, register/login/logout, email flows, rate limits, CSRF, `/users/me` | 13 |
 | 2 Settings CRUD | Membership model, access helper, settings CRUD, cascade fix | 9 |
 | 3 Sharing | Invite codes, accept, members, leave/remove | 8 |
-| 4 Setting Entries | Entries CRUD, `IsGmOnly` secrecy, search | 7 |
+| 4 Setting Entries | Entries CRUD, `IsGmOnly` secrecy, search | 8 |
 | 5 Entry Relationships | Typed links, constraints, vocabulary decision | 6 |
 | 6 Characters | Character models, CRUD, read-only rule, account deletion | 12 |
 | 7 Builder Support | Step catalog, narrowed options, choices, complete | 6 |
 | 8 Dashboard and Polish | Dashboard, seed data, OpenAPI, perf, security review | 7 |
 | 9 Frontend Integration | Auth pages, API client, replace mocks, e2e | 17 |
 
-Total: **101 work items + 10 epics = 111 issues.**
+Total: **102 work items + 10 epics = 112 issues.**
 
 ## Critical path
 
@@ -73,7 +73,8 @@ Total: **101 work items + 10 epics = 111 issues.**
 4. **Removed players keep their characters, read-only.**
 5. **Account deletion is blocked** while the user owns a setting that has other members.
 6. **Backstory is free text only.** No generated or AI-written backstory.
-7. **Production must be same-site** so the cookie is sent (decided in `P1-12`).
+7. **Production must be same-site** so the cookie is sent. Decided in `P1-12`: the frontend proxies `/api/*` to the API, so the browser sees one origin ([ADR 0001](../decisions/0001-same-origin-api-proxy.md)).
+8. **Production is a free course demo.** Vercel hosts the frontend, Render the API (Docker) and Supabase the Postgres database only, keeping ADR 0001's `/api/*` rewrite. The deployment work is `P8-08` to `P8-11` ([ADR 0003](../decisions/0003-production-hosting.md)).
 
 ## Working agreement
 
@@ -84,12 +85,14 @@ Total: **101 work items + 10 epics = 111 issues.**
 5. Merge into `dev` (never `main`). The default branch stays `main` (decided in P0-12), so `Closes #N` links the PR but does **not** close the issue. After merging, close each issue by hand with a comment naming the PR and commits, so the card moves to **Done**.
 6. Migrations: one per PR, announce schema changes to the team before merging.
 7. Found something new? Open an issue from the forms (Task, Bug, Feature); it is auto-added to this board.
+8. **Spec and code always agree.** An issue's spec (here in `issues/` and the GitHub issue body) is the API contract, and the frontend builds against it. If the implementation has to differ (an added field, a changed rule), update the spec, both copies, and the API docs (`api/README.md`) in the same PR, and say so in the PR description. A spec is never left describing behavior the code does not have.
+9. **API specs rule over mock-data UI.** Pages that still run on mock data are drafts. Where one disagrees with an API issue (list sizes, fields, wording), the API issue wins, and the page adapts when it is wired up (Phase 9). Changing the contract takes a team review and a spec update, not a UI draft.
 
 ## Definition of Ready / Done
 
 **Ready:** clear acceptance criteria, all "Blocked by" issues closed, size S or M.
 
-**Done:** acceptance criteria met, tests written and green in CI, permission matrix tested (anonymous 401, non-member 404, player 403 on writes), docs updated, merged into `dev`.
+**Done:** acceptance criteria met, tests written and green in CI, permission matrix tested (anonymous 401, non-member 404, player 403 on writes), docs updated, the issue's spec matches what was built (Working agreement step 8), merged into `dev`.
 
 ## How issues are linked
 

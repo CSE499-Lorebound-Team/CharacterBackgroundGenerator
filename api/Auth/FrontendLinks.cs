@@ -14,8 +14,8 @@ public class AppOptions
 }
 
 /// <summary>
-/// Builds the links sent by email. They open frontend pages, which post the
-/// code back to the API (P1-06, P1-07).
+/// Builds the links sent by email or shared by GMs. They open frontend pages,
+/// which post the code back to the API (P1-06, P1-07, P3-02).
 /// </summary>
 public class FrontendLinks
 {
@@ -40,7 +40,13 @@ public class FrontendLinks
         ["code"] = EmailCodes.Encode(token),
       });
 
+  /// <summary>The shareable link for an invite code (P3-02).</summary>
+  public string JoinSetting(string code) =>
+      $"{BaseUrl}/join/{Uri.EscapeDataString(code)}";
+
+  private string BaseUrl => _options.Value.FrontendBaseUrl.TrimEnd('/');
+
   private string Build(string page, Dictionary<string, string?> query) =>
       QueryHelpers.AddQueryString(
-          $"{_options.Value.FrontendBaseUrl.TrimEnd('/')}/{page}", query);
+          $"{BaseUrl}/{page}", query);
 }

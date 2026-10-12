@@ -11,6 +11,6 @@ public class ApplicationUser : IdentityUser<Guid>, ICreatedAt
   public ICollection<CampaignSetting> CampaignSettings { get; set; }
       = new List<CampaignSetting>();
 
-      public ICollection<SettingMembership> SettingMemberships { get; set; }
-    = new List<SettingMembership>();
+  public ICollection<SettingMembership> SettingMemberships { get; set; }
+      = new List<SettingMembership>();
 }

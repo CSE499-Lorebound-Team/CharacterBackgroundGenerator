@@ -51,6 +51,11 @@ jobs:
           dotnet tool restore
           dotnet ef migrations has-pending-model-changes --project api --no-build --configuration Release
 
+      # Render deploys this image (P8-10, ADR 0003), so a broken Dockerfile
+      # fails here rather than at deploy time.
+      - name: Build the API image
+        run: docker build --tag lorebound-api api
+
   frontend:
     name: frontend
     runs-on: ubuntu-latest

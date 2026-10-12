@@ -1,4 +1,6 @@
 using Lorebound.Api.Models;
+using Lorebound.Api.Sharing;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -6,9 +8,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Lorebound.Api.Data;
 
 // Identity supplies the Users DbSet. Its roles tables stay unused because
-// roles are per-setting (see P2-01).
+// roles are per-setting (see P2-01). The Data Protection keys live here too
+// (P8-08), so they survive restarts of a host with no lasting disk.
 public class LoreboundDbContext
-    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>,
+      IDataProtectionKeyContext
 {
   private readonly TimeProvider _timeProvider;
 
@@ -29,6 +33,19 @@ public class LoreboundDbContext
 
   public DbSet<SettingEntryRelationship> SettingEntryRelationships
       => Set<SettingEntryRelationship>();
+
+  public DbSet<SettingInvite> SettingInvites => Set<SettingInvite>();
+
+  public DbSet<Character> Characters => Set<Character>();
+
+  public DbSet<CharacterChoice> CharacterChoices => Set<CharacterChoice>();
+
+  /// <summary>
+  /// The keys that protect the auth cookie and the emailed tokens. Never
+  /// delete rows while users are signed in: their cookies and links stop
+  /// working.
+  /// </summary>
+  public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
   protected override void ConfigureConventions(
       ModelConfigurationBuilder configurationBuilder)
@@ -53,11 +70,40 @@ public class LoreboundDbContext
           .HasDatabaseName("EmailIndex")
           .IsUnique();
 
-      // A user who owns settings cannot be hard-deleted (see P6-11).
+      // A user who owns settings cannot be hard-deleted; DELETE /api/users/me
+      // deletes their settings first (P6-11).
       user.HasMany(u => u.CampaignSettings)
           .WithOne(setting => setting.Owner)
           .HasForeignKey(setting => setting.OwnerUserId)
           .OnDelete(DeleteBehavior.Restrict);
+    });
+
+    // Case-insensitive text for entry names (P4-01).
+    modelBuilder.HasPostgresExtension("citext");
+
+    modelBuilder.Entity<SettingEntry>(entry =>
+    {
+      entry.Property(e => e.Name)
+          .IsRequired()
+          .HasColumnType("citext");
+
+      // "Aster" and "aster" of the same type in one setting are duplicates.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.EntryType, e.Name })
+          .IsUnique();
+
+      // The list endpoint filters by type and the visibility filter by
+      // IsGmOnly, both within one setting.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.EntryType });
+
+      entry.HasIndex(e => new { e.CampaignSettingId, e.IsGmOnly });
+
+      // P8-04 (docs/performance/p8-04-query-review.md): the entry list and
+      // search sort by name within a setting, so a page reads 20 index rows
+      // instead of sorting the whole setting; the dashboard reads each
+      // setting's newest entries.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.Name, e.Id });
+
+      entry.HasIndex(e => new { e.CampaignSettingId, e.UpdatedAt });
     });
 
     modelBuilder.Entity<CampaignSetting>()
@@ -70,18 +116,54 @@ public class LoreboundDbContext
         .WithOne(relationship => relationship.CampaignSetting)
         .HasForeignKey(relationship => relationship.CampaignSettingId);
 
-    modelBuilder.Entity<SettingEntryRelationship>()
-        .HasOne(relationship => relationship.SourceEntry)
-        .WithMany(entry => entry.OutgoingRelationships)
-        .HasForeignKey(relationship => relationship.SourceEntryId)
-        .OnDelete(DeleteBehavior.Restrict);
+    modelBuilder.Entity<SettingEntryRelationship>(relationship =>
+    {
+      relationship
+          .HasOne(r => r.SourceEntry)
+          .WithMany(entry => entry.OutgoingRelationships)
+          .HasForeignKey(r => r.SourceEntryId)
+          .OnDelete(DeleteBehavior.NoAction);
 
-    modelBuilder.Entity<SettingEntryRelationship>()
-        .HasOne(relationship => relationship.TargetEntry)
-        .WithMany(entry => entry.IncomingRelationships)
-        .HasForeignKey(relationship => relationship.TargetEntryId)
-        .OnDelete(DeleteBehavior.Restrict);
-        
+      relationship
+          .HasOne(r => r.TargetEntry)
+          .WithMany(entry => entry.IncomingRelationships)
+          .HasForeignKey(r => r.TargetEntryId)
+          .OnDelete(DeleteBehavior.NoAction);
+
+      // Readable labels compared ignoring case (P5-05, ADR 0002). citext has
+      // no length, so a check constraint keeps the 60-character limit.
+      relationship.Property(r => r.RelationshipType)
+          .IsRequired()
+          .HasColumnType("citext");
+
+      relationship.Property(r => r.Description)
+          .HasMaxLength(1000);
+
+      // The same link may exist once per type (P5-01). This index also
+      // serves lookups by SourceEntryId, so EF drops the single-column one.
+      relationship
+          .HasIndex(r => new { r.SourceEntryId, r.TargetEntryId, r.RelationshipType })
+          .HasDatabaseName("IX_SettingEntryRelationships_Source_Target_Type")
+          .IsUnique();
+
+      relationship.HasIndex(r => r.TargetEntryId);
+
+      relationship.HasIndex(r => r.CampaignSettingId);
+
+      // An entry cannot relate to itself. Both endpoints belonging to the
+      // relationship's setting is a cross-table rule, checked in P5-03.
+      relationship.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_SettingEntryRelationships_NoSelfLink",
+            "\"SourceEntryId\" <> \"TargetEntryId\"");
+
+        table.HasCheckConstraint(
+            "CK_SettingEntryRelationships_RelationshipTypeLength",
+            $"char_length(\"RelationshipType\") <= {RelationshipTypes.MaxLength}");
+      });
+    });
+
     modelBuilder.Entity<SettingMembership>(membership =>
     {
       membership
@@ -104,7 +186,114 @@ public class LoreboundDbContext
           })
           .IsUnique();
     });
-        
+
+    modelBuilder.Entity<SettingInvite>(invite =>
+    {
+      invite.Property(i => i.Code)
+          .IsRequired()
+          .HasMaxLength(InviteCodes.Length);
+
+      invite.HasIndex(i => i.Code).IsUnique();
+
+      invite.HasIndex(i => i.CampaignSettingId);
+
+      invite
+          .HasOne(i => i.CampaignSetting)
+          .WithMany(setting => setting.Invites)
+          .HasForeignKey(i => i.CampaignSettingId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Like memberships, a user who created invites cannot be hard-deleted
+      // (see P6-11).
+      invite
+          .HasOne(i => i.CreatedBy)
+          .WithMany()
+          .HasForeignKey(i => i.CreatedByUserId)
+          .OnDelete(DeleteBehavior.Restrict);
+
+      // Accepting increments UseCount with a bulk update (P3-05); the
+      // database refuses one that would go past MaxUses.
+      invite.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_SettingInvites_UseCount",
+            "\"UseCount\" >= 0 AND (\"MaxUses\" IS NULL OR \"UseCount\" <= \"MaxUses\")");
+        table.HasCheckConstraint(
+            "CK_SettingInvites_MaxUses",
+            "\"MaxUses\" IS NULL OR \"MaxUses\" > 0");
+      });
+    });
+
+    modelBuilder.Entity<Character>(character =>
+    {
+      character.Property(c => c.Name)
+          .IsRequired()
+          .HasMaxLength(Character.NameMaxLength);
+
+      character.Property(c => c.Backstory)
+          .HasMaxLength(Character.BackstoryMaxLength);
+
+      // Deleting a setting deletes its characters (P6-01).
+      character
+          .HasOne(c => c.CampaignSetting)
+          .WithMany(setting => setting.Characters)
+          .HasForeignKey(c => c.CampaignSettingId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // A user who owns characters cannot be hard-deleted; account deletion
+      // removes them first (P6-11).
+      character
+          .HasOne(c => c.Owner)
+          .WithMany()
+          .HasForeignKey(c => c.OwnerUserId)
+          .OnDelete(DeleteBehavior.Restrict);
+
+      // The Characters page and dashboard list the owner's characters
+      // newest first (P8-04). It also serves the OwnerUserId foreign key.
+      character.HasIndex(c => new { c.OwnerUserId, c.UpdatedAt });
+    });
+
+    modelBuilder.Entity<CharacterChoice>(choice =>
+    {
+      choice.Property(c => c.StepKey)
+          .IsRequired()
+          .HasMaxLength(CharacterChoice.StepKeyMaxLength);
+
+      choice.Property(c => c.FreeText)
+          .HasMaxLength(CharacterChoice.FreeTextMaxLength);
+
+      choice
+          .HasOne(c => c.Character)
+          .WithMany(character => character.Choices)
+          .HasForeignKey(c => c.CharacterId)
+          .OnDelete(DeleteBehavior.Cascade);
+
+      // Deleting an entry keeps the character; the choice just loses its
+      // entry (P6-09).
+      choice
+          .HasOne(c => c.Entry)
+          .WithMany()
+          .HasForeignKey(c => c.EntryId)
+          .OnDelete(DeleteBehavior.SetNull);
+
+      // One answer per (step, ordinal). This index also serves lookups by
+      // CharacterId, so EF drops the single-column one.
+      choice
+          .HasIndex(c => new { c.CharacterId, c.StepKey, c.Ordinal })
+          .IsUnique();
+
+      choice.HasIndex(c => c.EntryId);
+
+      // A choice is an entry or free text, never both. "Neither" is refused
+      // when a choice is saved (P7-03), not here: a deleted entry leaves a
+      // choice with both null (P6-09), which a stricter check would block.
+      choice.ToTable(table =>
+      {
+        table.HasCheckConstraint(
+            "CK_CharacterChoices_EntryOrFreeText",
+            "\"EntryId\" IS NULL OR \"FreeText\" IS NULL");
+      });
+    });
   }
 
   // ExecuteUpdate/ExecuteDelete bypass these overrides; bulk updates must
@@ -143,6 +332,14 @@ public class LoreboundDbContext
           && entry.State is EntityState.Added or EntityState.Modified)
       {
         timestamped.UpdatedAt = now;
+      }
+    }
+
+    foreach (var entry in ChangeTracker.Entries<SettingMembership>())
+    {
+      if (entry.State == EntityState.Added && entry.Entity.JoinedAt == default)
+      {
+        entry.Entity.JoinedAt = now;
       }
     }
   }
