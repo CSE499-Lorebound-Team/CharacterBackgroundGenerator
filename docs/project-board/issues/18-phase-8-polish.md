@@ -234,10 +234,12 @@ depends: P0-08
 Render has no native .NET runtime, so the API deploys as a Docker web service built from `api/` (ADR 0003).
 
 ## Tasks
-- [ ] `api/Dockerfile`: multi-stage build (.NET 10 SDK, then the ASP.NET runtime image), running as the image's non-root user and listening on 8080.
+- [ ] `api/Dockerfile`: multi-stage build (.NET 10 SDK, then the ASP.NET runtime image), running as the image's non-root user and listening on 8080 (`ASPNETCORE_HTTP_PORTS`).
 - [ ] `api/.dockerignore` (`bin/`, `obj/`, local settings and secrets).
-- [ ] CI builds the image on PRs so a broken Dockerfile fails before deploy.
+- [ ] CI builds the image on PRs so a broken Dockerfile fails before deploy. It is a step of the required `api` job, so it blocks merges.
 - [ ] Root README: how to build and run the image locally against the docker-compose database.
+  - It also explains `Gss Encryption Mode=Disable` in the connection string. Without it, Npgsql looks for Kerberos, which the runtime image lacks, and logs a harmless `libgssapi_krb5.so.2` message.
+  - ADR 0003's Render connection string includes the setting.
 
 ## Acceptance criteria
 - `docker build` succeeds, and the container serves `GET /api/health` with 200 against a reachable database.

@@ -1,0 +1,16 @@
+# Build output: the image builds its own.
+bin/
+obj/
+
+# Local-only files: secrets, editor and run settings.
+.env
+.env.*
+*.user
+secrets.json
+Properties/launchSettings.json
+*.http
+
+# Not needed in the image.
+Dockerfile
+.dockerignore
+README.md

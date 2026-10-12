@@ -98,7 +98,7 @@ a demo audience. Trusting unverifiable forwarded headers is not done.
 | --- | --- | --- |
 | `ASPNETCORE_ENVIRONMENT` | `Production` | Production defaults (no OpenAPI, no seed data) |
 | `PORT` | `8080` | Render routes to this port; the .NET container image listens on 8080 |
-| `ConnectionStrings__DefaultConnection` | Supabase **session pooler** string, with `SSL Mode=Require` | The pooler is reachable over IPv4; Supabase's direct host is IPv6-only on the free plan |
+| `ConnectionStrings__DefaultConnection` | Supabase **session pooler** string, with `SSL Mode=Require;Gss Encryption Mode=Disable` | The pooler is reachable over IPv4; Supabase's direct host is IPv6-only on the free plan. The GSS setting stops Npgsql looking for Kerberos, which the API image does not include (P8-10) |
 | `Cors__AllowedOrigins__0` | `https://<app>.vercel.app` | The CSRF check requires the browser's `Origin` to be allowlisted |
 | `App__FrontendBaseUrl` | `https://<app>.vercel.app` | Required by config validation; also the base of invite links |
 | `AllowedHosts` | `<api>.onrender.com` | P8-07; confirm the `Host` that Vercel's rewrite sends |
