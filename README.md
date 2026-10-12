@@ -1148,19 +1148,18 @@ Never commit passwords, API keys, or private credentials to GitHub.
 
 ## Frontend Environment Variables
 
-Local frontend configuration may use:
+The frontend needs no configuration to run against the local API. To point it elsewhere, copy the template to `frontend/.env.local` (ignored by Git):
 
-```text
-frontend/.env.local
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
 ```
-
-For example:
 
 ```env
 API_ORIGIN=http://localhost:5110
 ```
 
-The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
+The browser never calls the API directly. `next.config.ts` forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin, and server components call `API_ORIGIN` directly with the incoming cookie. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md) and, for the client code, [frontend/README.md](frontend/README.md#calling-the-api). The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
 The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings, and the runbook [docs/deployment.md](docs/deployment.md) for how to set them up, deploy and check them. Tolaji owns Render and Supabase, and Bugbear777 owns Vercel.
 
@@ -1512,7 +1511,7 @@ Verify that:
 
 1. the API is running
 2. the frontend is running
-3. `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is `http://localhost:5110`, the address shown by `dotnet run`
+3. `API_ORIGIN` in `frontend/.env.local`, if set, is `http://localhost:5110`, the address shown by `dotnet run`; restart `npm run dev` after changing it, because rewrites are read at startup
 4. the frontend runs on `http://localhost:3000`, the only origin CORS allows in development (`Cors:AllowedOrigins` in `api/appsettings.Development.json`)
 5. your local environment configuration is correct
 

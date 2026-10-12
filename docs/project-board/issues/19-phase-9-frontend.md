@@ -56,21 +56,22 @@ depends: P1-12
 One typed fetch layer for all pages.
 
 ## Tasks
-- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: same-origin relative paths (`/api/...`; P1-12 chose the rewrite, see `docs/decisions/0001-same-origin-api-proxy.md`), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out.
+- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: same-origin relative paths (`/api/...`; P1-12 chose the rewrite, see `docs/decisions/0001-same-origin-api-proxy.md`), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out (a `json` option is sent as the JSON body; an empty response such as 204 returns `undefined`).
 - [ ] `next.config.ts` `rewrites()` forwarding `/api/:path*` to `${API_ORIGIN}/api/:path*` (default `http://localhost:5110`), as in the ADR.
 - [ ] Throw `ApiError { status, title, detail, errors }` parsed from problem JSON.
-- [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `cookies()` from `next/headers` is async in current Next).
+- [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `headers()` from `next/headers` is async in current Next).
 - [ ] `.env.example` with `API_ORIGIN` (server-only; no `NEXT_PUBLIC_API_URL`).
 - [ ] Shared DTO types in `lib/types.ts` mirroring API DTOs.
-  - `SettingEntryType` matches the API enum: `Location | Culture | Religion | Faction | Organization | Profession | SocialClass | HistoricalEvent | Person | Other`. `Nation` and `City` become `Location`; retire `lib/settings/types.ts` and `lib/characters/types.ts`.
+  - `SettingEntryType` matches the API enum: `Location | Culture | Religion | Faction | Organization | Profession | SocialClass | HistoricalEvent | Person | Other`. `Nation` and `City` become `Location`.
+  - `lib/types.ts` is the only home for API types. The mock-era `lib/settings/types.ts` and `lib/characters/types.ts` are retired page by page: each of P9-07 to P9-14 stops importing them when it wires its page to the API, and P9-16 deletes them.
   - Entries have one `description: string | null` (no `summary`/`content`); `isGmOnly` is optional because the API omits it for players.
   - Setting role is `myRole: "GameMaster" | "Player"`, not `"GM"`.
-  - Characters carry `isOwner`, `isReadOnly`, `homelandName` (list) and `choices: { stepKey, ordinal, entryId, entryName, entryType, freeText }[]`; `backstory` is nullable.
+  - Characters carry `isOwner` (detail), `isReadOnly`, `homelandName` (list) and `choices: { stepKey, ordinal, entryId, entryName, entryType, freeText }[]`; `backstory` is nullable.
 - [ ] Never read or store any token in JS; there are none.
 
 ## Implementation details
 - Read `frontend/node_modules/next/dist/docs/` before coding (see `frontend/AGENTS.md`).
-- On 401 from a protected call, redirect to `/login` with a `next` param.
+- On 401 from a protected call, redirect to `/login` with a `next` param. Client components get this from `useApiFetch()` (`lib/use-api-fetch.ts`); `/api/auth/*` and `/api/health` are exempt.
 
 ## Acceptance criteria
 - A test page can call `/api/health` and an authenticated endpoint after login.
@@ -352,6 +353,7 @@ Finish the UX and delete leftovers.
 - [ ] Empty states with a call to action (no settings, no characters, no entries).
 - [ ] Toast/inline feedback for mutations.
 - [ ] Grep for leftover mock strings ("Osepia", "Theron Vale", "Joseph Marlow") and remove.
+- [ ] Delete the mock-era `lib/settings/types.ts` and `lib/characters/types.ts` (P9-03); every type comes from `lib/types.ts`.
 
 ## Acceptance criteria
 - No hardcoded mock data remains; every page handles the three states.
