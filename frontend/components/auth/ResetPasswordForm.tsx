@@ -4,18 +4,20 @@ import { type FormEvent, useState } from "react";
 import Link from "next/link";
 import { CircleCheck } from "lucide-react";
 
-import { FormAlert } from "@/components/auth/FormAlert";
-import { FormField } from "@/components/auth/FormField";
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
 import {
   authErrorMessage,
-  type FieldErrors,
-  hasErrors,
   PASSWORD_MIN_LENGTH,
-  readValidationErrors,
   validateNewPassword,
 } from "@/lib/auth";
+import {
+  type FieldErrors,
+  hasErrors,
+  readValidationErrors,
+} from "@/lib/form-errors";
 import type { ResetPasswordRequest } from "@/lib/types";
 
 type ResetPasswordFormProps = {

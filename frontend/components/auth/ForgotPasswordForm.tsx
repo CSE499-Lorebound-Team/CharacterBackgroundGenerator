@@ -2,8 +2,8 @@
 
 import { type FormEvent, useState } from "react";
 
-import { FormAlert } from "@/components/auth/FormAlert";
-import { FormField } from "@/components/auth/FormField";
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/button";
 import { apiFetch } from "@/lib/api";
 import { authErrorMessage, validateEmail } from "@/lib/auth";

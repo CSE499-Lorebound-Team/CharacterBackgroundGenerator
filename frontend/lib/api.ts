@@ -10,6 +10,8 @@ export class ApiError extends Error {
   title?: string;
   detail?: string;
   errors?: Record<string, string[]>;
+  /** The whole problem JSON, including extensions such as counts. */
+  problem?: ProblemDetails;
 
   constructor(status: number, problem?: ProblemDetails) {
     super(
@@ -23,6 +25,7 @@ export class ApiError extends Error {
     this.title = problem?.title ?? undefined;
     this.detail = problem?.detail ?? undefined;
     this.errors = problem?.errors;
+    this.problem = problem;
   }
 }
 

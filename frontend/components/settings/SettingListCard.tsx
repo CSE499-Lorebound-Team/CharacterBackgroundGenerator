@@ -1,9 +1,7 @@
 import Link from "next/link";
-import {
-  BookOpen,
-  MoreHorizontal,
-} from "lucide-react";
+import { BookOpen } from "lucide-react";
 
+import { RoleBadge } from "@/components/settings/RoleBadge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,68 +10,47 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatRelativeTime, plural } from "@/lib/format";
+import type { SettingListItemDto } from "@/lib/types";
 
 type SettingListCardProps = {
-  id: string;
-  name: string;
-  description: string;
-  entryCount: number;
-  updatedAt: string;
+  setting: SettingListItemDto;
 };
 
-export function SettingListCard({
-  id,
-  name,
-  description,
-  entryCount,
-  updatedAt,
-}: SettingListCardProps) {
-  const updatedText = new Date(updatedAt).toLocaleDateString();
-
+export function SettingListCard({ setting }: SettingListCardProps) {
   return (
     <Card className="transition-colors hover:border-primary/40">
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-primary" />
-            <CardTitle>{name}</CardTitle>
+          <div className="flex min-w-0 items-center gap-2">
+            <BookOpen className="h-4 w-4 shrink-0 text-primary" />
+            <CardTitle className="truncate">{setting.name}</CardTitle>
           </div>
 
-          <Button
-            variant="ghost"
-            size="icon"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">
-              Setting options
-            </span>
-          </Button>
+          <RoleBadge role={setting.myRole} isOwner={setting.isOwner} />
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3 text-sm text-muted-foreground">
-        {description && (
-          <p className="line-clamp-2">
-            {description}
-          </p>
+        {setting.description && (
+          <p className="line-clamp-2">{setting.description}</p>
         )}
 
         <div>
-          <p>{entryCount} {entryCount === 1 ? "entry" : "entries"}</p>
-          <p>Updated {updatedText}</p>
+          <p>{plural(setting.entryCount, "entry", "entries")}</p>
+          {!setting.isOwner && <p>Run by {setting.ownerDisplayName}</p>}
+          <p>Updated {formatRelativeTime(setting.updatedAt)}</p>
         </div>
       </CardContent>
 
       <CardFooter>
-      <Button
-        className="w-full"
-        nativeButton={false}
-        render={
-          <Link href={`/settings/${id}`} />
-        }
-      >
-        Open Setting
-      </Button>
+        <Button
+          className="w-full"
+          nativeButton={false}
+          render={<Link href={`/settings/${setting.id}`} />}
+        >
+          Open Setting
+        </Button>
       </CardFooter>
     </Card>
   );

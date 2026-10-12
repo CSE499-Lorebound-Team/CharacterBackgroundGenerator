@@ -56,6 +56,15 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 });
 ```
 
+## Loading data in pages
+
+- `useApiData<T>(path)` (`lib/use-api-data.ts`) GETs one resource and returns `data`, `error`, `isLoading` and `reload()`. Pass `null` to wait.
+- `usePagedList<T>(path)` loads a `PagedResult<T>` list: page 1 whenever `path` changes, then `loadMore()` appends the next page. Pass the filters in `path` (without `page`/`pageSize`) and call `reload()` after a change.
+- Both keep the previous data while new data loads, and set state only when a request settles, so they satisfy `react-hooks/set-state-in-effect`.
+- Debounce search boxes with `useDebouncedValue` (300 ms).
+- Show the three states with `LoadingCards`, `ErrorState` (with a retry) and `EmptyState` from `components/layout/PageStates.tsx`.
+- Form helpers: `FormField` and `FormAlert` (`components/forms/`), with `readValidationErrors` (`lib/form-errors.ts`) to put a 400's errors under their fields.
+
 ## Sign-in and the session
 
 - `/login` and `/register` live in the `app/(auth)` route group, which has no sidebar. Both read `next` (same-site paths only, see `safeNextPath` in `lib/auth.ts`) and go there after signing in, or to `/dashboard`.

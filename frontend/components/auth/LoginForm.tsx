@@ -4,17 +4,16 @@ import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { FormAlert } from "@/components/auth/FormAlert";
-import { FormField } from "@/components/auth/FormField";
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
 import { Button } from "@/components/ui/button";
 import { ApiError, apiFetch } from "@/lib/api";
+import { authErrorMessage, validateEmail } from "@/lib/auth";
 import {
-  authErrorMessage,
   type FieldErrors,
   hasErrors,
   readValidationErrors,
-  validateEmail,
-} from "@/lib/auth";
+} from "@/lib/form-errors";
 import { useSession } from "@/lib/session";
 import type { AuthUserDto, LoginRequest } from "@/lib/types";
 
