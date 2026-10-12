@@ -39,6 +39,23 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 `npm run lint` must pass with no errors; the CI `frontend` check runs it on every Pull Request. Fix lint problems instead of disabling rules.
 
+## Calling the API
+
+The browser calls same-origin `/api/...` paths; `next.config.ts` rewrites them to `API_ORIGIN` (default `http://localhost:5110`, see `.env.example` and [ADR 0001](../docs/decisions/0001-same-origin-api-proxy.md)). The auth cookie is httpOnly: no code reads or stores a token.
+
+- **Client components:** `useApiFetch()` from `lib/use-api-fetch.ts`. A 401 from a protected call redirects to `/login?next=<current page>`. `apiFetch()` from `lib/api.ts` is the same call without the redirect.
+- **Server components and actions:** `apiFetchServer()` from `lib/api-server.ts` calls `API_ORIGIN` directly and forwards the incoming cookie.
+- All three add the `X-Requested-With: Lorebound` header the API's CSRF check requires, send `json` as the JSON body, return `undefined` for empty responses, and throw `ApiError { status, title, detail, errors }` built from the problem JSON. `errors` holds the per-field validation messages.
+- Types for every request and response DTO live in `lib/types.ts`. The mock-era `lib/settings/types.ts` and `lib/characters/types.ts` go away as each page is wired to the API (P9-07 to P9-14); new code must not import them.
+
+```ts
+const fetchApi = useApiFetch();
+const setting = await fetchApi<SettingDetailDto>("/api/settings", {
+  method: "POST",
+  json: { name, description } satisfies CreateSettingRequest,
+});
+```
+
 ## Reading localStorage in pages
 
 Until pages are wired to the API (Phase 9), settings and entries live in `localStorage` (`lib/settings/*-store.ts`). Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
