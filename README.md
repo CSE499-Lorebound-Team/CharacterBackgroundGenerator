@@ -576,7 +576,7 @@ This section is the overview. Every endpoint, with its request and response shap
 - The API never issues bearer, access or refresh tokens, and JavaScript cannot read the cookie.
 - `POST /api/auth/logout` ends the session on every device. So do a password reset and account deletion.
 - Every endpoint requires sign-in unless it is public: health, registration, login, email confirmation and password reset. Without the cookie the answer is **401**.
-- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent.
+- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent. The course demo turns email off entirely (`Email__Provider=None` with `Auth__RequireConfirmedEmail=false`, [ADR 0003](docs/decisions/0003-production-hosting.md)): accounts sign in without confirming, and no email is ever sent.
 
 ## The CSRF header
 

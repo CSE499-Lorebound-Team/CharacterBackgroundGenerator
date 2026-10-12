@@ -894,11 +894,26 @@ with no settings gets zero counts and empty lists.
 - **Development** uses `ConsoleEmailSender`: it logs each link (with the user
   id, not the email) so you can click it from the API terminal. Look for
   `[dev email]`.
-- **Everywhere else** uses `UnconfiguredEmailSender`, which throws "No email
-  provider is configured" rather than silently dropping mail. To send real
-  email, implement `IEmailSender<ApplicationUser>` for the chosen provider,
-  read its secrets from environment variables, and register it in
-  `EmailSetup` in place of `UnconfiguredEmailSender`.
+- **Everywhere else**, `Email:Provider` picks the sender (P8-09):
+  - **`None`:** `DisabledEmailSender` sends nothing. This is the course demo
+    (ADR 0003, set as `Email__Provider=None` on Render).
+    - It logs one line per skipped email, with the kind and user id only:
+      never the link, the code or the address.
+    - Pair it with `Auth__RequireConfirmedEmail=false`, or nobody can sign
+      in.
+    - Register and login work. Resend-confirmation and forgot-password still
+      answer 204, but no email arrives, so a demo user who forgets a password
+      registers a new account.
+  - **Missing or anything else:** `UnconfiguredEmailSender` throws "No email
+    provider is configured" rather than silently dropping mail.
+    Registration then fails with 500 after creating the user, so a missing
+    setting is noticed.
+  - **Development** always uses `ConsoleEmailSender` and ignores the setting.
+  - The value is read when the sender is first used and ignores case and
+    surrounding spaces.
+- To send real email, implement `IEmailSender<ApplicationUser>` for the chosen
+  provider, read its secrets from environment variables, and select it in
+  `EmailSetup` by a new `Email:Provider` value.
 - Links point at frontend pages, built by `FrontendLinks` from
   `App:FrontendBaseUrl` (`http://localhost:3000` in Development; set
   `App__FrontendBaseUrl` elsewhere):

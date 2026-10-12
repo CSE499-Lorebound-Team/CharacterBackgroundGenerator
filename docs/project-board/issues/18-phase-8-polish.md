@@ -208,8 +208,11 @@ depends: P1-05
 Registration always sends a confirmation email, and outside Development `UnconfiguredEmailSender` throws, so sign-up on the deployed API returns 500 after creating the user. The team decided the demo sends no email (ADR 0003, "Email").
 
 ## Tasks
-- [ ] A sender that sends nothing (`DisabledEmailSender`), registered outside Development only when `Email:Provider` is `None`. It never logs links or codes.
+- [ ] A sender that sends nothing (`DisabledEmailSender`), registered outside Development only when `Email:Provider` is `None`. It never logs links or codes. It logs one line per skipped email, with the kind and user id only.
 - [ ] `EmailSetup` picks the sender from `Email:Provider`; without it, Production keeps `UnconfiguredEmailSender` (fail loudly). Development keeps `ConsoleEmailSender`.
+  - Any value other than `None` also keeps `UnconfiguredEmailSender`.
+  - `None` ignores case and surrounding spaces.
+  - The setting is read when the sender is first used.
 - [ ] Render sets `Email__Provider=None` and `Auth__RequireConfirmedEmail=false` (P8-11).
 - [ ] api/README "Email" section: the provider setting, and that confirm-email and forgot-password send nothing in the demo.
 
