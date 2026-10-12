@@ -117,15 +117,24 @@ export function LoginForm({ next }: LoginFormProps) {
         error={fieldErrors.password}
       />
 
-      <label className="flex items-center gap-2 text-sm text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={rememberMe}
-          onChange={(event) => setRememberMe(event.target.checked)}
-          className="h-4 w-4 accent-primary"
-        />
-        Keep me signed in for 14 days
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <label className="flex items-center gap-2 text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          Keep me signed in for 14 days
+        </label>
+
+        <Link
+          href="/forgot-password"
+          className="font-medium text-primary hover:underline"
+        >
+          Forgot password?
+        </Link>
+      </div>
 
       <Button type="submit" className="w-full" disabled={isSubmitting}>
         {isSubmitting ? "Signing In..." : "Log In"}
