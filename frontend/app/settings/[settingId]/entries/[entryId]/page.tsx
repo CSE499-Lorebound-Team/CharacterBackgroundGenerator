@@ -1,12 +1,15 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/layout/PageStates";
+import { DeleteEntryDialog } from "@/components/settings/DeleteEntryDialog";
 import { GmOnlyBadge, TypeBadge } from "@/components/settings/EntryBadges";
+import { SettingEntryDialog } from "@/components/settings/SettingEntryDialog";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
@@ -68,24 +71,56 @@ export default function EntryPage({
       ) : !entry.data || !setting.data ? (
         <LoadingCards count={2} />
       ) : (
-        <EntryArticle entry={entry.data} />
+        <EntryArticle
+          settingId={settingId}
+          entry={entry.data}
+          isGm={setting.data.myRole === "GameMaster"}
+          onChanged={entry.reload}
+        />
       )}
     </AppShell>
   );
 }
 
-function EntryArticle({ entry }: { entry: EntryDetailDto }) {
+type EntryArticleProps = {
+  settingId: string;
+  entry: EntryDetailDto;
+  isGm: boolean;
+  onChanged: () => void;
+};
+
+function EntryArticle({ settingId, entry, isGm, onChanged }: EntryArticleProps) {
+  const router = useRouter();
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   return (
     <article className="mx-auto max-w-4xl">
-      <header className="border-b border-border pb-6">
-        <div className="mb-3 flex flex-wrap gap-2">
-          <TypeBadge type={entry.entryType} />
-          {entry.isGmOnly && <GmOnlyBadge />}
+      <header className="flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            <TypeBadge type={entry.entryType} />
+            {entry.isGmOnly && <GmOnlyBadge />}
+          </div>
+
+          <h1 className="font-heading text-4xl font-bold tracking-tight">
+            {entry.name}
+          </h1>
         </div>
 
-        <h1 className="font-heading text-4xl font-bold tracking-tight">
-          {entry.name}
-        </h1>
+        {/* Players never see edit or delete; the API refuses them anyway. */}
+        {isGm && (
+          <div className="flex shrink-0 gap-2">
+            <Button variant="outline" onClick={() => setEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Edit
+            </Button>
+            <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </Button>
+          </div>
+        )}
       </header>
 
       <section className="py-8">
@@ -103,6 +138,25 @@ function EntryArticle({ entry }: { entry: EntryDetailDto }) {
       <footer className="border-t border-border py-6 text-sm text-muted-foreground">
         Updated {formatRelativeTime(entry.updatedAt)}
       </footer>
+
+      {isGm && (
+        <>
+          <SettingEntryDialog
+            open={editOpen}
+            onOpenChange={setEditOpen}
+            settingId={settingId}
+            entry={entry}
+            onSaved={onChanged}
+          />
+          <DeleteEntryDialog
+            open={deleteOpen}
+            onOpenChange={setDeleteOpen}
+            settingId={settingId}
+            entry={entry}
+            onDeleted={() => router.push(`/settings/${settingId}`)}
+          />
+        </>
+      )}
     </article>
   );
 }

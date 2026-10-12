@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -14,6 +14,7 @@ import {
 } from "@/components/layout/PageStates";
 import { EntrySearch } from "@/components/settings/EntrySearch";
 import { RoleBadge } from "@/components/settings/RoleBadge";
+import { SettingEntryDialog } from "@/components/settings/SettingEntryDialog";
 import { SettingEntryCard } from "@/components/settings/SettingEntryCard";
 import { SettingTabs, type SettingTab } from "@/components/settings/SettingTabs";
 import { Button } from "@/components/ui/button";
@@ -75,8 +76,9 @@ type SettingDetailProps = {
   onSettingChanged: () => void;
 };
 
-function SettingDetail({ setting }: SettingDetailProps) {
+function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
   const isGm = setting.myRole === "GameMaster";
+  const [addOpen, setAddOpen] = useState(false);
 
   const [activeTab, setActiveTab] = useState<SettingTab>("Overview");
   const [search, setSearch] = useState("");
@@ -95,11 +97,20 @@ function SettingDetail({ setting }: SettingDetailProps) {
   const tabLabel =
     ENTRY_TYPES.find((info) => info.type === activeTab)?.plural ?? "entries";
 
+  // Only GameMasters may add entries (the API answers 403 to Players).
+  const addButton = isGm ? (
+    <Button onClick={() => setAddOpen(true)}>
+      <Plus className="h-4 w-4" />
+      Add Entry
+    </Button>
+  ) : undefined;
+
   return (
     <>
       <PageHeader
         title={setting.name}
         description={setting.description ?? undefined}
+        actions={addButton}
       />
 
       <div className="-mt-3 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -146,6 +157,7 @@ function SettingDetail({ setting }: SettingDetailProps) {
                   ? "Add a lore entry to start building this setting."
                   : "Your Game Master has not shared any entries here yet."
             }
+            action={query ? undefined : addButton}
           />
         ) : (
           <div
@@ -176,6 +188,19 @@ function SettingDetail({ setting }: SettingDetailProps) {
           </div>
         )}
       </div>
+
+      {isGm && (
+        <SettingEntryDialog
+          open={addOpen}
+          onOpenChange={setAddOpen}
+          settingId={setting.id}
+          defaultType={activeTab === "Overview" ? undefined : activeTab}
+          onSaved={() => {
+            entries.reload();
+            onSettingChanged();
+          }}
+        />
+      )}
     </>
   );
 }

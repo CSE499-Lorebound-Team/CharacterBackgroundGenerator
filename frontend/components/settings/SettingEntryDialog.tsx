@@ -1,7 +1,10 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { type FormEvent, useState } from "react";
 
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
+import { errorMessage } from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -20,56 +22,62 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-
+import { ApiError } from "@/lib/api";
+import { ENTRY_TYPES } from "@/lib/entry-types";
+import {
+  type FieldErrors,
+  hasErrors,
+  readValidationErrors,
+} from "@/lib/form-errors";
 import type {
-  SettingEntry,
+  CreateEntryRequest,
+  SettingEntryDto,
   SettingEntryType,
-} from "@/lib/settings/types";
+} from "@/lib/types";
+import { useApiFetch } from "@/lib/use-api-fetch";
+import { cn } from "@/lib/utils";
+
+// CreateEntryRequest limits in the API.
+const NAME_MAX = 120;
+const DESCRIPTION_MAX = 4000;
+
+const typeItems = ENTRY_TYPES.map((info) => ({ value: info.type, label: info.label }));
+
+/** The fields of an entry being edited. */
+export type EditableEntry = {
+  id: string;
+  name: string;
+  entryType: SettingEntryType;
+  description: string | null;
+  isGmOnly?: boolean;
+};
 
 type SettingEntryDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-
-  entry?: SettingEntry;
-
-  /** Returns an error message to keep the dialog open, e.g. a duplicate name. */
-  onSave: (entry: {
-    name: string;
-    type: SettingEntryType;
-    summary: string;
-    content: string;
-    isGmOnly: boolean;
-  }) => string | void;
+  settingId: string;
+  /** The entry to edit; omit to create one. */
+  entry?: EditableEntry;
+  /** Type preselected when creating, e.g. the open tab. */
+  defaultType?: SettingEntryType;
+  onSaved: (entry: SettingEntryDto) => void;
 };
 
-const entryTypes: SettingEntryType[] = [
-  "Nation",
-  "City",
-  "Culture",
-  "Religion",
-  "Faction",
-];
-
+/** Create and edit a lore entry (GameMasters only). */
 export function SettingEntryDialog({
   open,
   onOpenChange,
-  entry,
-  onSave,
+  ...formProps
 }: SettingEntryDialogProps) {
-  // The Dialog stays mounted so its open/close animation plays. The form is
-  // keyed so its fields reset from `entry` whenever the dialog opens or
-  // closes, or the entry changes.
+  // The Dialog stays mounted so its animation plays; the form is keyed so
+  // its fields reset whenever the dialog opens or the entry changes.
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <SettingEntryForm
-          key={`${open ? "open" : "closed"}:${entry?.id ?? "new"}`}
-          entry={entry}
+          key={`${open ? "open" : "closed"}:${formProps.entry?.id ?? "new"}`}
           onOpenChange={onOpenChange}
-          onSave={onSave}
+          {...formProps}
         />
       </DialogContent>
     </Dialog>
@@ -78,193 +86,184 @@ export function SettingEntryDialog({
 
 function SettingEntryForm({
   onOpenChange,
+  settingId,
   entry,
-  onSave,
+  defaultType,
+  onSaved,
 }: Omit<SettingEntryDialogProps, "open">) {
+  const fetchApi = useApiFetch();
   const isEditing = Boolean(entry);
 
   const [name, setName] = useState(entry?.name ?? "");
-  const [type, setType] =
-    useState<SettingEntryType>(entry?.type ?? "Nation");
-  const [summary, setSummary] = useState(entry?.summary ?? "");
-  const [content, setContent] = useState(entry?.content ?? "");
-  const [error, setError] = useState<string>();
+  const [entryType, setEntryType] = useState<SettingEntryType>(
+    entry?.entryType ?? defaultType ?? "Location"
+  );
+  const [description, setDescription] = useState(entry?.description ?? "");
   const [isGmOnly, setIsGmOnly] = useState(entry?.isGmOnly ?? false);
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(undefined);
 
-    if (!name.trim()) {
-      setError("Enter a name.");
-      return;
+    const errors: FieldErrors = {
+      name: name.trim() ? undefined : "Enter a name.",
+      description:
+        description.length > DESCRIPTION_MAX
+          ? `Use at most ${DESCRIPTION_MAX} characters.`
+          : undefined,
+    };
+
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
+
+    setIsSubmitting(true);
+
+    const request: CreateEntryRequest = {
+      name: name.trim(),
+      entryType,
+      description: description.trim() || null,
+      isGmOnly,
+    };
+
+    try {
+      const saved = await fetchApi<SettingEntryDto>(
+        entry
+          ? `/api/settings/${settingId}/entries/${entry.id}`
+          : `/api/settings/${settingId}/entries`,
+        { method: entry ? "PUT" : "POST", json: request }
+      );
+
+      onSaved(saved);
+      onOpenChange(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        const result = readValidationErrors(error, [
+          "name",
+          "entryType",
+          "description",
+        ]);
+        setFieldErrors(result.fieldErrors);
+        setFormError(result.general);
+      } else if (error instanceof ApiError && error.status === 409) {
+        // Names are unique per type within a setting, ignoring case.
+        setFieldErrors({
+          name: error.detail ?? "An entry of this type already has this name.",
+        });
+      } else {
+        setFormError(errorMessage(error));
+      }
+
+      setIsSubmitting(false);
     }
-
-    if (!summary.trim()) {
-      setError("Enter a short summary.");
-      return;
-    }
-
-    const saveError = onSave({
-        name: name.trim(),
-        type,
-        summary: summary.trim(),
-        content: content.trim(),
-        isGmOnly,
-      });
-
-    if (saveError) {
-      setError(saveError);
-      return;
-    }
-
-    onOpenChange(false);
   }
 
   return (
     <>
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing
-              ? "Edit Lore Entry"
-              : "Add Lore Entry"}
-          </DialogTitle>
+      <DialogHeader>
+        <DialogTitle>{isEditing ? "Edit Lore Entry" : "Add Lore Entry"}</DialogTitle>
+        <DialogDescription>
+          {isEditing
+            ? "Update this entry's name, type, description or visibility."
+            : "Add a location, culture, person or other piece of lore to this setting."}
+        </DialogDescription>
+      </DialogHeader>
 
-          <DialogDescription>
-            {isEditing
-              ? "Update this lore article."
-              : "Add a new article to this campaign setting."}
-          </DialogDescription>
-        </DialogHeader>
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {formError && <FormAlert>{formError}</FormAlert>}
 
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="entry-name">
-              Name
-            </Label>
+        <FormField
+          id="entry-name"
+          label="Name"
+          placeholder="Kingdom of Valmere"
+          maxLength={NAME_MAX}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          error={fieldErrors.name}
+        />
 
-            <Input
-              id="entry-name"
-              value={name}
-              onChange={(event) =>
-                setName(event.target.value)
-              }
-              placeholder="Kingdom of Valmere"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label>
-              Type
-            </Label>
-
-            <Select
-              value={type}
-              onValueChange={(value) =>
-                setType(
-                  value as SettingEntryType
-                )
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-
-              <SelectContent>
-                {entryTypes.map((entryType) => (
-                  <SelectItem
-                    key={entryType}
-                    value={entryType}
-                  >
-                    {entryType}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="entry-summary">
-              Summary
-            </Label>
-
-            <Textarea
-              id="entry-summary"
-              value={summary}
-              onChange={(event) =>
-                setSummary(event.target.value)
-              }
-              placeholder="A short description shown in lists and cards."
-              className="min-h-20"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="entry-content">
-              Lore Article
-            </Label>
-
-            <Textarea
-              id="entry-content"
-              value={content}
-              onChange={(event) =>
-                setContent(event.target.value)
-              }
-              placeholder="Write the full lore article here..."
-              className="min-h-52"
-            />
-          </div>
-          <div className="flex items-start gap-3 border border-border p-4">
-            <input
-                id="gm-only"
-                type="checkbox"
-                checked={isGmOnly}
-                onChange={(event) =>
-                setIsGmOnly(event.target.checked)
-                }
-                className="mt-1 h-4 w-4"
-            />
-
-            <div>
-                <Label htmlFor="gm-only">
-                GM Only
-                </Label>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                Hide this lore entry from players.
-                </p>
-            </div>
-            </div>
-
-          {error && (
-            <p className="text-sm text-destructive">
-              {error}
-            </p>
+        <div className="space-y-2">
+          <Label id="entry-type-label">Type</Label>
+          <Select
+            items={typeItems}
+            value={entryType}
+            onValueChange={(value) => {
+              if (value) setEntryType(value as SettingEntryType);
+            }}
+          >
+            <SelectTrigger className="w-full" aria-labelledby="entry-type-label">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {typeItems.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {fieldErrors.entryType && (
+            <p className="text-sm text-destructive">{fieldErrors.entryType}</p>
           )}
+        </div>
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                onOpenChange(false)
-              }
-            >
-              Cancel
-            </Button>
+        <div className="space-y-2">
+          <Label htmlFor="entry-description">Description</Label>
+          <Textarea
+            id="entry-description"
+            placeholder="What players and the builder should know about this entry..."
+            className="min-h-40"
+            maxLength={DESCRIPTION_MAX}
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            aria-invalid={fieldErrors.description ? true : undefined}
+          />
+          {fieldErrors.description && (
+            <p className="text-sm text-destructive">{fieldErrors.description}</p>
+          )}
+        </div>
 
-            <Button type="submit">
-              {isEditing
-                ? "Save Changes"
-                : "Add Entry"}
-            </Button>
+        <div className="flex items-start justify-between gap-4 border border-border p-4">
+          <div>
+            <Label htmlFor="entry-gm-only">GM Only</Label>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Hide this entry from players. They cannot see it, search for it,
+              or pick it in the builder.
+            </p>
           </div>
-          
-        </form>
+
+          <button
+            id="entry-gm-only"
+            type="button"
+            role="switch"
+            aria-checked={isGmOnly}
+            onClick={() => setIsGmOnly((value) => !value)}
+            className={cn(
+              "relative mt-1 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-ring",
+              isGmOnly ? "bg-primary" : "bg-muted-foreground/30"
+            )}
+          >
+            <span
+              className={cn(
+                "inline-block h-4 w-4 rounded-full bg-background shadow transition-transform",
+                isGmOnly ? "translate-x-4.5" : "translate-x-0.5"
+              )}
+            />
+          </button>
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : isEditing ? "Save Changes" : "Add Entry"}
+          </Button>
+        </div>
+      </form>
     </>
   );
 }
