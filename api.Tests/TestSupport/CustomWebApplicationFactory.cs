@@ -5,6 +5,7 @@ using Lorebound.Api.Security;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -55,6 +56,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
       // One shared instance, so copies made with WithConfig record here too.
       services.AddSingleton<IEmailSender<ApplicationUser>>(Emails);
+
+      // Every DbContext, the API's and WithDbAsync's, reports its SQL (P8-04).
+      services.ConfigureDbContext<LoreboundDbContext>(options => options.AddInterceptors(Sql));
     });
   }
 
@@ -63,6 +67,9 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
   /// <summary>What the API logged during the current test (P8-05).</summary>
   public LogCapture Logs { get; } = new();
+
+  /// <summary>The SQL the API ran during the current test (P8-04).</summary>
+  public SqlCapture Sql { get; } = new();
 
   public const string DefaultPassword = "correct horse battery";
 

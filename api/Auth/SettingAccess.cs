@@ -51,6 +51,17 @@ public class SettingAccess : ISettingAccess
     return access.Role;
   }
 
+  public async Task<(CampaignSetting Setting, SettingRole Role)> RequireMemberWithRoleAsync(
+      Guid settingId,
+      CancellationToken cancellationToken = default)
+  {
+    var access = await RequireAccessAsync(
+        settingId,
+        cancellationToken);
+
+    return (access.Setting, access.Role);
+  }
+
   public async Task<CampaignSetting> RequireGameMasterAsync(
       Guid settingId,
       CancellationToken cancellationToken = default)

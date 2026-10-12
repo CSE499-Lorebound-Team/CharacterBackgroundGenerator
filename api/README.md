@@ -16,6 +16,21 @@ Every endpoint follows these rules so the frontend sees one consistent contract.
   `CharacterStatus`, ...) need no extra configuration.
 - Schema changes ship as EF Core migrations in `Data/Migrations/`; see
   "Migrations" in the root README for commands and rules.
+- **Query performance (P8-04).** The review, its numbers and what to revisit
+  when are in [docs/performance/p8-04-query-review.md](../docs/performance/p8-04-query-review.md).
+  The rules that came out of it:
+  - Reads use `AsNoTracking` and project into the DTO in SQL; never load
+    entities to map in memory. Two collections in one read need
+    `AsSplitQuery`.
+  - Never sort a whole table and filter afterwards for a "latest N".
+    Filter to the caller's settings first, per setting if needed, the way
+    the dashboard's activity does with a LATERAL join.
+  - `Performance/QueryBudgetTests` pins how many SQL commands each read
+    endpoint runs and fails if the count grows with the data (N+1). A new
+    read endpoint gets a row there.
+  - In Development, EF Core logs every SQL command at Information with the
+    request's `TraceId` (parameter values as `?`), so `dotnet run` shows
+    what an endpoint runs.
 - User emails are unique at the database level (`EmailIndex` on
   `NormalizedEmail`), not only through Identity's app-level check.
 - Development seed data (P8-02) is `Data/DevelopmentSeeder.cs`, run at

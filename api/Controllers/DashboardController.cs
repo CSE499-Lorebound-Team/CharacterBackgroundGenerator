@@ -113,27 +113,32 @@ public class DashboardController : ControllerBase
         })
         .ToListAsync(cancellationToken);
 
-    // The per-setting role decides visibility here, so this cannot use
+    // The newest visible entries of each of the caller's settings (a LATERAL
+    // join over the (CampaignSettingId, UpdatedAt) index), then the newest
+    // overall. Sorting all matching entries first made the cost follow the
+    // whole database rather than the caller's settings (P8-04). The
+    // per-setting role decides visibility, so this cannot use
     // SettingEntryQueries.VisibleTo, which takes a single role (P4-01).
-    var entryRows = await _db.SettingEntries
-        .AsNoTracking()
-        .Where(entry => settings.Any(setting => setting.Id == entry.CampaignSettingId))
-        .Where(entry =>
-            !entry.IsGmOnly ||
-            entry.CampaignSetting.OwnerUserId == userId ||
-            entry.CampaignSetting.Memberships.Any(m =>
-                m.UserId == userId && m.Role == SettingRole.GameMaster))
+    var entryRows = await settings
+        .SelectMany(setting => setting.Entries
+            .Where(entry =>
+                !entry.IsGmOnly ||
+                setting.OwnerUserId == userId ||
+                setting.Memberships.Any(m =>
+                    m.UserId == userId && m.Role == SettingRole.GameMaster))
+            .OrderByDescending(entry => entry.UpdatedAt)
+            .Take(RecentActivityCount)
+            .Select(entry => new
+            {
+              entry.Id,
+              entry.CampaignSettingId,
+              entry.Name,
+              SettingName = setting.Name,
+              entry.CreatedAt,
+              entry.UpdatedAt,
+            }))
         .OrderByDescending(entry => entry.UpdatedAt)
         .Take(RecentActivityCount)
-        .Select(entry => new
-        {
-          entry.Id,
-          entry.CampaignSettingId,
-          entry.Name,
-          SettingName = entry.CampaignSetting.Name,
-          entry.CreatedAt,
-          entry.UpdatedAt,
-        })
         .ToListAsync(cancellationToken);
 
     var characterRows = await characters

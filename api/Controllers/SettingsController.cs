@@ -200,13 +200,9 @@ public async Task<ActionResult<PagedResult<SettingListItemDto>>> GetAll(
 public async Task<ActionResult<SettingDetailDto>> GetById(
     Guid id)
 {
-  var setting =
-      await _settingAccess.RequireMemberAsync(id);
-
-  var role =
-      setting.OwnerUserId == _currentUser.UserId
-          ? SettingRole.GameMaster
-          : await _settingAccess.GetRoleAsync(id);
+  // One access query gives both (P8-04).
+  var (setting, role) =
+      await _settingAccess.RequireMemberWithRoleAsync(id);
 
   var ownerDisplayName =
       await _db.Users
@@ -227,7 +223,7 @@ public async Task<ActionResult<SettingDetailDto>> GetById(
           .AsNoTracking()
           .Where(entry =>
               entry.CampaignSettingId == id)
-          .VisibleTo(role ?? SettingRole.Player)
+          .VisibleTo(role)
           .GroupBy(entry =>
               entry.EntryType)
           .Select(group =>
@@ -245,7 +241,7 @@ public async Task<ActionResult<SettingDetailDto>> GetById(
           setting.Id,
           setting.Name,
           setting.Description,
-          role?.ToString() ?? "GameMaster",
+          role.ToString(),
           setting.OwnerUserId ==
               _currentUser.UserId,
           ownerDisplayName,
@@ -301,10 +297,9 @@ public async Task<ActionResult<SettingDetailDto>> Update(
 
   await _db.SaveChangesAsync();
 
-  var role =
-      setting.OwnerUserId == _currentUser.UserId
-          ? SettingRole.GameMaster
-          : await _settingAccess.GetRoleAsync(id);
+  // RequireGameMasterAsync let only GameMasters (the owner included) this
+  // far, so there is no second role lookup (P8-04).
+  var role = SettingRole.GameMaster;
 
   var ownerDisplayName =
       await _db.Users
@@ -325,7 +320,7 @@ public async Task<ActionResult<SettingDetailDto>> Update(
           .AsNoTracking()
           .Where(entry =>
               entry.CampaignSettingId == id)
-          .VisibleTo(role ?? SettingRole.Player)
+          .VisibleTo(role)
           .GroupBy(entry =>
               entry.EntryType)
           .Select(group =>
@@ -341,7 +336,7 @@ public async Task<ActionResult<SettingDetailDto>> Update(
   return Ok(
       ToDetailDto(
           setting,
-          role?.ToString() ?? "GameMaster",
+          role.ToString(),
           setting.OwnerUserId ==
               _currentUser.UserId,
           ownerDisplayName,

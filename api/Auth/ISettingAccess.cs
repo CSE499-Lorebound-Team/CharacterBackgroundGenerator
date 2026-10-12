@@ -30,6 +30,14 @@ public interface ISettingAccess
       Guid settingId,
       CancellationToken cancellationToken = default);
 
+  /// <summary>
+  /// Any member; returns the tracked setting and their role (the owner's is
+  /// GameMaster) from one query, for reads that need both.
+  /// </summary>
+  Task<(CampaignSetting Setting, SettingRole Role)> RequireMemberWithRoleAsync(
+      Guid settingId,
+      CancellationToken cancellationToken = default);
+
   /// <summary>A GameMaster or the owner; a Player gets 403.</summary>
   Task<CampaignSetting> RequireGameMasterAsync(
       Guid settingId,

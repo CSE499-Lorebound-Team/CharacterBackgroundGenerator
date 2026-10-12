@@ -73,6 +73,7 @@ CharacterBackgroundGenerator/
 ├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
 ├── docs/project-board/    (roadmap and issue definitions)
 ├── docs/decisions/        (architecture decision records)
+├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
@@ -760,6 +761,10 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Das
 ### Logging and health tests
 
 `Logging/RequestLoggingTests` (P8-05) checks that each request logs its method, route template and status with a `TraceId` scope equal to the problem+json `traceId` (also for an unhandled 500), that every log line of a request shares that `TraceId` and no line carries the raw path (unmatched routes log `(unmatched)`), and that no password, auth cookie, invite code or email reaches the logs across sign-up, login, password reset and invites. It also checks that `/api/health` uses the registered DbContext check. `Controllers/HealthControllerTests` (database down: 503 `unreachable`) and `Integration/HealthSmokeTests` (200 `connected`) cover the health responses.
+
+### Query budget tests
+
+`Performance/QueryBudgetTests` (P8-04) counts the SQL commands each read endpoint runs, with 1 row and then with 12. The count must be the same both times (no N+1) and within the endpoint's ceiling. The review behind it, with `EXPLAIN ANALYZE` at about 80,000 entries, is in [docs/performance/p8-04-query-review.md](docs/performance/p8-04-query-review.md).
 
 ### OpenAPI tests
 

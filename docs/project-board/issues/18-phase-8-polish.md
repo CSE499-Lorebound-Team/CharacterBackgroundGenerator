@@ -86,13 +86,14 @@ depends: P8-01
 Verify list endpoints scale before more data exists.
 
 ## Tasks
-- [ ] Log generated SQL for list/dashboard endpoints in Development.
-- [ ] Ensure `AsNoTracking` and projection everywhere; no N+1 or cartesian explosion.
-- [ ] Run `EXPLAIN ANALYZE` on entry search and dashboard with seeded volume (thousands of entries).
-- [ ] Add missing indexes via migration; consider `pg_trgm` for `ILIKE` search if slow.
+- [ ] Log generated SQL for list/dashboard endpoints in Development (EF Core logs every command at Information with the request's `TraceId`).
+- [ ] Ensure `AsNoTracking` and projection everywhere; no N+1 or cartesian explosion. Enforced by `Performance/QueryBudgetTests`: each read endpoint's SQL command count is the same with 1 and 12 rows and within a pinned ceiling.
+- [ ] Run `EXPLAIN ANALYZE` on entry search and dashboard with seeded volume (thousands of entries). Done at ~80,000 entries including 500 other tenants' settings, with `docs/performance/p8-04-volume.sql` and `p8-04-explain.sql`.
+- [ ] Add missing indexes via migration (`AddListIndexes`: entries by setting and name, entries by setting and `UpdatedAt`, characters by owner and `UpdatedAt`); consider `pg_trgm` for `ILIKE` search if slow. Decided not yet: search is 8.5 ms at 10,000 entries per setting, and `Name` is `citext`, so trigram indexing needs an expression index and a query change. Revisit past ~50,000 entries in one setting or a 50 ms search p95.
+- [ ] Fix what the review finds: the dashboard's recent-entries activity sorted the whole entries table (cost followed the whole database), so it now takes the newest entries per setting the caller belongs to; settings detail no longer runs its access check twice.
 
 ## Acceptance criteria
-- Findings recorded; no list endpoint runs more than a handful of queries.
+- Findings recorded in `docs/performance/p8-04-query-review.md`; no list endpoint runs more than a handful of queries (4-5 including the 2 every signed-in request makes; the dashboard 10).
 
 @@@ P8-05
 title: Health checks and structured logging
