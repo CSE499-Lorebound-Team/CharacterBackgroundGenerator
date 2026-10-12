@@ -54,7 +54,11 @@ public sealed class PostgresFixture : IAsyncLifetime
     {
       DbAdapter = DbAdapter.Postgres,
       SchemasToInclude = ["public"],
-      TablesToIgnore = ["__EFMigrationsHistory"],
+      // Data Protection keys outlive every test, as they outlive restarts in
+      // production (P8-08): each host caches the key ring it loaded, so
+      // deleting the rows would leave hosts made later in a run unable to
+      // read cookies issued by earlier ones.
+      TablesToIgnore = ["__EFMigrationsHistory", "DataProtectionKeys"],
     });
   }
 

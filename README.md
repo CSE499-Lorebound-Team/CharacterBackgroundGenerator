@@ -108,7 +108,7 @@ CharacterBackgroundGenerator/
 ├── api/                   (ASP.NET Core API)
 │   ├── Controllers/       (one per resource; thin, call the helpers below)
 │   ├── Auth/              (cookie sign-in, ICurrentUser, SettingAccess and CharacterAccess checks)
-│   ├── Data/              (LoreboundDbContext, shared queries, DevelopmentSeeder)
+│   ├── Data/              (LoreboundDbContext, Data Protection keys, shared queries, DevelopmentSeeder)
 │   │   └── Migrations/    (EF Core migrations)
 │   ├── Dtos/              (request and response records, one folder per resource)
 │   ├── Models/            (EF Core entities)
@@ -118,7 +118,8 @@ CharacterBackgroundGenerator/
 │   ├── Errors/            (domain exceptions -> problem+json)
 │   ├── Logging/           (request logging, traceId)
 │   ├── OpenApi/           (OpenAPI document rules)
-│   ├── Email/             (email senders)
+│   ├── Email/             (email senders; off for the demo with Email:Provider=None)
+│   ├── Dockerfile         (production image for Render)
 │   ├── Program.cs
 │   ├── Lorebound.Api.http (sample requests)
 │   └── README.md          (API conventions and permission matrices)
@@ -515,6 +516,29 @@ Ctrl + C
 
 in the terminal running the API.
 
+## Run the API as a Docker image
+
+Production (Render, [ADR 0003](docs/decisions/0003-production-hosting.md)) runs the API from `api/Dockerfile`. CI builds the same image on every pull request. To build and run it locally against the docker-compose database, from the repository root (Docker Desktop running, `docker compose up -d` done):
+
+```powershell
+docker build -t lorebound-api api
+$pw = (Select-String '^POSTGRES_PASSWORD=(.*)' .env).Matches.Groups[1].Value
+docker run --rm -p 8080:8080 `
+  -e ASPNETCORE_ENVIRONMENT=Production `
+  -e "ConnectionStrings__DefaultConnection=Host=host.docker.internal;Port=5432;Database=lorebound;Username=lorebound;Password=$pw;Gss Encryption Mode=Disable" `
+  -e App__FrontendBaseUrl=http://localhost:3000 `
+  -e Email__Provider=None `
+  -e Auth__RequireConfirmedEmail=false `
+  lorebound-api
+```
+
+Then open `http://localhost:8080/api/health`. It should report `"database": "connected"`. Press `Ctrl + C` to stop.
+
+- **The image:** a multi-stage build (.NET 10 SDK, then the ASP.NET runtime), running as the image's non-root `app` user and listening on port 8080. Configuration comes only from environment variables; nothing secret is in the image.
+- **Production defaults:** `ASPNETCORE_ENVIRONMENT=Production` gives you JSON logs, HSTS, no `/scalar` and no seeding.
+- **Migrations:** the container never applies them. Run `dotnet ef database update` first.
+- **`Gss Encryption Mode=Disable`:** stops Npgsql looking for Kerberos, which the slim runtime image does not include. Without it the log shows a harmless `Cannot load library libgssapi_krb5.so.2` message.
+
 ---
 
 # Running the Full Application
@@ -576,7 +600,7 @@ This section is the overview. Every endpoint, with its request and response shap
 - The API never issues bearer, access or refresh tokens, and JavaScript cannot read the cookie.
 - `POST /api/auth/logout` ends the session on every device. So do a password reset and account deletion.
 - Every endpoint requires sign-in unless it is public: health, registration, login, email confirmation and password reset. Without the cookie the answer is **401**.
-- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent.
+- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent. The course demo turns email off entirely (`Email__Provider=None` with `Auth__RequireConfirmedEmail=false`, [ADR 0003](docs/decisions/0003-production-hosting.md)): accounts sign in without confirming, and no email is ever sent.
 
 ## The CSRF header
 

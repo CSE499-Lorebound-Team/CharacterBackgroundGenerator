@@ -41,6 +41,40 @@ public class EmailSenderTests : IClassFixture<ApiFactory>
     Assert.Contains("No email provider is configured", error.Message);
   }
 
+  [Theory]
+  [InlineData("None")]
+  [InlineData(" none ")]
+  public async Task Outside_development_provider_None_turns_email_off(string provider)
+  {
+    var services = _factory
+        .WithWebHostBuilder(builder => builder.UseEnvironment("Production"))
+        .WithConfig(EmailSetup.ProviderKey, provider)
+        .Services;
+    var sender = services.GetRequiredService<IEmailSender<ApplicationUser>>();
+
+    Assert.IsType<DisabledEmailSender>(sender);
+    await sender.SendConfirmationLinkAsync(new ApplicationUser(), "a@example.com", "https://x");
+  }
+
+  [Fact]
+  public void Outside_development_an_unknown_provider_still_fails_loudly()
+  {
+    var services = _factory
+        .WithWebHostBuilder(builder => builder.UseEnvironment("Production"))
+        .WithConfig(EmailSetup.ProviderKey, "Smtp")
+        .Services;
+
+    Assert.IsType<UnconfiguredEmailSender>(services.GetRequiredService<IEmailSender<ApplicationUser>>());
+  }
+
+  [Fact]
+  public void Development_ignores_the_provider_setting()
+  {
+    var services = _factory.WithConfig(EmailSetup.ProviderKey, "None").Services;
+
+    Assert.IsType<ConsoleEmailSender>(services.GetRequiredService<IEmailSender<ApplicationUser>>());
+  }
+
   [Fact]
   public async Task Console_sender_logs_the_full_link_without_the_email()
   {

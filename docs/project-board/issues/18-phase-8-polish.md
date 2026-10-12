@@ -186,9 +186,14 @@ The auth cookie and the email-confirmation and password-reset tokens are protect
 - [ ] Migration adding the `DataProtectionKeys` table.
 - [ ] `SetApplicationName("Lorebound")`, so keys stay valid when the container or path changes.
 - [ ] api/README: where the keys live and that they must never be deleted while users are signed in.
+  - It also says the keys are stored as plain XML (no key encryptor), so the database credentials are the real protection.
+- [ ] Tests:
+  - The test database reset keeps `DataProtectionKeys`, as production does.
+  - `ApiFactory` (no database) uses in-memory keys.
 
 ## Acceptance criteria
-- A test signs in, builds a new app host on the same database, and the old cookie still authenticates.
+- A test signs in, builds a new app host on the same database, and the old cookie still authenticates (`Auth/DataProtectionKeysTests`).
+- A password-reset link issued by one host also works on the new host.
 
 @@@ P8-09
 title: Turn email off for the demo
@@ -203,8 +208,11 @@ depends: P1-05
 Registration always sends a confirmation email, and outside Development `UnconfiguredEmailSender` throws, so sign-up on the deployed API returns 500 after creating the user. The team decided the demo sends no email (ADR 0003, "Email").
 
 ## Tasks
-- [ ] A sender that sends nothing (`DisabledEmailSender`), registered outside Development only when `Email:Provider` is `None`. It never logs links or codes.
+- [ ] A sender that sends nothing (`DisabledEmailSender`), registered outside Development only when `Email:Provider` is `None`. It never logs links or codes. It logs one line per skipped email, with the kind and user id only.
 - [ ] `EmailSetup` picks the sender from `Email:Provider`; without it, Production keeps `UnconfiguredEmailSender` (fail loudly). Development keeps `ConsoleEmailSender`.
+  - Any value other than `None` also keeps `UnconfiguredEmailSender`.
+  - `None` ignores case and surrounding spaces.
+  - The setting is read when the sender is first used.
 - [ ] Render sets `Email__Provider=None` and `Auth__RequireConfirmedEmail=false` (P8-11).
 - [ ] api/README "Email" section: the provider setting, and that confirm-email and forgot-password send nothing in the demo.
 
@@ -226,10 +234,12 @@ depends: P0-08
 Render has no native .NET runtime, so the API deploys as a Docker web service built from `api/` (ADR 0003).
 
 ## Tasks
-- [ ] `api/Dockerfile`: multi-stage build (.NET 10 SDK, then the ASP.NET runtime image), running as the image's non-root user and listening on 8080.
+- [ ] `api/Dockerfile`: multi-stage build (.NET 10 SDK, then the ASP.NET runtime image), running as the image's non-root user and listening on 8080 (`ASPNETCORE_HTTP_PORTS`).
 - [ ] `api/.dockerignore` (`bin/`, `obj/`, local settings and secrets).
-- [ ] CI builds the image on PRs so a broken Dockerfile fails before deploy.
+- [ ] CI builds the image on PRs so a broken Dockerfile fails before deploy. It is a step of the required `api` job, so it blocks merges.
 - [ ] Root README: how to build and run the image locally against the docker-compose database.
+  - It also explains `Gss Encryption Mode=Disable` in the connection string. Without it, Npgsql looks for Kerberos, which the runtime image lacks, and logs a harmless `libgssapi_krb5.so.2` message.
+  - ADR 0003's Render connection string includes the setting.
 
 ## Acceptance criteria
 - `docker build` succeeds, and the container serves `GET /api/health` with 200 against a reachable database.

@@ -1,4 +1,5 @@
 using Lorebound.Api.Security;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -41,6 +42,9 @@ public class ApiFactory : WebApplicationFactory<Program>
       // request; there is none here, and /test/auth/sign-in users are made up.
       services.Configure<SecurityStampValidatorOptions>(options =>
           options.ValidationInterval = TimeSpan.FromDays(365));
+
+      // The real keys live in the database (P8-08); there is none here.
+      services.AddDataProtection().UseEphemeralDataProtectionProvider();
     });
   }
 }
