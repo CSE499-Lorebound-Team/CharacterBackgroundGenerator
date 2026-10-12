@@ -182,9 +182,27 @@ dotnet ef database update --connection "<connection string from step 1>"
      If it is missing, the build points `/api/*` at `http://localhost:5110`
      and every API call fails.
    - Changing it needs a **redeploy**.
-3. **Deploy**, then note the real production URL (`https://<app>.vercel.app`)
-   and send it to the Render owner.
-4. **Preview deployments** (one per PR) get their own URLs. Calls to the API
+3. **Deploy.**
+4. **Give production a stable, public domain:**
+   1. Settings → Domains → Add.
+   2. Add a free `.vercel.app` name, e.g. `lorebound-demo.vercel.app`
+      (`lorebound.vercel.app` belongs to someone else's site).
+   3. Connect it to the production branch.
+   4. Send `https://<that name>` to the Render owner. It is the `<app>` URL
+      everywhere in this runbook.
+
+   **Do not use the URLs Vercel shows after a deploy**, such as
+   `https://lorebound-<hash>-<team>-projects.vercel.app` or
+   `https://lorebound-<team>-projects.vercel.app`:
+   - The `<hash>` URL changes with every deploy, so the API would refuse
+     sign-in after the next one.
+   - Vercel Authentication (Settings → Deployment Protection) hides all of
+     these behind a Vercel login, so visitors never reach the app.
+   - The domain added here is the production domain. With the default
+     ("Standard") protection it is public, while previews stay protected.
+     Check by opening it in a private window: you should see the app, not a
+     Vercel login.
+5. **Preview deployments** (one per PR) get their own URLs. Calls to the API
    work there, but **signing in and every write fail with 403** ("Origin not
    allowed"), because only the production URL is allowed (ADR 0003). That is
    expected. Test sign-in on the production URL only.
