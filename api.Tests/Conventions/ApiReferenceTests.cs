@@ -26,7 +26,11 @@ public partial class ApiReferenceTests : IClassFixture<ApiFactory>
   {
     var response = await _factory.CreateClient().GetAsync("/openapi/v1.json");
     Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+    // XML doc comments keep the source file's line endings, so a Windows
+    // checkout (CRLF) puts "\r\n" inside descriptions where Linux has "\n".
+    // Strip the escaped CR so the generated docs are the same on every OS.
+    var raw = (await response.Content.ReadAsStringAsync()).Replace("\\r\\n", "\\n");
+    using var document = JsonDocument.Parse(raw);
 
     var json = JsonSerializer.Serialize(document.RootElement, new JsonSerializerOptions { WriteIndented = true }) + "\n";
     var markdown = Render(document.RootElement);

@@ -134,7 +134,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Signs in and sets the httpOnly auth cookie. The body is only the user\r\nsummary; wrong password, unknown email and unconfirmed email all get the\r\nsame 401 so the response does not reveal which accounts exist.",
+        "summary": "Signs in and sets the httpOnly auth cookie. The body is only the user\nsummary; wrong password, unknown email and unconfirmed email all get the\nsame 401 so the response does not reveal which accounts exist.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -218,7 +218,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Signs out everywhere: changes the security stamp, so every copy of the\r\nuser\u0027s cookie stops working, and expires this browser\u0027s cookie (same\r\nname and path as at sign-in).",
+        "summary": "Signs out everywhere: changes the security stamp, so every copy of the\nuser\u0027s cookie stops working, and expires this browser\u0027s cookie (same\nname and path as at sign-in).",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -270,7 +270,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Confirms an email with the userId and code from the emailed link. An\r\nunknown user, a malformed or wrong code, and an already-confirmed account\r\nall get the same 400, so a code cannot be reused.",
+        "summary": "Confirms an email with the userId and code from the emailed link. An\nunknown user, a malformed or wrong code, and an already-confirmed account\nall get the same 400, so a code cannot be reused.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -371,7 +371,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Sends a fresh confirmation link. Always 204, whether the email is\r\nunknown, already confirmed or sent to, so it reveals nothing.",
+        "summary": "Sends a fresh confirmation link. Always 204, whether the email is\nunknown, already confirmed or sent to, so it reveals nothing.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -428,7 +428,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Emails a password reset link. Always 204; the link goes only to an\r\nexisting account whose email is confirmed, since that proves the inbox\r\nbelongs to the account.",
+        "summary": "Emails a password reset link. Always 204; the link goes only to an\nexisting account whose email is confirmed, since that proves the inbox\nbelongs to the account.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -485,7 +485,7 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Sets a new password with the email and code from the reset link. Identity\r\nchanges the security stamp, which ends the user\u0027s other sessions and\r\nmakes the code single-use.",
+        "summary": "Sets a new password with the email and code from the reset link. Identity\nchanges the security stamp, which ends the user\u0027s other sessions and\nmakes the code single-use.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -586,7 +586,7 @@
         "tags": [
           "Builder"
         ],
-        "summary": "The builder steps in order, with what each one stores: an entry type\r\nfrom the setting or free text, whether it is required, and how many\r\nanswers it allows.",
+        "summary": "The builder steps in order, with what each one stores: an entry type\nfrom the setting or free text, whether it is required, and how many\nanswers it allows.",
         "responses": {
           "200": {
             "description": "OK",
@@ -621,7 +621,7 @@
         "tags": [
           "CharacterBuilder"
         ],
-        "summary": "The options for one step, narrowed by the entries chosen in earlier\r\nsteps (ADR 0002). Free-text and display-only steps have none. An\r\nunknown step is 404.",
+        "summary": "The options for one step, narrowed by the entries chosen in earlier\nsteps (ADR 0002). Free-text and display-only steps have none. An\nunknown step is 404.",
         "parameters": [
           {
             "name": "characterId",
@@ -695,7 +695,7 @@
         "tags": [
           "CharacterBuilder"
         ],
-        "summary": "Replaces one step\u0027s answer in a single save and returns the updated\r\ncharacter. Entries must be of the step\u0027s type, in the character\u0027s\r\nsetting and visible to the caller, unless already chosen for this step;\r\na missing, other-setting or hidden entry gets the same 400. Sending no\r\nentries and no text clears the step. Moves \u0060currentStep\u0060 past the\r\nstep if it was behind. A complete character must be reopened first\r\n(409).",
+        "summary": "Replaces one step\u0027s answer in a single save and returns the updated\ncharacter. Entries must be of the step\u0027s type, in the character\u0027s\nsetting and visible to the caller, unless already chosen for this step;\na missing, other-setting or hidden entry gets the same 400. Sending no\nentries and no text clears the step. Moves \u0060currentStep\u0060 past the\nstep if it was behind. A complete character must be reopened first\n(409).",
         "parameters": [
           {
             "name": "characterId",
@@ -855,7 +855,7 @@
         "tags": [
           "CharacterBuilder"
         ],
-        "summary": "Marks the character Complete once every required step has a valid\r\nanswer, every chosen entry still exists in the setting with the step\u0027s\r\ntype, no step is stale (P7-04) and the name is not blank. Otherwise 400\r\nwith one error per failing step, keyed by step key. Completing a\r\ncomplete character again is a no-op.",
+        "summary": "Marks the character Complete once every required step has a valid\nanswer, every chosen entry still exists in the setting with the step\u0027s\ntype, no step is stale (P7-04) and the name is not blank. Otherwise 400\nwith one error per failing step, keyed by step key. Completing a\ncomplete character again is a no-op.",
         "parameters": [
           {
             "name": "characterId",
@@ -987,7 +987,7 @@
         "tags": [
           "CharacterBuilder"
         ],
-        "summary": "Moves the character back to Draft so its answers can change again.\r\nReopening a draft is a no-op.",
+        "summary": "Moves the character back to Draft so its answers can change again.\nReopening a draft is a no-op.",
         "parameters": [
           {
             "name": "characterId",
@@ -1065,7 +1065,7 @@
         "tags": [
           "Characters"
         ],
-        "summary": "The caller\u0027s own characters, most recently updated first. Filters:\r\nstatus, settingId, and\r\nsearch (name contains, ignoring case). Characters in\r\na setting the caller has left are included, flagged read-only.",
+        "summary": "The caller\u0027s own characters, most recently updated first. Filters:\nstatus, settingId, and\nsearch (name contains, ignoring case). Characters in\na setting the caller has left are included, flagged read-only.",
         "parameters": [
           {
             "name": "status",
@@ -1200,7 +1200,7 @@
         "tags": [
           "Characters"
         ],
-        "summary": "Starts a draft character owned by the caller, on step 1. Any member of\r\nthe setting may create one, GameMasters included (NPCs or their own\r\nPC); a non-member or missing setting gets 404.",
+        "summary": "Starts a draft character owned by the caller, on step 1. Any member of\nthe setting may create one, GameMasters included (NPCs or their own\nPC); a non-member or missing setting gets 404.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -1333,7 +1333,7 @@
         "tags": [
           "Characters"
         ],
-        "summary": "One character with its choices. The owner (even read-only) and the\r\nsetting\u0027s GameMasters may read it; anyone else gets 404.",
+        "summary": "One character with its choices. The owner (even read-only) and the\nsetting\u0027s GameMasters may read it; anyone else gets 404.",
         "parameters": [
           {
             "name": "characterId",
@@ -1387,7 +1387,7 @@
         "tags": [
           "Characters"
         ],
-        "summary": "Replaces the name and backstory. Only the owner while still a member\r\nof the setting; a removed owner or a GameMaster gets 403. The backstory\r\nis free text, never rendered as HTML by the API.",
+        "summary": "Replaces the name and backstory. Only the owner while still a member\nof the setting; a removed owner or a GameMaster gets 403. The backstory\nis free text, never rendered as HTML by the API.",
         "parameters": [
           {
             "name": "characterId",
@@ -1527,7 +1527,7 @@
         "tags": [
           "Characters"
         ],
-        "summary": "Deletes the character and, through the database cascade, its choices.\r\nOnly the owner, also after removal from the setting (a read-only\r\ncharacter can still be deleted); a GameMaster gets 403.",
+        "summary": "Deletes the character and, through the database cascade, its choices.\nOnly the owner, also after removal from the setting (a read-only\ncharacter can still be deleted); a GameMaster gets 403.",
         "parameters": [
           {
             "name": "characterId",
@@ -1598,7 +1598,7 @@
         "tags": [
           "Dashboard"
         ],
-        "summary": "Counts, the 5 most recently updated settings the caller belongs to and\r\ncharacters they own, and the 10 most recent changes across those\r\nsettings, their visible entries and the caller\u0027s characters. Players\r\nnever see activity on GM-only entries.",
+        "summary": "Counts, the 5 most recently updated settings the caller belongs to and\ncharacters they own, and the 10 most recent changes across those\nsettings, their visible entries and the caller\u0027s characters. Players\nnever see activity on GM-only entries.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1633,7 +1633,7 @@
         "tags": [
           "Health"
         ],
-        "summary": "Whether the API is up and can reach its database. Public, for load\r\nbalancers and uptime checks: 200 with \u0060database: \u0022connected\u0022\u0060,\r\nor 503 with \u0060database: \u0022unreachable\u0022\u0060.",
+        "summary": "Whether the API is up and can reach its database. Public, for load\nbalancers and uptime checks: 200 with \u0060database: \u0022connected\u0022\u0060,\nor 503 with \u0060database: \u0022unreachable\u0022\u0060.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1728,7 +1728,7 @@
         "tags": [
           "Invites"
         ],
-        "summary": "Joins the setting as a Player and uses up one use of the invite. A user\r\nwho already belongs gets 200 with their current role and uses nothing,\r\nso retrying (a double click, a reload) is safe. Membership is checked\r\nbefore validity, so the retry of an accept that took the last use is\r\nstill 200; a member learns nothing new from it. Everyone else gets the\r\nidentical 404 for an unusable code.",
+        "summary": "Joins the setting as a Player and uses up one use of the invite. A user\nwho already belongs gets 200 with their current role and uses nothing,\nso retrying (a double click, a reload) is safe. Membership is checked\nbefore validity, so the retry of an accept that took the last use is\nstill 200; a member learns nothing new from it. Everyone else gets the\nidentical 404 for an unusable code.",
         "parameters": [
           {
             "name": "code",
@@ -1815,7 +1815,7 @@
         "tags": [
           "RelationshipTypes"
         ],
-        "summary": "The suggested relationship types, in display order. Any other label\r\nis allowed too; these keep wording consistent.",
+        "summary": "The suggested relationship types, in display order. Any other label\nis allowed too; these keep wording consistent.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1850,7 +1850,7 @@
         "tags": [
           "SettingCharacters"
         ],
-        "summary": "Every character in the setting, removed players\u0027 included, most\r\nrecently updated first. GameMasters only (Player 403, non-member 404).\r\nFilters: status, and search\r\n(character or owner name contains, ignoring case).",
+        "summary": "Every character in the setting, removed players\u0027 included, most\nrecently updated first. GameMasters only (Player 403, non-member 404).\nFilters: status, and search\n(character or owner name contains, ignoring case).",
         "parameters": [
           {
             "name": "settingId",
@@ -2008,7 +2008,7 @@
         "tags": [
           "SettingEntries"
         ],
-        "summary": "Entries of the setting by name, filtered by type,\r\nsearch (name or description, case-insensitive) and\r\ngmOnly. For a Player, \u0060gmOnly=true\u0060 matches\r\nnothing, since they never see GM-only entries.",
+        "summary": "Entries of the setting by name, filtered by type,\nsearch (name or description, case-insensitive) and\ngmOnly. For a Player, \u0060gmOnly=true\u0060 matches\nnothing, since they never see GM-only entries.",
         "parameters": [
           {
             "name": "settingId",
@@ -2161,7 +2161,7 @@
         "tags": [
           "SettingEntries"
         ],
-        "summary": "Adds an entry. GameMasters only. The name is trimmed and must be unique\r\nper type within the setting, ignoring case (409 otherwise).",
+        "summary": "Adds an entry. GameMasters only. The name is trimmed and must be unique\nper type within the setting, ignoring case (409 otherwise).",
         "parameters": [
           {
             "name": "settingId",
@@ -2313,7 +2313,7 @@
         "tags": [
           "SettingEntries"
         ],
-        "summary": "One entry with its outgoing and incoming relationships, each sorted by\r\nthe other entry\u0027s name. A Player asking for a GM-only entry gets the\r\nsame 404 as for a missing one, and relationships to GM-only entries are\r\nleft out, so a Player cannot learn a hidden entry exists.",
+        "summary": "One entry with its outgoing and incoming relationships, each sorted by\nthe other entry\u0027s name. A Player asking for a GM-only entry gets the\nsame 404 as for a missing one, and relationships to GM-only entries are\nleft out, so a Player cannot learn a hidden entry exists.",
         "parameters": [
           {
             "name": "settingId",
@@ -2376,7 +2376,7 @@
         "tags": [
           "SettingEntries"
         ],
-        "summary": "Replaces an entry\u0027s name, type, description and secrecy. GameMasters\r\nonly; same rules as create, and the name check ignores the entry\r\nitself. Making an entry GM-only does not change characters that already\r\nchose it (decision recorded in P6-05).",
+        "summary": "Replaces an entry\u0027s name, type, description and secrecy. GameMasters\nonly; same rules as create, and the name check ignores the entry\nitself. Making an entry GM-only does not change characters that already\nchose it (decision recorded in P6-05).",
         "parameters": [
           {
             "name": "settingId",
@@ -2535,7 +2535,7 @@
         "tags": [
           "SettingEntries"
         ],
-        "summary": "Deletes an entry. GameMasters only. An entry that still has\r\nrelationships (either direction) or that characters have chosen is 409\r\nwith \u0060relationshipCount\u0060 and \u0060characterCount\u0060 and nothing\r\nchanges, unless force is true: then its\r\nrelationships and the entry go together in one transaction, and the\r\ncharacters keep their choices without the entry (P6-09).",
+        "summary": "Deletes an entry. GameMasters only. An entry that still has\nrelationships (either direction) or that characters have chosen is 409\nwith \u0060relationshipCount\u0060 and \u0060characterCount\u0060 and nothing\nchanges, unless force is true: then its\nrelationships and the entry go together in one transaction, and the\ncharacters keep their choices without the entry (P6-09).",
         "parameters": [
           {
             "name": "settingId",
@@ -2632,7 +2632,7 @@
         "tags": [
           "SettingInvites"
         ],
-        "summary": "Creates a Player invite. The body is optional; expiry defaults to\r\n7 days and uses to unlimited.",
+        "summary": "Creates a Player invite. The body is optional; expiry defaults to\n7 days and uses to unlimited.",
         "parameters": [
           {
             "name": "settingId",
@@ -2932,7 +2932,7 @@
         "tags": [
           "SettingInvites"
         ],
-        "summary": "Revokes an invite so it can no longer be accepted. The row is kept;\r\nrevoking twice is a no-op 204.",
+        "summary": "Revokes an invite so it can no longer be accepted. The row is kept;\nrevoking twice is a no-op 204.",
         "parameters": [
           {
             "name": "settingId",
@@ -3146,7 +3146,7 @@
         "tags": [
           "SettingMembers"
         ],
-        "summary": "Promotes or demotes a member. Owner only. Setting the role a member\r\nalready has is a no-op 200; the owner is always a GameMaster.",
+        "summary": "Promotes or demotes a member. Owner only. Setting the role a member\nalready has is a no-op 200; the owner is always a GameMaster.",
         "parameters": [
           {
             "name": "settingId",
@@ -3305,7 +3305,7 @@
         "tags": [
           "SettingMembers"
         ],
-        "summary": "Removes a member, or lets a member leave (their own userId). Any member\r\nbut the owner may leave; GameMasters remove Players; only the owner\r\nremoves a GameMaster; nobody removes the owner. Takes effect at once:\r\nthe next request from the removed user gets 404 on the setting. Their\r\ncharacters are kept, read-only (P6-10, see ICharacterAccess).",
+        "summary": "Removes a member, or lets a member leave (their own userId). Any member\nbut the owner may leave; GameMasters remove Players; only the owner\nremoves a GameMaster; nobody removes the owner. Takes effect at once:\nthe next request from the removed user gets 404 on the setting. Their\ncharacters are kept, read-only (P6-10, see ICharacterAccess).",
         "parameters": [
           {
             "name": "settingId",
@@ -3395,7 +3395,7 @@
         "tags": [
           "SettingRelationships"
         ],
-        "summary": "The setting\u0027s relationships, sorted by source name, type and target\r\nname. entryId keeps the links of one entry in either\r\ndirection (404 if the caller cannot see that entry);\r\ntype keeps one relationship type, ignoring case.",
+        "summary": "The setting\u0027s relationships, sorted by source name, type and target\nname. entryId keeps the links of one entry in either\ndirection (404 if the caller cannot see that entry);\ntype keeps one relationship type, ignoring case.",
         "parameters": [
           {
             "name": "settingId",
@@ -3542,7 +3542,7 @@
         "tags": [
           "SettingRelationships"
         ],
-        "summary": "Links two entries. GameMasters only. Both entries must belong to the\r\nsetting in the route (400 otherwise, the same for a missing entry); a\r\nself-link is 400 and an existing (source, target, type) link is 409.",
+        "summary": "Links two entries. GameMasters only. Both entries must belong to the\nsetting in the route (400 otherwise, the same for a missing entry); a\nself-link is 400 and an existing (source, target, type) link is 409.",
         "parameters": [
           {
             "name": "settingId",
@@ -3694,7 +3694,7 @@
         "tags": [
           "SettingRelationships"
         ],
-        "summary": "Replaces a relationship\u0027s type and description. GameMasters only. The\r\nendpoints are immutable: a \u0060sourceEntryId\u0060 or \u0060targetEntryId\u0060\r\nthat differs from the current one is 400 (delete and recreate to\r\nre-link). Changing to a type the same link already has is 409.",
+        "summary": "Replaces a relationship\u0027s type and description. GameMasters only. The\nendpoints are immutable: a \u0060sourceEntryId\u0060 or \u0060targetEntryId\u0060\nthat differs from the current one is 400 (delete and recreate to\nre-link). Changing to a type the same link already has is 409.",
         "parameters": [
           {
             "name": "settingId",
@@ -3933,7 +3933,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "Creates a setting owned by the caller, who becomes its GameMaster. The\r\nname is trimmed and must be unique among the caller\u0027s own settings,\r\nignoring case (409 otherwise).",
+        "summary": "Creates a setting owned by the caller, who becomes its GameMaster. The\nname is trimmed and must be unique among the caller\u0027s own settings,\nignoring case (409 otherwise).",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -4064,7 +4064,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "The settings the caller owns or belongs to, most recently updated\r\nfirst. search matches the name (contains, ignoring\r\ncase); role is \u0060gm\u0060 or \u0060player\u0060 (400\r\notherwise). Players\u0027 entry counts leave out GM-only entries.",
+        "summary": "The settings the caller owns or belongs to, most recently updated\nfirst. search matches the name (contains, ignoring\ncase); role is \u0060gm\u0060 or \u0060player\u0060 (400\notherwise). Players\u0027 entry counts leave out GM-only entries.",
         "parameters": [
           {
             "name": "search",
@@ -4193,7 +4193,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "One setting with the caller\u0027s role, the member count and entry counts\r\nby type (GM-only entries left out for Players). Any member may read\r\nit; anyone else gets 404.",
+        "summary": "One setting with the caller\u0027s role, the member count and entry counts\nby type (GM-only entries left out for Players). Any member may read\nit; anyone else gets 404.",
         "parameters": [
           {
             "name": "id",
@@ -4247,7 +4247,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "Renames the setting and replaces its description. GameMasters only\r\n(Players get 403); the name must stay unique among the owner\u0027s\r\nsettings (409).",
+        "summary": "Renames the setting and replaces its description. GameMasters only\n(Players get 403); the name must stay unique among the owner\u0027s\nsettings (409).",
         "parameters": [
           {
             "name": "id",
@@ -4397,7 +4397,7 @@
         "tags": [
           "Settings"
         ],
-        "summary": "Deletes the setting with its entries, relationships, memberships,\r\ninvites and characters. The owner only; other members get 403.",
+        "summary": "Deletes the setting with its entries, relationships, memberships,\ninvites and characters. The owner only; other members get 403.",
         "parameters": [
           {
             "name": "id",
@@ -4501,7 +4501,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Changes the display name (1-60 characters, trimmed). Email and password\r\nchanges are out of scope for now.",
+        "summary": "Changes the display name (1-60 characters, trimmed). Email and password\nchanges are out of scope for now.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -4622,7 +4622,7 @@
         "tags": [
           "Users"
         ],
-        "summary": "Deletes the account after re-checking the password (400 keyed\r\n\u0060Password\u0060 when wrong; rate limited like login). Blocked with 409\r\nand the list of settings while the user owns a setting that has other\r\nmembers: there is no ownership transfer, so they must delete the\r\nsetting or remove its members first. Otherwise, in one transaction:\r\nthe settings they own (with everything in them), their memberships,\r\ncharacters and invites elsewhere, then the user. Signs out; 204.",
+        "summary": "Deletes the account after re-checking the password (400 keyed\n\u0060Password\u0060 when wrong; rate limited like login). Blocked with 409\nand the list of settings while the user owns a setting that has other\nmembers: there is no ownership transfer, so they must delete the\nsetting or remove its members first. Otherwise, in one transaction:\nthe settings they own (with everything in them), their memberships,\ncharacters and invites elsewhere, then the user. Signs out; 204.",
         "parameters": [
           {
             "name": "X-Requested-With",
@@ -5158,7 +5158,7 @@
             "format": "int32"
           }
         },
-        "description": "One builder step. SettingEntryType? BuilderStepDto.EntryType is the entry type offered as\r\noptions (null for free-text and display-only steps);\r\nint? BuilderStepDto.MaxFreeTextLength is set only when\r\nbool BuilderStepDto.AllowFreeText; int BuilderStepDto.MaxSelections is 0 for steps\r\nthat store nothing (setting, review)."
+        "description": "One builder step. SettingEntryType? BuilderStepDto.EntryType is the entry type offered as\noptions (null for free-text and display-only steps);\nint? BuilderStepDto.MaxFreeTextLength is set only when\nbool BuilderStepDto.AllowFreeText; int BuilderStepDto.MaxSelections is 0 for steps\nthat store nothing (setting, review)."
       },
       "BuilderStepsDto": {
         "required": [
@@ -5227,7 +5227,7 @@
             ]
           }
         },
-        "description": "One builder answer; choices are sorted by step key then ordinal. A chosen\r\nentry keeps its name even if it later became GM-only; a deleted entry\r\nleaves Guid? CharacterChoiceDto.EntryId, string? CharacterChoiceDto.EntryName and\r\nSettingEntryType? CharacterChoiceDto.EntryType null."
+        "description": "One builder answer; choices are sorted by step key then ordinal. A chosen\nentry keeps its name even if it later became GM-only; a deleted entry\nleaves Guid? CharacterChoiceDto.EntryId, string? CharacterChoiceDto.EntryName and\nSettingEntryType? CharacterChoiceDto.EntryType null."
       },
       "CharacterDetailDto": {
         "required": [
@@ -5314,7 +5314,7 @@
             }
           }
         },
-        "description": "One character with its builder choices (P6-05), returned by create and\r\nread. bool CharacterDetailDto.IsOwner says whether the caller owns it (only the\r\nowner may delete); bool CharacterDetailDto.IsReadOnly says whether the caller may\r\nnot edit it (false only for an owner who still belongs to the setting).\r\nIReadOnlyList\u0026lt;string\u0026gt; CharacterDetailDto.StaleSteps lists, in step order, the keys of steps whose\r\nchosen entry is no longer among that step\u0027s narrowed options after an\r\nearlier step changed (P7-04); the choice is kept, never deleted."
+        "description": "One character with its builder choices (P6-05), returned by create and\nread. bool CharacterDetailDto.IsOwner says whether the caller owns it (only the\nowner may delete); bool CharacterDetailDto.IsReadOnly says whether the caller may\nnot edit it (false only for an owner who still belongs to the setting).\nIReadOnlyList\u0026lt;string\u0026gt; CharacterDetailDto.StaleSteps lists, in step order, the keys of steps whose\nchosen entry is no longer among that step\u0027s narrowed options after an\nearlier step changed (P7-04); the choice is kept, never deleted."
       },
       "CharacterListItemDto": {
         "required": [
@@ -5369,7 +5369,7 @@
             "format": "date-time"
           }
         },
-        "description": "One of the caller\u0027s own characters on the Characters page and dashboard\r\n(P6-04). string? CharacterListItemDto.HomelandName comes from the first\r\n\u0060homeland\u0060 choice (its entry\u0027s name, or its free text), null when\r\nthere is none. bool CharacterListItemDto.IsReadOnly is true once the caller is no\r\nlonger a member of the setting."
+        "description": "One of the caller\u0027s own characters on the Characters page and dashboard\n(P6-04). string? CharacterListItemDto.HomelandName comes from the first\n\u0060homeland\u0060 choice (its entry\u0027s name, or its free text), null when\nthere is none. bool CharacterListItemDto.IsReadOnly is true once the caller is no\nlonger a member of the setting."
       },
       "CharacterStatus": {
         "enum": [
@@ -5421,7 +5421,7 @@
             ]
           }
         },
-        "description": "Starts a draft character in a setting the caller belongs to (P6-03). A\r\nmissing or blank string? CreateCharacterRequest.Name becomes \u0022Unnamed Character\u0022."
+        "description": "Starts a draft character in a setting the caller belongs to (P6-03). A\nmissing or blank string? CreateCharacterRequest.Name becomes \u0022Unnamed Character\u0022."
       },
       "CreateEntryRequest": {
         "required": [
@@ -5517,7 +5517,7 @@
             ]
           }
         },
-        "description": "Links two entries of the setting in the route (P5-03). The setting is\r\nalways taken from the route, never from the body."
+        "description": "Links two entries of the setting in the route (P5-03). The setting is\nalways taken from the route, never from the body."
       },
       "CreateSettingRequest": {
         "required": [
@@ -5566,7 +5566,7 @@
             "format": "uuid"
           }
         },
-        "description": "One recent change, derived from \u0060UpdatedAt\u0060 (there is no activity\r\nlog), so it says what changed, not who changed it. Guid DashboardActivityDto.Id is the\r\nsetting, entry or character; Guid DashboardActivityDto.SettingId is the setting it\r\nbelongs to, for building links."
+        "description": "One recent change, derived from \u0060UpdatedAt\u0060 (there is no activity\nlog), so it says what changed, not who changed it. Guid DashboardActivityDto.Id is the\nsetting, entry or character; Guid DashboardActivityDto.SettingId is the setting it\nbelongs to, for building links."
       },
       "DashboardActivityKind": {
         "enum": [
@@ -5617,7 +5617,7 @@
             "format": "int32"
           }
         },
-        "description": "Settings the caller owns or is a GameMaster of, settings where the caller\r\nis a Player, and the caller\u0027s own characters by status."
+        "description": "Settings the caller owns or is a GameMaster of, settings where the caller\nis a Player, and the caller\u0027s own characters by status."
       },
       "DashboardDto": {
         "required": [
@@ -5650,7 +5650,7 @@
             }
           }
         },
-        "description": "Everything the dashboard page shows, in one response (P8-01).\r\nIReadOnlyList\u0026lt;SettingListItemDto\u0026gt; DashboardDto.RecentSettings and IReadOnlyList\u0026lt;CharacterListItemDto\u0026gt; DashboardDto.RecentCharacters are the\r\nsame items the Settings and Characters lists return."
+        "description": "Everything the dashboard page shows, in one response (P8-01).\nIReadOnlyList\u0026lt;SettingListItemDto\u0026gt; DashboardDto.RecentSettings and IReadOnlyList\u0026lt;CharacterListItemDto\u0026gt; DashboardDto.RecentCharacters are the\nsame items the Settings and Characters lists return."
       },
       "DeleteAccountRequest": {
         "required": [
@@ -5729,7 +5729,7 @@
             "format": "date-time"
           }
         },
-        "description": "One entry with its relationships (P4-04). Relationships whose other entry\r\nthe caller cannot see are left out. bool? EntryDetailDto.IsGmOnly is only sent\r\nto GameMasters."
+        "description": "One entry with its relationships (P4-04). Relationships whose other entry\nthe caller cannot see are left out. bool? EntryDetailDto.IsGmOnly is only sent\nto GameMasters."
       },
       "EntryListItemDto": {
         "required": [
@@ -5778,7 +5778,7 @@
             "format": "date-time"
           }
         },
-        "description": "One row of the entries list (P4-02). bool? EntryListItemDto.IsGmOnly is only sent\r\nto GameMasters. int EntryListItemDto.RelationshipCount counts links in both\r\ndirections whose other entry the caller can see."
+        "description": "One row of the entries list (P4-02). bool? EntryListItemDto.IsGmOnly is only sent\nto GameMasters. int EntryListItemDto.RelationshipCount counts links in both\ndirections whose other entry the caller can see."
       },
       "EntryRelationshipDto": {
         "required": [
@@ -5815,7 +5815,7 @@
             ]
           }
         },
-        "description": "A relationship seen from one entry: the entry at the other end (the\r\ntarget for outgoing, the source for incoming) and how they relate."
+        "description": "A relationship seen from one entry: the entry at the other end (the\ntarget for outgoing, the source for incoming) and how they relate."
       },
       "ForgotPasswordRequest": {
         "required": [
@@ -5849,7 +5849,7 @@
             "type": "string"
           }
         },
-        "description": "\u0060status\u0060 is \u0060healthy\u0060 or \u0060unhealthy\u0060; \u0060database\u0060 is\r\n\u0060connected\u0060 or \u0060unreachable\u0060."
+        "description": "\u0060status\u0060 is \u0060healthy\u0060 or \u0060unhealthy\u0060; \u0060database\u0060 is\n\u0060connected\u0060 or \u0060unreachable\u0060."
       },
       "InviteDto": {
         "required": [
@@ -5968,7 +5968,7 @@
             "default": false
           }
         },
-        "description": "RememberMe = false gives a session cookie; true gives the 14-day\r\npersistent cookie."
+        "description": "RememberMe = false gives a session cookie; true gives the 14-day\npersistent cookie."
       },
       "MemberDto": {
         "required": [
@@ -6383,7 +6383,7 @@
             ]
           }
         },
-        "description": "The password policy (length 10\u002B) is enforced by Identity, not attributes,\r\nso its errors come back under \u0022Password\u0022 like any other validation error."
+        "description": "The password policy (length 10\u002B) is enforced by Identity, not attributes,\nso its errors come back under \u0022Password\u0022 like any other validation error."
       },
       "RelationshipDto": {
         "required": [
@@ -6461,7 +6461,7 @@
             }
           }
         },
-        "description": "Relationship types to offer when linking entries (P5-05). Any other\r\ntext is accepted too."
+        "description": "Relationship types to offer when linking entries (P5-05). Any other\ntext is accepted too."
       },
       "ResendConfirmationRequest": {
         "required": [
@@ -6504,7 +6504,7 @@
             ]
           }
         },
-        "description": "Email and code come from the emailed reset link. Identity enforces the\r\npassword policy on NewPassword."
+        "description": "Email and code come from the emailed reset link. Identity enforces the\npassword policy on NewPassword."
       },
       "SaveChoiceRequest": {
         "required": [
@@ -6530,7 +6530,7 @@
             ]
           }
         },
-        "description": "One step\u0027s answer (P7-03): entries for an entry step, free text for a\r\nfree-text step. Sending neither clears the step."
+        "description": "One step\u0027s answer (P7-03): entries for an entry step, free text for a\nfree-text step. Sending neither clears the step."
       },
       "SettingCharacterListItemDto": {
         "required": [
@@ -6585,7 +6585,7 @@
             "format": "date-time"
           }
         },
-        "description": "One character of a setting in the GameMaster view (P6-08).\r\nbool SettingCharacterListItemDto.OwnerIsMember is false for characters of players who were\r\nremoved from the setting; they stay listed. string? SettingCharacterListItemDto.HomelandName\r\nis as in CharacterListItemDto."
+        "description": "One character of a setting in the GameMaster view (P6-08).\nbool SettingCharacterListItemDto.OwnerIsMember is false for characters of players who were\nremoved from the setting; they stay listed. string? SettingCharacterListItemDto.HomelandName\nis as in CharacterListItemDto."
       },
       "SettingDetailDto": {
         "required": [
@@ -6701,7 +6701,7 @@
             "format": "date-time"
           }
         },
-        "description": "One entry, returned by create and update (P4-03, P4-05).\r\nbool? SettingEntryDto.IsGmOnly is only sent to GameMasters."
+        "description": "One entry, returned by create and update (P4-03, P4-05).\nbool? SettingEntryDto.IsGmOnly is only sent to GameMasters."
       },
       "SettingEntryType": {
         "enum": [
@@ -6818,7 +6818,7 @@
             }
           }
         },
-        "description": "The options for one builder step (P7-02). bool StepOptionsDto.Narrowed is true\r\nwhen earlier choices limited them to linked entries."
+        "description": "The options for one builder step (P7-02). bool StepOptionsDto.Narrowed is true\nwhen earlier choices limited them to linked entries."
       },
       "UpdateCharacterRequest": {
         "required": [
@@ -6837,7 +6837,7 @@
             ]
           }
         },
-        "description": "Replaces a character\u0027s name and backstory (P6-06). The name is trimmed\r\nand must not be blank. The backstory is plain free text, stored as sent;\r\nblank or missing clears it."
+        "description": "Replaces a character\u0027s name and backstory (P6-06). The name is trimmed\nand must not be blank. The backstory is plain free text, stored as sent;\nblank or missing clears it."
       },
       "UpdateEntryRequest": {
         "required": [
@@ -6937,7 +6937,7 @@
             "format": "uuid"
           }
         },
-        "description": "Replaces a relationship\u0027s type and description (P5-04). The endpoints\r\ncannot change: Guid? UpdateRelationshipRequest.SourceEntryId and Guid? UpdateRelationshipRequest.TargetEntryId\r\nare accepted only so that a different value can be rejected with 400\r\ninstead of being silently ignored. Delete and recreate to re-link."
+        "description": "Replaces a relationship\u0027s type and description (P5-04). The endpoints\ncannot change: Guid? UpdateRelationshipRequest.SourceEntryId and Guid? UpdateRelationshipRequest.TargetEntryId\nare accepted only so that a different value can be rejected with 400\ninstead of being silently ignored. Delete and recreate to re-link."
       },
       "UpdateSettingRequest": {
         "required": [
