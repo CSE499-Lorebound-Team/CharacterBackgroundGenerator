@@ -254,13 +254,19 @@ size: M
 depends: P8-08, P8-09, P8-10
 @@@
 ## Summary
-Stand up the demo environment chosen in ADR 0003 and write down how to repeat it. Blocked until the team decides who owns the Vercel, Render and Supabase accounts (ADR 0003, open question 1).
+Stand up the demo environment chosen in ADR 0003 and write down how to repeat it.
+
+Owners (ADR 0003, "Account owners"):
+- Tolaji sets up Supabase and Render.
+- Bugbear777 sets up Vercel.
+
+Both hosts deploy from `dev`. The steps are in `docs/deployment.md`.
 
 ## Tasks
-- [ ] Supabase project; Data API turned off; session pooler connection string with `SSL Mode=Require`.
-- [ ] Apply migrations from a developer machine (`dotnet ef database update` with the Supabase connection string). The app never migrates at startup.
-- [ ] Render Docker web service from `api/`, health check `/api/health`, environment variables from ADR 0003.
-- [ ] Vercel project with root directory `frontend/` and `API_ORIGIN` set to the Render URL (the rewrite is already in `next.config.ts`).
+- [ ] (Tolaji) Supabase project; Data API turned off; session pooler connection string with `SSL Mode=Require;Gss Encryption Mode=Disable`.
+- [ ] (Tolaji) Apply migrations from a developer machine (`dotnet ef database update --connection "<string>"`). The app never migrates at startup.
+- [ ] (Tolaji) Render Docker web service from `api/` on branch `dev`, health check `/api/health`, environment variables from ADR 0003.
+- [ ] (Bugbear777) Vercel project with root directory `frontend/`, production branch `dev`, and `API_ORIGIN` set to the Render URL (the rewrite is already in `next.config.ts`; it is read at build time).
 - [ ] Check the rate-limit partition key on the deployed API; if all clients share one IP, raise `RateLimiting__Auth__PermitLimit` (ADR 0003).
 - [ ] Security checklist from P8-07 (`docs/security/p8-07-security-review.md`, section 9) in the runbook and checked on the deployed app:
   - Supabase Data API off: the anon key cannot read `AspNetUsers`.
@@ -270,7 +276,7 @@ Stand up the demo environment chosen in ADR 0003 and write down how to repeat it
   - `AllowedHosts` is the Render host, while the health check stays green and login through Vercel works.
   - `Strict-Transport-Security` reaches the browser, and `http://` redirects to `https://`.
   - The auth cookie is `Secure`, `HttpOnly`, `SameSite=Lax` and has no `Domain`.
-- [ ] `docs/deployment.md` runbook: accounts and owners, every variable (no secret values), migration steps, redeploy, and demo-day checks (wake Render, check Supabase is not paused).
+- [ ] `docs/deployment.md` runbook: accounts and owners, every variable (no secret values), migration steps, redeploy, and demo-day checks (wake Render, check Supabase is not paused). It also covers the order of the steps, since each host needs the other's URL, plus the check commands and troubleshooting.
 
 ## Acceptance criteria
 - From the public Vercel URL: register, log in, log out and create a setting succeed; the auth cookie belongs to the Vercel host.
