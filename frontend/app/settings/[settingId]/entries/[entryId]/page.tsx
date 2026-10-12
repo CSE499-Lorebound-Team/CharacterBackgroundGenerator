@@ -9,6 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/layout/PageStates";
 import { DeleteEntryDialog } from "@/components/settings/DeleteEntryDialog";
 import { GmOnlyBadge, TypeBadge } from "@/components/settings/EntryBadges";
+import { EntryRelationships } from "@/components/settings/EntryRelationships";
 import { SettingEntryDialog } from "@/components/settings/SettingEntryDialog";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
@@ -134,6 +135,13 @@ function EntryArticle({ settingId, entry, isGm, onChanged }: EntryArticleProps) 
           </p>
         )}
       </section>
+
+      <EntryRelationships
+        settingId={settingId}
+        entry={entry}
+        isGm={isGm}
+        onChanged={onChanged}
+      />
 
       <footer className="border-t border-border py-6 text-sm text-muted-foreground">
         Updated {formatRelativeTime(entry.updatedAt)}
