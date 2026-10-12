@@ -36,6 +36,10 @@ builder.Services
     .AddJsonOptions(options =>
         // Enums travel as names ("Location"), not numbers.
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+// The OpenAPI generator reads these options, not MVC's above, so without
+// this every enum would be documented as an integer (P8-06).
+builder.Services.ConfigureHttpJsonOptions(options =>
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // Every error response is RFC 7807 problem+json carrying a traceId, the
 // same id as the TraceId scope on that request's log lines (P8-05).

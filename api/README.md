@@ -141,6 +141,24 @@ How the document is built:
 - The document description covers the cookie sign-in flow, the CSRF
   header, problem+json errors with `traceId`, and the 404-for-non-members
   rule.
+- Enums are documented by name (`"Draft"`), as the API sends them.
+  `ConfigureHttpJsonOptions` in `Program.cs` registers the string-enum
+  converter for the OpenAPI generator, which does not read MVC's JSON
+  options. A query object's properties all become parameters, so computed
+  values such as `PageQuery.Skip()` are methods.
+
+### `docs/api/`: the committed reference (P8-06)
+
+[`docs/api/README.md`](../docs/api/README.md) (every endpoint and schema)
+and `docs/api/openapi.json` are **generated** from this document, so the
+repository has a reference without running the API.
+`Conventions/ApiReferenceTests` fails when either is out of date. After
+changing an endpoint, a DTO or a summary, regenerate both and commit them
+with the change:
+
+```powershell
+$env:UPDATE_API_DOCS = "1"; dotnet test api.Tests --filter ApiReference; Remove-Item Env:UPDATE_API_DOCS
+```
 
 ## Paging
 
@@ -347,7 +365,8 @@ and `SettingsListTests` assert every cell, so change them together.
 - An unknown id is 404 for everyone, with the same body a non-member gets.
 - `GET /api/settings?role=gm` lists settings where I am owner or GameMaster;
   `role=player` those where I am a Player; any other value is 400.
-- Deleting a setting removes its entries, relationships and memberships.
+- Deleting a setting removes its entries, relationships, memberships,
+  invites and characters (with their choices).
 
 ### Invite endpoints
 

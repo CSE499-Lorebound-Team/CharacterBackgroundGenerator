@@ -2,7 +2,7 @@
 
 Single source of truth for building the Lorebound backend (auth, sharing, settings, characters, builder) and wiring the frontend to it. Every piece of work is a GitHub issue on this board.
 
-**Repo:** [CSE499-Lorebound-Team/CharacterBackgroundGenerator](https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator) | **Integration branch:** `dev` | **Team workflow:** see the repository README
+**Board:** [Lorebound API Roadmap](https://github.com/orgs/CSE499-Lorebound-Team/projects/3) | **Repo:** [CSE499-Lorebound-Team/CharacterBackgroundGenerator](https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator) | **Integration branch:** `dev` | **Team workflow:** see the repository README | **API reference:** [docs/api](../api/README.md)
 
 ---
 

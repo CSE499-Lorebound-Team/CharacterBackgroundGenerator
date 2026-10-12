@@ -183,6 +183,33 @@ public class OpenApiDocumentTests : IClassFixture<ApiFactory>
   }
 
   [Fact]
+  public async Task Enums_are_documented_as_their_string_names()
+  {
+    var schemas = (await DocumentAsync()).GetProperty("components").GetProperty("schemas");
+
+    // The API sends enums as names (JsonStringEnumConverter); P8-06 found
+    // the document listing them as integers.
+    Assert.Equal(
+        ["Draft", "Complete"],
+        schemas.GetProperty("CharacterStatus").GetProperty("enum").EnumerateArray().Select(v => v.GetString()!));
+  }
+
+  [Fact]
+  public async Task Paging_parameters_are_page_and_pageSize_only()
+  {
+    var document = await DocumentAsync();
+    var entries = document.GetProperty("paths").GetProperty("/api/settings/{settingId}/entries").GetProperty("get");
+
+    var query = entries.GetProperty("parameters").EnumerateArray()
+        .Where(p => p.GetProperty("in").GetString() == "query")
+        .Select(p => p.GetProperty("name").GetString())
+        .ToList();
+    Assert.Contains("page", query);
+    Assert.Contains("pageSize", query);
+    Assert.DoesNotContain(query, name => string.Equals(name, "skip", StringComparison.OrdinalIgnoreCase));
+  }
+
+  [Fact]
   public async Task The_explorer_is_served_in_Development()
   {
     var response = await _factory.CreateClient().GetAsync("/scalar/v1");

@@ -131,12 +131,13 @@ Documentation matches the finished API.
 
 ## Tasks
 - [ ] README: DB setup, migrations, seed data, auth (cookie-only) and CSRF header, sharing model, permission matrix.
-- [ ] `docs/api/` endpoint reference generated or copied from OpenAPI.
-- [ ] Update the repository tree (Services/Dtos/Tests).
+- [ ] `docs/api/` endpoint reference generated or copied from OpenAPI: generated (`docs/api/README.md` plus `openapi.json`) by `Conventions/ApiReferenceTests`, which fails when the committed copy is stale; `UPDATE_API_DOCS=1` regenerates it.
+- [ ] Update the repository tree (Services/Dtos/Tests). The API has no Services folder: controllers call helpers in `Auth/`, `Data/` and `Sharing/`, and the tree says so.
 - [ ] Link the project board.
+- [ ] Fix what writing the reference exposed in the OpenAPI document: enums were documented as integers (the API sends names), and paged lists advertised a `skip` query parameter that is never bound.
 
 ## Acceptance criteria
-- A new teammate can run, seed, and log in using only the docs.
+- A new teammate can run, seed, and log in using only the docs: the root README's Quick Start goes from clone to signed in (through the `/scalar` explorer until Phase 9 adds sign-in pages).
 
 @@@ P8-07
 title: Security review pass

@@ -11,10 +11,57 @@ Unlike traditional character builders that primarily focus on game mechanics suc
 
 The application allows Game Masters to define information about their setting and allows players to use that information through a guided character background creation process.
 
+Work is tracked on the **[Lorebound API Roadmap](https://github.com/orgs/CSE499-Lorebound-Team/projects/3)** project board (team members only). Its issue definitions and working agreement are in [docs/project-board/](docs/project-board/README.md).
+
+---
+
+# Quick Start
+
+From a fresh clone to signed in with sample data, on Windows:
+
+1. **Install** Git, the .NET 10 SDK, Node.js and Docker Desktop (see [Prerequisites](#prerequisites)). Start Docker Desktop.
+2. **Clone and switch to `dev`:**
+
+   ```powershell
+   git clone https://github.com/CSE499-Lorebound-Team/CharacterBackgroundGenerator.git
+   cd CharacterBackgroundGenerator
+   git checkout dev
+   ```
+
+3. **Set up the database** (creates `.env`, starts Postgres, stores the connection string, applies migrations):
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\scripts\onboard.ps1
+   ```
+
+4. **Run the API with sample data:**
+
+   ```powershell
+   cd api
+   dotnet run -- --seed
+   ```
+
+   It seeds the setting "Osepia" with lore, a GameMaster, a Player and a draft character, then keeps running on `http://localhost:5110`. Running it again is safe. See [Seed data](#seed-data).
+5. **Sign in.** Open `http://localhost:5110/scalar`, the API explorer:
+   1. Choose **Auth → POST /api/auth/login**, set the header `X-Requested-With` to `Lorebound` (without it the API answers 403), and send:
+
+      ```json
+      { "email": "gm@lorebound.local", "password": "lorebound-gm-dev" }
+      ```
+
+      Use `player@lorebound.local` / `lorebound-player-dev` for the Player.
+   2. The explorer keeps the sign-in cookie. Try **Dashboard → GET /api/dashboard** or **Settings → GET /api/settings**.
+   3. Every request that changes data (POST, PUT, PATCH, DELETE), login included, needs that same `X-Requested-With: Lorebound` header. The explorer lists it on those requests.
+6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Until Phase 9 wires the pages to the API, the frontend shows mock data and has no working sign-in.
+7. **Run the tests** with `dotnet test Lorebound.slnx` from the repository root (Docker Desktop must be running).
+
+New to the codebase? Read [How the API Works](#how-the-api-works) next.
+
 ---
 
 # Table of Contents
 
+- [Quick Start](#quick-start)
 - [Repository Structure](#repository-structure)
 - [Prerequisites](#prerequisites)
 - [Cloning the Repository](#cloning-the-repository)
@@ -23,6 +70,7 @@ The application allows Game Masters to define information about their setting an
 - [Running the Frontend](#running-the-frontend)
 - [Running the API](#running-the-api)
 - [Running the Full Application](#running-the-full-application)
+- [How the API Works](#how-the-api-works)
 - [Testing](#testing)
 - [Testing Frontend and API Together](#testing-frontend-and-api-together)
 - [Submitting Changes](#submitting-changes)
@@ -50,30 +98,42 @@ This means the frontend and backend API are stored inside the same Git repositor
 ```text
 CharacterBackgroundGenerator/
 │
-├── frontend/
-│   ├── app/
+├── frontend/              (Next.js app)
+│   ├── app/               (pages, App Router)
 │   ├── components/
+│   ├── lib/               (API client, stores, types)
 │   ├── public/
-│   ├── package.json
-│   └── ...
+│   └── package.json
 │
-├── api/
-│   ├── Controllers/
-│   ├── Data/
-│   │   └── Migrations/
-│   ├── Dtos/
-│   ├── Errors/
-│   ├── Mapping/
-│   ├── Models/
+├── api/                   (ASP.NET Core API)
+│   ├── Controllers/       (one per resource; thin, call the helpers below)
+│   ├── Auth/              (cookie sign-in, ICurrentUser, SettingAccess and CharacterAccess checks)
+│   ├── Data/              (LoreboundDbContext, shared queries, DevelopmentSeeder)
+│   │   └── Migrations/    (EF Core migrations)
+│   ├── Dtos/              (request and response records, one folder per resource)
+│   ├── Models/            (EF Core entities)
+│   ├── Mapping/           (entity -> DTO extension methods)
+│   ├── Sharing/           (invite codes and rules)
+│   ├── Security/          (CSRF check, rate limiting)
+│   ├── Errors/            (domain exceptions -> problem+json)
+│   ├── Logging/           (request logging, traceId)
+│   ├── OpenApi/           (OpenAPI document rules)
+│   ├── Email/             (email senders)
 │   ├── Program.cs
-│   ├── Lorebound.Api.csproj
-│   ├── README.md          (API conventions)
-│   └── ...
+│   ├── Lorebound.Api.http (sample requests)
+│   └── README.md          (API conventions and permission matrices)
 │
-├── api.Tests/             (xUnit tests; real Postgres via Testcontainers)
+├── api.Tests/             (xUnit; real Postgres via Testcontainers)
+│   ├── <Area>/            (Auth, Settings, Sharing, Entries, Relationships, Characters,
+│   │                        Builder, Dashboard, Security, Logging, Performance, ...)
+│   ├── Conventions/       (rules every endpoint must follow, OpenAPI checks)
+│   └── TestSupport/       (test host, SharingWorld, log and SQL capture)
+│
+├── docs/api/              (endpoint reference and openapi.json, generated)
 ├── docs/project-board/    (roadmap and issue definitions)
 ├── docs/decisions/        (architecture decision records)
 ├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
+├── .github/               (CI workflows, issue forms)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
 ├── .env.example           (copy to .env)
@@ -107,6 +167,8 @@ Technology:
 - PostgreSQL
 
 The frontend and API are stored in the same Git repository but run as separate applications.
+
+There is no separate services layer. Controllers stay thin by calling shared helpers: access checks in `Auth/`, queries and projections in `Data/`, and invite rules in `Sharing/`.
 
 ---
 
@@ -502,6 +564,83 @@ Both applications must be running for features that require backend data.
 
 ---
 
+# How the API Works
+
+This section is the overview. Every endpoint, with its request and response shapes, is in the generated **[API reference](docs/api/README.md)**. The detailed rules per endpoint, with every permission cell, are in **[api/README.md](api/README.md)**. To try things, run the API and open `http://localhost:5110/scalar`.
+
+## Signing in: one cookie, no tokens
+
+- `POST /api/auth/register` creates an account, then `POST /api/auth/login` sets an **httpOnly cookie** named `lorebound.auth`. The cookie is Secure and SameSite=Lax, and lasts 14 days, sliding.
+- Browsers send it automatically. The frontend calls `fetch` with `credentials: "include"`.
+- The API never issues bearer, access or refresh tokens, and JavaScript cannot read the cookie.
+- `POST /api/auth/logout` ends the session on every device. So do a password reset and account deletion.
+- Every endpoint requires sign-in unless it is public: health, registration, login, email confirmation and password reset. Without the cookie the answer is **401**.
+- Outside Development, an account must confirm its email before it can sign in. In Development that is switched off, and emails (confirmation and reset links) are printed to the API terminal instead of being sent.
+
+## The CSRF header
+
+Every **POST, PUT, PATCH and DELETE** must send:
+
+```http
+X-Requested-With: Lorebound
+```
+
+If the request has an `Origin` header, it must come from an allowed frontend origin (`http://localhost:3000` in Development). Otherwise the API answers **403** before the endpoint runs. GET requests need neither. The header works because another website cannot add a custom header without a CORS preflight, which the API refuses.
+
+## Settings, roles and sharing
+
+- **A setting** is a campaign world with its lore (**entries** such as places, cultures and factions) and the **relationships** between entries.
+- **Roles:** every member of a setting is either a **GameMaster** or a **Player**.
+  - The creator is the **owner** and always a GameMaster.
+  - GameMasters edit the lore and manage invites.
+  - Players read it and build characters.
+  - Only the owner changes roles or deletes the setting. There are no co-owners.
+- **Sharing is by invite code.**
+  - A GameMaster creates a code (optional expiry and use limit) and shares the join link.
+  - Whoever accepts it joins as a **Player**.
+  - A dead code (unknown, expired, revoked or used up) is always the same 404.
+- **Secret lore:** entries marked **GM-only** never reach Players. They are left out of lists, search, counts, relationships and the builder.
+- **Leaving and removal:**
+  - Players and GameMasters can leave.
+  - GameMasters remove Players; the owner removes anyone.
+  - The owner can't leave, only delete the setting.
+  - A removed player's characters stay, **read-only**.
+- **Characters** belong to one player in one setting. The setting's GameMasters can read them but not change them.
+- **Account deletion** is refused while you own a setting that still has other members.
+
+## Who can do what
+
+The status each kind of caller gets; **2xx** means allowed (200, 201 or 204 depending on the action). **Non-member** means signed in but not in the setting. A setting you don't belong to is **404**, exactly like a missing one, so nobody can probe which ids exist. A member without the needed role gets **403**.
+
+| Action | Non-member | Player | GameMaster | Owner |
+|---|---|---|---|---|
+| Create a setting | 201 (becomes owner) | 201 | 201 | 201 |
+| Read a setting, its entries, relationships and members | 404 | 2xx (no GM-only lore) | 2xx | 2xx |
+| Edit the setting; create, edit or delete entries and relationships | 404 | 403 | 2xx | 2xx |
+| Delete the setting | 404 | 403 | 403 | 204 |
+| Create, list or revoke invites | 404 | 403 | 2xx | 2xx |
+| Change a member's role | 404 | 403 | 403 | 2xx |
+| Remove a member | 404 | 403 (may leave) | Players only (may leave) | anyone but self |
+| Create a character in the setting | 404 | 201 | 201 | 201 |
+| See the setting's characters (GameMaster view) | 404 | 403 | 2xx | 2xx |
+
+| Action on a character | Its owner (member) | Its owner (removed from the setting) | GameMaster of its setting | Anyone else |
+|---|---|---|---|---|
+| Read | 200 | 200, read-only | 200, read-only | 404 |
+| Edit, build, complete or reopen | 200 | 403 | 403 | 404 |
+| Delete | 204 | 204 | 403 | 404 |
+
+Anonymous callers get **401** on all of these.
+
+## Errors
+
+- Every error is `application/problem+json` with a `traceId`. Search the API terminal for the `traceId` to find that request's log lines.
+- Invalid input is **400** with an `errors` object keyed by field.
+- Conflicts are **409**, for example a duplicate name or deleting an entry that is still linked.
+- Too many requests are **429**. Registration, login, resending a confirmation, forgot-password, account deletion and the invite preview and accept endpoints are rate limited.
+
+---
+
 # Testing
 
 Before submitting a Pull Request, test the part of the project you changed.
@@ -761,6 +900,10 @@ Run just these with `dotnet test Lorebound.slnx --filter "FullyQualifiedName~Das
 ### Logging and health tests
 
 `Logging/RequestLoggingTests` (P8-05) checks that each request logs its method, route template and status with a `TraceId` scope equal to the problem+json `traceId` (also for an unhandled 500), that every log line of a request shares that `TraceId` and no line carries the raw path (unmatched routes log `(unmatched)`), and that no password, auth cookie, invite code or email reaches the logs across sign-up, login, password reset and invites. It also checks that `/api/health` uses the registered DbContext check. `Controllers/HealthControllerTests` (database down: 503 `unreachable`) and `Integration/HealthSmokeTests` (200 `connected`) cover the health responses.
+
+### API reference tests
+
+`Conventions/ApiReferenceTests` (P8-06) fails when [docs/api/](docs/api/README.md) no longer matches the API's OpenAPI document. After an API change, regenerate it with `$env:UPDATE_API_DOCS = "1"; dotnet test api.Tests --filter ApiReference; Remove-Item Env:UPDATE_API_DOCS` and commit the result with your change.
 
 ### Query budget tests
 

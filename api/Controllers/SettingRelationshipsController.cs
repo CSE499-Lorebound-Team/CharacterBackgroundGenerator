@@ -90,7 +90,7 @@ public class SettingRelationshipsController : ControllerBase
         .ThenBy(r => r.RelationshipType)
         .ThenBy(r => r.TargetEntry.Name)
         .ThenBy(r => r.Id)
-        .Skip(pageQuery.Skip)
+        .Skip(pageQuery.Skip())
         .Take(pageQuery.PageSize)
         .Select(r => new RelationshipDto(
             r.Id,
