@@ -185,27 +185,27 @@ The auth cookie and the email-confirmation and password-reset tokens are protect
 - A test signs in, builds a new app host on the same database, and the old cookie still authenticates.
 
 @@@ P8-09
-title: Production email sender for the demo
+title: Turn email off for the demo
 type: task
 area: auth
 phase: 8
 priority: P1
 size: S
 depends: P1-05
-labels: needs-decision
 @@@
 ## Summary
-Registration always sends a confirmation email, and outside Development `UnconfiguredEmailSender` throws, so sign-up on the deployed API returns 500 after creating the user (ADR 0003). The team picks option a or b from ADR 0003's open question 1 before this starts.
+Registration always sends a confirmation email, and outside Development `UnconfiguredEmailSender` throws, so sign-up on the deployed API returns 500 after creating the user. The team decided the demo sends no email (ADR 0003, "Email").
 
 ## Tasks
-- [ ] **Option a (real email):** an `IEmailSender<ApplicationUser>` that sends through SMTP, bound from an `Email` config section; the password comes from an environment variable.
-- [ ] **Option b (email off):** a sender that sends nothing, registered only when `Email:Provider` is `None`; Render sets `Auth__RequireConfirmedEmail=false`. It never logs links or codes.
-- [ ] `EmailSetup` picks the sender from `Email:Provider`; without it, Production keeps `UnconfiguredEmailSender` (fail loudly).
-- [ ] api/README "Email" section updated.
+- [ ] A sender that sends nothing (`DisabledEmailSender`), registered outside Development only when `Email:Provider` is `None`. It never logs links or codes.
+- [ ] `EmailSetup` picks the sender from `Email:Provider`; without it, Production keeps `UnconfiguredEmailSender` (fail loudly). Development keeps `ConsoleEmailSender`.
+- [ ] Render sets `Email__Provider=None` and `Auth__RequireConfirmedEmail=false` (P8-11).
+- [ ] api/README "Email" section: the provider setting, and that confirm-email and forgot-password send nothing in the demo.
 
 ## Acceptance criteria
-- Registering with `ASPNETCORE_ENVIRONMENT=Production` and the chosen configuration returns 201.
-- Tests cover provider selection and prove no link or code reaches the logs.
+- With `ASPNETCORE_ENVIRONMENT=Production`, `Email:Provider=None` and `Auth:RequireConfirmedEmail=false`: register returns 201, login succeeds without confirming, and resend-confirmation and forgot-password return 204.
+- Production without `Email:Provider` still uses `UnconfiguredEmailSender`.
+- A test proves no link or code reaches the logs.
 
 @@@ P8-10
 title: API Dockerfile for Render
@@ -238,7 +238,7 @@ size: M
 depends: P8-08, P8-09, P8-10
 @@@
 ## Summary
-Stand up the demo environment chosen in ADR 0003 and write down how to repeat it.
+Stand up the demo environment chosen in ADR 0003 and write down how to repeat it. Blocked until the team decides who owns the Vercel, Render and Supabase accounts (ADR 0003, open question 1).
 
 ## Tasks
 - [ ] Supabase project; Data API turned off; session pooler connection string with `SSL Mode=Require`.

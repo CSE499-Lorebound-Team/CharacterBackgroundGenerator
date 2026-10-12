@@ -78,7 +78,8 @@ a demo audience. Trusting unverifiable forwarded headers is not done.
 2. **Registration fails without an email sender (P8-09).** Registration always
    sends a confirmation email (`AuthController.Register`), and outside
    Development `UnconfiguredEmailSender` throws. The user is created, but the
-   request returns 500. See open question 1.
+   request returns 500. For the demo, email is turned off (see "Email"
+   below).
 3. **Render has no native .NET runtime (P8-10).** The API needs a Dockerfile.
 4. **Migrations are not applied by the app.** They are applied by hand
    (P8-11), never by `Migrate()` at startup.
@@ -95,14 +96,15 @@ a demo audience. Trusting unverifiable forwarded headers is not done.
 
 | Variable | Value | Why |
 | --- | --- | --- |
-| `ASPNETCORE_ENVIRONMENT` | `Production` | Production defaults (`RequireConfirmedEmail` true, no OpenAPI) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` | Production defaults (no OpenAPI, no seed data) |
 | `PORT` | `8080` | Render routes to this port; the .NET container image listens on 8080 |
 | `ConnectionStrings__DefaultConnection` | Supabase **session pooler** string, with `SSL Mode=Require` | The pooler is reachable over IPv4; Supabase's direct host is IPv6-only on the free plan |
 | `Cors__AllowedOrigins__0` | `https://<app>.vercel.app` | The CSRF check requires the browser's `Origin` to be allowlisted |
-| `App__FrontendBaseUrl` | `https://<app>.vercel.app` | Emailed confirm and reset links |
+| `App__FrontendBaseUrl` | `https://<app>.vercel.app` | Required by config validation; also the base of invite links |
 | `AllowedHosts` | `<api>.onrender.com` | P8-07; confirm the `Host` that Vercel's rewrite sends |
 | `RateLimiting__Auth__PermitLimit` | Only if P8-11 finds a shared partition | See above |
-| Email settings | Depends on open question 1 | P8-09 |
+| `Email__Provider` | `None` | Email off (P8-09) |
+| `Auth__RequireConfirmedEmail` | `false` | Accounts can log in without confirming, since no email is sent |
 
 Health check path on Render: `/api/health`.
 
@@ -129,20 +131,30 @@ check. That is expected.
 - **Free-plan limits** can change. Re-check the current limits of each host
   before the demo.
 
+## Email
+
+**Email is turned off for the demo** (team decision, 2026-10-12). A real
+SMTP provider was rejected as extra setup for a demo project.
+
+- P8-09 adds a sender that sends nothing, registered only when
+  `Email:Provider` is `None`. Render sets that and
+  `Auth__RequireConfirmedEmail=false`.
+- Registration and login work. Resend-confirmation and forgot-password still
+  return 204, but no email arrives, so a demo user who forgets a password
+  registers a new account.
+- The sender never logs links or codes. Logging them (as
+  `ConsoleEmailSender` does in Development) is not allowed in production,
+  because the links grant account access.
+- Without `Email:Provider`, Production keeps `UnconfiguredEmailSender`, so a
+  missing setting fails loudly instead of silently dropping email.
+
 ## Open questions for the team
 
-1. **Email for the demo (blocks P8-09).** Choose one:
-   - **a. Real email.** Add an SMTP sender for a free transactional email
-     plan. Confirm-email and forgot-password work for real. Needs an account,
-     a sender address and secrets on Render.
-   - **b. Email turned off.** A sender that sends nothing, registered only
-     when `Email:Provider` is `None`, plus `Auth__RequireConfirmedEmail=false`.
-     Registration and login work; confirm-email and forgot-password do
-     nothing in the demo. Least work. Logging links (like
-     `ConsoleEmailSender`) is **not** an option: the links grant account
-     access.
-2. **Who owns the Vercel, Render and Supabase accounts?** Ideally one shared
-   team account, so the demo does not depend on one person.
+1. **Who owns the Vercel, Render and Supabase accounts? (blocks P8-11)**
+   Ideally one shared team login (for example a team email address with the
+   password in a shared password manager), so the demo does not depend on one
+   person. Each host's free plan limits how many members it can have, so
+   check before inviting everyone.
 
 ## Consequences
 
