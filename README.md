@@ -135,6 +135,7 @@ CharacterBackgroundGenerator/
 ├── docs/decisions/        (architecture decision records)
 ├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
 ├── docs/security/         (security review and deploy checklist)
+├── docs/deployment.md     (runbook for the course demo on Vercel, Render and Supabase)
 ├── .github/               (CI workflows, issue forms)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
@@ -1161,7 +1162,7 @@ API_ORIGIN=http://localhost:5110
 
 The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
-The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings.
+The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings, and the runbook [docs/deployment.md](docs/deployment.md) for how to set them up, deploy and check them. Tolaji owns Render and Supabase, and Bugbear777 owns Vercel.
 
 Files containing local secrets should not be committed.
 

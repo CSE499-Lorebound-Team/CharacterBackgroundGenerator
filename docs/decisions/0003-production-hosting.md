@@ -148,13 +148,24 @@ SMTP provider was rejected as extra setup for a demo project.
 - Without `Email:Provider`, Production keeps `UnconfiguredEmailSender`, so a
   missing setting fails loudly instead of silently dropping email.
 
-## Open questions for the team
+## Account owners
 
-1. **Who owns the Vercel, Render and Supabase accounts? (blocks P8-11)**
-   Ideally one shared team login (for example a team email address with the
-   password in a shared password manager), so the demo does not depend on one
-   person. Each host's free plan limits how many members it can have, so
-   check before inviting everyone.
+Decided by the team on 2026-10-12, instead of the shared login first
+suggested here. Each host belongs to whoever works on that part of the app:
+
+| Host | Owner | Why |
+| --- | --- | --- |
+| Render (API) | Tolaji (@Tolaji) | Works on `api/` |
+| Supabase (database) | Tolaji (@Tolaji) | Goes with the API; only the API connects to it |
+| Vercel (frontend) | Bugbear777 (@Bugbear777) | Works on `frontend/` |
+
+- The owner creates the account, the project or service, and its settings,
+  and is the only one who sees its secrets.
+- The demo now depends on two people. If an owner is unavailable on demo
+  day, nobody else can change that host. Where a free plan allows a second
+  member, the owner invites a teammate as backup.
+- How each owner sets up their host is in the runbook,
+  [docs/deployment.md](../deployment.md) (P8-11).
 
 ## Consequences
 
