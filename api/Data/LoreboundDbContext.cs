@@ -86,6 +86,14 @@ public class LoreboundDbContext
       entry.HasIndex(e => new { e.CampaignSettingId, e.EntryType });
 
       entry.HasIndex(e => new { e.CampaignSettingId, e.IsGmOnly });
+
+      // P8-04 (docs/performance/p8-04-query-review.md): the entry list and
+      // search sort by name within a setting, so a page reads 20 index rows
+      // instead of sorting the whole setting; the dashboard reads each
+      // setting's newest entries.
+      entry.HasIndex(e => new { e.CampaignSettingId, e.Name, e.Id });
+
+      entry.HasIndex(e => new { e.CampaignSettingId, e.UpdatedAt });
     });
 
     modelBuilder.Entity<CampaignSetting>()
@@ -229,6 +237,10 @@ public class LoreboundDbContext
           .WithMany()
           .HasForeignKey(c => c.OwnerUserId)
           .OnDelete(DeleteBehavior.Restrict);
+
+      // The Characters page and dashboard list the owner's characters
+      // newest first (P8-04). It also serves the OwnerUserId foreign key.
+      character.HasIndex(c => new { c.OwnerUserId, c.UpdatedAt });
     });
 
     modelBuilder.Entity<CharacterChoice>(choice =>

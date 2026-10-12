@@ -164,7 +164,7 @@ namespace Lorebound.Api.Data.Migrations
 
                     b.HasIndex("CampaignSettingId");
 
-                    b.HasIndex("OwnerUserId");
+                    b.HasIndex("OwnerUserId", "UpdatedAt");
 
                     b.ToTable("Characters");
                 });
@@ -241,8 +241,12 @@ namespace Lorebound.Api.Data.Migrations
 
                     b.HasIndex("CampaignSettingId", "IsGmOnly");
 
+                    b.HasIndex("CampaignSettingId", "UpdatedAt");
+
                     b.HasIndex("CampaignSettingId", "EntryType", "Name")
                         .IsUnique();
+
+                    b.HasIndex("CampaignSettingId", "Name", "Id");
 
                     b.ToTable("SettingEntries");
                 });
