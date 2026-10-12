@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MailCheck } from "lucide-react";
@@ -20,6 +20,7 @@ import {
   validateEmail,
   validateNewPassword,
 } from "@/lib/auth";
+import { useSession } from "@/lib/session";
 import type {
   AuthUserDto,
   LoginRequest,
@@ -34,6 +35,14 @@ type RegisterFormProps = {
 
 export function RegisterForm({ next }: RegisterFormProps) {
   const router = useRouter();
+
+  const session = useSession();
+  const isSignedIn = session.status === "authenticated";
+
+  // Already signed in (or just signed in): leave the auth page.
+  useEffect(() => {
+    if (isSignedIn) router.replace(next);
+  }, [isSignedIn, next, router]);
 
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
@@ -99,8 +108,8 @@ export function RegisterForm({ next }: RegisterFormProps) {
         json: { email: request.email, password } satisfies LoginRequest,
       });
 
+      await session.refresh();
       router.replace(next);
-      router.refresh();
     } catch {
       setCheckEmailFor(request.email);
       setIsSubmitting(false);

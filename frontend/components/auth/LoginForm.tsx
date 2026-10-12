@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -15,6 +15,7 @@ import {
   readValidationErrors,
   validateEmail,
 } from "@/lib/auth";
+import { useSession } from "@/lib/session";
 import type { AuthUserDto, LoginRequest } from "@/lib/types";
 
 type LoginFormProps = {
@@ -24,6 +25,14 @@ type LoginFormProps = {
 
 export function LoginForm({ next }: LoginFormProps) {
   const router = useRouter();
+
+  const session = useSession();
+  const isSignedIn = session.status === "authenticated";
+
+  // Already signed in (or just signed in): leave the auth page.
+  useEffect(() => {
+    if (isSignedIn) router.replace(next);
+  }, [isSignedIn, next, router]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,8 +66,8 @@ export function LoginForm({ next }: LoginFormProps) {
       });
 
       // The API set the httpOnly auth cookie; nothing is stored here.
+      await session.refresh();
       router.replace(next);
-      router.refresh();
     } catch (error) {
       if (error instanceof ApiError && error.status === 400) {
         const result = readValidationErrors(error, ["email", "password"]);

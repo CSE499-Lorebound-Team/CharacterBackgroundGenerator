@@ -8,6 +8,7 @@ import {
   ScrollText,
   Users,
 } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 
 const navigationItems = [
   {
@@ -67,25 +68,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-sidebar-border p-4">
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-        >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-sidebar-border bg-sidebar-primary text-sidebar-primary-foreground">
-            JM
-          </div>
-
-          <div className="min-w-0">
-            <div className="truncate font-medium text-sidebar-foreground">
-              Joseph Marlow
-            </div>
-
-            <div className="truncate text-xs">
-              Profile
-            </div>
-          </div>
-        </button>
+      <div className="border-t border-sidebar-border p-2">
+        <UserMenu />
       </div>
     </aside>
   );

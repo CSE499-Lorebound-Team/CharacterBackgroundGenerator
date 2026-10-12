@@ -56,6 +56,14 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 });
 ```
 
+## Sign-in and the session
+
+- `/login` and `/register` live in the `app/(auth)` route group, which has no sidebar. Both read `next` (same-site paths only, see `safeNextPath` in `lib/auth.ts`) and go there after signing in, or to `/dashboard`.
+- Register signs in straight away. If the API refuses because the email is not confirmed yet (`Auth:RequireConfirmedEmail`), the page says "check your email" instead.
+- `useSession()` from `lib/session.tsx` gives `status` (`loading`, `authenticated` with `user`, or `unauthenticated`), `refresh()` and `logout()`. `SessionProvider` in the root layout loads the user once from `GET /api/users/me`; call `refresh()` after anything that signs in.
+- `proxy.ts` sends `/dashboard`, `/settings`, `/characters` and `/builder` to `/login?next=...` when there is no `lorebound.auth` cookie. This is only an optimistic check: `AppShell` also redirects when the session turns out to be signed out (an expired cookie, or Log out), and the API checks every request.
+- The sidebar and mobile navigation show the user's display name, initials and email, and a Log out button (`components/layout/UserMenu.tsx`).
+
 ## Reading localStorage in pages
 
 Until pages are wired to the API (Phase 9), settings and entries live in `localStorage` (`lib/settings/*-store.ts`). Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
