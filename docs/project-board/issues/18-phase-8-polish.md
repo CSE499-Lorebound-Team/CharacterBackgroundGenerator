@@ -152,8 +152,9 @@ depends: P8-04
 Checklist review before frontend goes live on real data.
 
 ## Tasks
-- [ ] Cookie flags in Production; HSTS enabled; `AllowedHosts` restricted.
-- [ ] CORS allowlist and CSRF checks re-verified.
+- [ ] Cookie flags in Production; HSTS enabled; `AllowedHosts` restricted (the Render host, per ADR 0003).
+- [ ] CORS allowlist and CSRF checks re-verified, including against the Vercel origin (ADR 0003).
+- [ ] Hosting checklist from ADR 0003 written into the P8-11 runbook: Supabase Data API off, secrets only in host settings.
 - [ ] Every controller has an authorization test (grep for controllers with no matrix test).
 - [ ] Rate limits on invite preview/accept and auth endpoints.
 - [ ] Dependency audit (`dotnet list package --vulnerable`, `npm audit`).
@@ -161,3 +162,92 @@ Checklist review before frontend goes live on real data.
 
 ## Acceptance criteria
 - Findings resolved or filed as issues.
+
+@@@ P8-08
+title: Persist Data Protection keys in Postgres
+type: task
+area: security
+phase: 8
+priority: P1
+size: S
+depends: P0-08
+@@@
+## Summary
+The auth cookie and the email-confirmation and password-reset tokens are protected with Data Protection keys. Render's free plan restarts the API with an empty filesystem, so keys kept in memory or on disk are lost: everyone is signed out and emailed links stop working (ADR 0003).
+
+## Tasks
+- [ ] `PersistKeysToDbContext<LoreboundDbContext>` (`Microsoft.AspNetCore.DataProtection.EntityFrameworkCore`); the DbContext implements `IDataProtectionKeyContext`.
+- [ ] Migration adding the `DataProtectionKeys` table.
+- [ ] `SetApplicationName("Lorebound")`, so keys stay valid when the container or path changes.
+- [ ] api/README: where the keys live and that they must never be deleted while users are signed in.
+
+## Acceptance criteria
+- A test signs in, builds a new app host on the same database, and the old cookie still authenticates.
+
+@@@ P8-09
+title: Production email sender for the demo
+type: task
+area: auth
+phase: 8
+priority: P1
+size: S
+depends: P1-05
+labels: needs-decision
+@@@
+## Summary
+Registration always sends a confirmation email, and outside Development `UnconfiguredEmailSender` throws, so sign-up on the deployed API returns 500 after creating the user (ADR 0003). The team picks option a or b from ADR 0003's open question 1 before this starts.
+
+## Tasks
+- [ ] **Option a (real email):** an `IEmailSender<ApplicationUser>` that sends through SMTP, bound from an `Email` config section; the password comes from an environment variable.
+- [ ] **Option b (email off):** a sender that sends nothing, registered only when `Email:Provider` is `None`; Render sets `Auth__RequireConfirmedEmail=false`. It never logs links or codes.
+- [ ] `EmailSetup` picks the sender from `Email:Provider`; without it, Production keeps `UnconfiguredEmailSender` (fail loudly).
+- [ ] api/README "Email" section updated.
+
+## Acceptance criteria
+- Registering with `ASPNETCORE_ENVIRONMENT=Production` and the chosen configuration returns 201.
+- Tests cover provider selection and prove no link or code reaches the logs.
+
+@@@ P8-10
+title: API Dockerfile for Render
+type: chore
+area: devex
+phase: 8
+priority: P1
+size: S
+depends: P0-08
+@@@
+## Summary
+Render has no native .NET runtime, so the API deploys as a Docker web service built from `api/` (ADR 0003).
+
+## Tasks
+- [ ] `api/Dockerfile`: multi-stage build (.NET 10 SDK, then the ASP.NET runtime image), running as the image's non-root user and listening on 8080.
+- [ ] `api/.dockerignore` (`bin/`, `obj/`, local settings and secrets).
+- [ ] CI builds the image on PRs so a broken Dockerfile fails before deploy.
+- [ ] Root README: how to build and run the image locally against the docker-compose database.
+
+## Acceptance criteria
+- `docker build` succeeds, and the container serves `GET /api/health` with 200 against a reachable database.
+
+@@@ P8-11
+title: Deploy the course demo (Vercel, Render, Supabase)
+type: task
+area: devex
+phase: 8
+priority: P1
+size: M
+depends: P8-08, P8-09, P8-10
+@@@
+## Summary
+Stand up the demo environment chosen in ADR 0003 and write down how to repeat it.
+
+## Tasks
+- [ ] Supabase project; Data API turned off; session pooler connection string with `SSL Mode=Require`.
+- [ ] Apply migrations from a developer machine (`dotnet ef database update` with the Supabase connection string). The app never migrates at startup.
+- [ ] Render Docker web service from `api/`, health check `/api/health`, environment variables from ADR 0003.
+- [ ] Vercel project with root directory `frontend/` and `API_ORIGIN` set to the Render URL (the rewrite is already in `next.config.ts`).
+- [ ] Check the rate-limit partition key on the deployed API; if all clients share one IP, raise `RateLimiting__Auth__PermitLimit` (ADR 0003).
+- [ ] `docs/deployment.md` runbook: accounts and owners, every variable (no secret values), migration steps, redeploy, and demo-day checks (wake Render, check Supabase is not paused).
+
+## Acceptance criteria
+- From the public Vercel URL: register, log in, log out and create a setting succeed; the auth cookie belongs to the Vercel host.
+- The rest of the app (characters, builder) is re-checked from the same URL once Phase 9 lands.
