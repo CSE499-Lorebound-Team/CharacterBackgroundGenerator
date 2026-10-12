@@ -93,6 +93,10 @@ Entry point for unauthenticated users.
 - [ ] Client-side validation mirroring API rules (email, password length 10, display name).
 - [ ] Show field errors from `ApiError.errors` and a generic banner for 401/429/lockout.
 - [ ] After login, redirect to `next` or `/dashboard`; after register show "check your email" when confirmation is required.
+  - `next` must be a same-site path (`/...`, not `//...`); anything else falls back to `/dashboard`.
+  - The API does not say whether login needs a confirmed email, so register signs in straight away with the same credentials: success goes to `next`, and a 401 means confirmation is required. Identity refuses an unconfirmed account before checking the password, so this never counts toward lockout.
+  - Lockout is 423 (`Retry-After`), rate limiting 429; a 401 banner also hints that a new account may need confirming.
+  - A "Keep me signed in for 14 days" checkbox sends `rememberMe`.
 - [ ] No auth layout chrome (no sidebar).
 
 ## Acceptance criteria
@@ -115,6 +119,8 @@ Replace the hardcoded "Joseph Marlow" and protect app routes.
 - [ ] Route protection for `/dashboard`, `/settings`, `/characters`, `/builder`: use the Next 16 convention documented in `node_modules/next/dist/docs/` (may be `proxy.ts`), as an optimistic redirect only; the API remains the authority.
 - [ ] Sidebar and `MobileNav` show real display name and initials; add a Log out action calling `POST /auth/logout`.
 - [ ] Logged-in users visiting `/login` are redirected to `/dashboard`.
+  - Done in the page once `/api/users/me` confirms the session, not in `proxy.ts`: the proxy only sees that a cookie exists, and a stale cookie would bounce between `/login` and `/dashboard`.
+  - `proxy.ts` sends a request without the `lorebound.auth` cookie to `/login?next=...`; `AppShell` also redirects when the session is signed out (expired cookie), and after Log out it opens `/login` without `next`.
 
 ## Acceptance criteria
 - Unauthenticated visit to `/dashboard` lands on `/login`; logout returns there.

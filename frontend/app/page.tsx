@@ -1,11 +1,4 @@
-"use client";
-
-import { useState } from "react";
-import {
-  AuthDialog,
-  AuthMode,
-} from "@/components/auth/AuthDialog";
-
+import Link from "next/link";
 import {
   BookOpen,
   Link2,
@@ -14,21 +7,9 @@ import {
   Users,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 
 export default function Home() {
-  const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
-
-  function openLogin() {
-    setAuthMode("login");
-    setAuthOpen(true);
-  }
-
-  function openRegister() {
-    setAuthMode("register");
-    setAuthOpen(true);
-  }
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b border-border">
@@ -42,16 +23,16 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            onClick={openLogin}
+          <Link
+            href="/login"
+            className={buttonVariants({ variant: "ghost" })}
           >
             Log In
-          </Button>
+          </Link>
 
-          <Button onClick={openRegister}>
+          <Link href="/register" className={buttonVariants()}>
             Create Account
-          </Button>
+          </Link>
           </div>
         </div>
       </header>
@@ -76,20 +57,19 @@ export default function Home() {
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Button
-                size="lg"
-                onClick={openRegister}
+              <Link
+                href="/register"
+                className={buttonVariants({ size: "lg" })}
               >
                 Create Account
-              </Button>
+              </Link>
 
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={openLogin}
+              <Link
+                href="/login"
+                className={buttonVariants({ variant: "outline", size: "lg" })}
               >
                 Log In
-              </Button>
+              </Link>
               </div>
             </div>
 
@@ -191,13 +171,12 @@ export default function Home() {
               and character backgrounds together.
             </p>
 
-            <Button
-              className="mt-8"
-              size="lg"
-              onClick={openRegister}
+            <Link
+              href="/register"
+              className={buttonVariants({ size: "lg", className: "mt-8" })}
             >
               Get Started
-            </Button>
+            </Link>
           </div>
         </section>
       </main>
@@ -214,12 +193,6 @@ export default function Home() {
           </span>
         </div>
       </footer>
-      <AuthDialog
-        key={authMode}
-        open={authOpen}
-        onOpenChange={setAuthOpen}
-        initialMode={authMode}
-      />
     </div>
   );
 }
