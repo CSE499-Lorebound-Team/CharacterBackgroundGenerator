@@ -271,7 +271,7 @@ says which step failed.
   exposing `public`: turn it off (step 1).
 - [ ] **Secrets only in host settings.** The connection string appears
   nowhere in the repo, issues, PRs or chat.
-  - `git grep -i "pooler.supabase"` finds nothing.
+  - `git grep -i "pooler.supabase"` finds only this line.
 - [ ] **Production mode.** Neither `$api/openapi/v1.json` nor `$api/scalar`
   is served: anonymous callers get 401, like any unknown route.
 - [ ] **One allowed origin.** `Cors__AllowedOrigins__0` is the Vercel
