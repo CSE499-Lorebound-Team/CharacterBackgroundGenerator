@@ -153,15 +153,21 @@ Checklist review before frontend goes live on real data.
 
 ## Tasks
 - [ ] Cookie flags in Production; HSTS enabled; `AllowedHosts` restricted (the Render host, per ADR 0003).
-- [ ] CORS allowlist and CSRF checks re-verified, including against the Vercel origin (ADR 0003).
-- [ ] Hosting checklist from ADR 0003 written into the P8-11 runbook: Supabase Data API off, secrets only in host settings.
-- [ ] Every controller has an authorization test (grep for controllers with no matrix test).
-- [ ] Rate limits on invite preview/accept and auth endpoints.
+  - HSTS (`max-age=31536000`) is sent on every response outside Development, by `Security/StrictTransportSecurityMiddleware` rather than `UseHsts`. `UseHsts` only marks HTTPS requests, and behind Render the API sees plain HTTP: `X-Forwarded-Proto` is not trusted (ADR 0003).
+  - `AllowedHosts` stays `*` in `appsettings.json` and is set to the Render host in Render's settings (P8-11). It must be checked against the `Host` sent by Vercel's rewrite and by Render's health check.
+- [ ] CORS allowlist and CSRF checks re-verified, including against the Vercel origin (ADR 0003). A Production host accepts writes from the Vercel production origin only, not from preview origins.
+- [ ] Hosting checklist from ADR 0003 written into the P8-11 runbook: Supabase Data API off, secrets only in host settings. Added to P8-11's tasks as its security checklist.
+- [ ] Every controller has an authorization test. Instead of a one-off grep, `FallbackPolicyTests` calls every non-anonymous API endpoint without a cookie and expects 401. The setting and character access conventions cover the 404/403 part.
+- [ ] Rate limits on invite preview/accept and auth endpoints. `confirm-email` and `reset-password` stay unlimited: their tokens cannot be guessed and are single-use.
 - [ ] Dependency audit (`dotnet list package --vulnerable`, `npm audit`).
-- [ ] No secrets in repo; verify with a secret scan.
+  - .NET is clean.
+  - npm: `next` was upgraded to 16.4.0 (critical advisory), and `npm audit fix` fixed the rest that has a fix.
+  - The dev-tool-only `braces` advisory is filed as #229.
+- [ ] No secrets in repo; verify with a secret scan. gitleaks over the full history found none.
 
 ## Acceptance criteria
-- Findings resolved or filed as issues.
+- Findings resolved or filed as issues, and recorded in `docs/security/p8-07-security-review.md`.
+- `ProductionHardeningTests` covers HSTS, the Production cookie flags, the Vercel origin and `AllowedHosts` filtering.
 
 @@@ P8-08
 title: Persist Data Protection keys in Postgres
@@ -246,6 +252,14 @@ Stand up the demo environment chosen in ADR 0003 and write down how to repeat it
 - [ ] Render Docker web service from `api/`, health check `/api/health`, environment variables from ADR 0003.
 - [ ] Vercel project with root directory `frontend/` and `API_ORIGIN` set to the Render URL (the rewrite is already in `next.config.ts`).
 - [ ] Check the rate-limit partition key on the deployed API; if all clients share one IP, raise `RateLimiting__Auth__PermitLimit` (ADR 0003).
+- [ ] Security checklist from P8-07 (`docs/security/p8-07-security-review.md`, section 9) in the runbook and checked on the deployed app:
+  - Supabase Data API off: the anon key cannot read `AspNetUsers`.
+  - Secrets only in host settings.
+  - `ASPNETCORE_ENVIRONMENT=Production`: `/openapi/v1.json` and `/scalar` are not served.
+  - `Cors__AllowedOrigins__0` is the Vercel production origin only.
+  - `AllowedHosts` is the Render host, while the health check stays green and login through Vercel works.
+  - `Strict-Transport-Security` reaches the browser, and `http://` redirects to `https://`.
+  - The auth cookie is `Secure`, `HttpOnly`, `SameSite=Lax` and has no `Domain`.
 - [ ] `docs/deployment.md` runbook: accounts and owners, every variable (no secret values), migration steps, redeploy, and demo-day checks (wake Render, check Supabase is not paused).
 
 ## Acceptance criteria

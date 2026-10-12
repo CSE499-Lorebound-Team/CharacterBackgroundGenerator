@@ -114,7 +114,7 @@ CharacterBackgroundGenerator/
 │   ├── Models/            (EF Core entities)
 │   ├── Mapping/           (entity -> DTO extension methods)
 │   ├── Sharing/           (invite codes and rules)
-│   ├── Security/          (CSRF check, rate limiting)
+│   ├── Security/          (CSRF check, rate limiting, HSTS)
 │   ├── Errors/            (domain exceptions -> problem+json)
 │   ├── Logging/           (request logging, traceId)
 │   ├── OpenApi/           (OpenAPI document rules)
@@ -133,6 +133,7 @@ CharacterBackgroundGenerator/
 ├── docs/project-board/    (roadmap and issue definitions)
 ├── docs/decisions/        (architecture decision records)
 ├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
+├── docs/security/         (security review and deploy checklist)
 ├── .github/               (CI workflows, issue forms)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
@@ -587,6 +588,8 @@ X-Requested-With: Lorebound
 
 If the request has an `Origin` header, it must come from an allowed frontend origin (`http://localhost:3000` in Development). Otherwise the API answers **403** before the endpoint runs. GET requests need neither. The header works because another website cannot add a custom header without a CORS preflight, which the API refuses.
 
+Outside Development the API also sends HSTS on every response and, once `AllowedHosts` is set, answers only to its own host name. The security review behind these rules, and the checklist the production deploy follows, are in [docs/security/p8-07-security-review.md](docs/security/p8-07-security-review.md).
+
 ## Settings, roles and sharing
 
 - **A setting** is a campaign world with its lore (**entries** such as places, cultures and factions) and the **relationships** between entries.
@@ -782,7 +785,8 @@ The authentication surface (P1-13) is covered end to end, mostly against the rea
 | Forgot and reset password: happy and failure paths; old sessions end | `Auth/ResetPasswordTests` |
 | Rate limit: the 11th request in a minute returns 429 | `Security/RateLimitTests` |
 | CSRF header and Origin checks | `Security/CsrfTests`, `Auth/AuthJourneyTests` |
-| Anonymous calls to protected routes return 401 problem JSON; only intended endpoints are public | `Security/FallbackPolicyTests`, `Auth/UsersMeTests` |
+| Anonymous calls to protected routes return 401 problem JSON (every protected API endpoint is called); only intended endpoints are public | `Security/FallbackPolicyTests`, `Auth/UsersMeTests` |
+| Production: HSTS on every response, cookie flags, writes only from the Vercel origin, `AllowedHosts` filtering (P8-07) | `Security/ProductionHardeningTests` |
 | `ICurrentUser` and `/api/users/me` | `Auth/CurrentUserTests`, `Auth/UsersMeTests` |
 | Account deletion: password re-entry (400); 409 listing owned settings that have other members, deleting nothing; otherwise everything the user owns goes and nobody else's data is touched; signed out and every session ends | `Auth/DeleteAccountTests` |
 

@@ -110,6 +110,14 @@ app.UseExceptionHandler();
 // The auth cookie writes its own 401/403 problem bodies.
 app.UseStatusCodePages();
 
+if (!app.Environment.IsDevelopment())
+{
+    // One year of HTTPS-only for the host the browser sees (P8-07).
+    app.UseMiddleware<StrictTransportSecurityMiddleware>();
+}
+
+// Behind Render, TLS ends at its proxy, which already redirects HTTP to
+// HTTPS; with no HTTPS port known here, this middleware does nothing there.
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
 // After CORS, which answers preflights first; before everything else, so a
