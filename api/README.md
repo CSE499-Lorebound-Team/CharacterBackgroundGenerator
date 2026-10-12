@@ -297,6 +297,36 @@ Every error is RFC 7807 `application/problem+json` with a `traceId` extension
 - Emails are used as the Identity username, so any valid address is accepted
   (the default username character allowlist is turned off).
 
+### Data Protection keys (P8-08)
+
+The auth cookie and the emailed confirmation and reset codes are encrypted
+with ASP.NET Core Data Protection keys.
+
+- **Storage:** the keys are stored in Postgres, in the `DataProtectionKeys`
+  table (`PersistKeysToDbContext`), so every API instance and every restart
+  uses the same keys.
+  - This matters on hosts whose disk does not survive a restart (Render's
+    free plan, ADR 0003). With keys in memory or on disk, a restart would
+    sign everyone out and break every emailed link.
+- **Application name:** fixed as `Lorebound`
+  (`AuthenticationSetup.DataProtectionApplicationName`), so keys stay valid
+  when the container or content path changes. Changing it invalidates every
+  cookie and link.
+- **Key lifetime:** the framework creates a new key every 90 days and keeps
+  the old ones, so earlier cookies still work.
+- **Never delete rows** while anyone is signed in. Their cookies and emailed
+  links stop working.
+- **No encryption at rest:** keys are stored as plain XML. The framework
+  logs "No XML encryptor configured" once when it creates a key; that is
+  expected.
+  - Anyone who can read the database could forge cookies, so the database
+    credentials are the real protection.
+- **Tests:**
+  - `Auth/DataProtectionKeysTests` signs in on one API instance and uses the
+    cookie and a reset link on a new instance.
+  - The test reset keeps the table, as production does.
+  - `ApiFactory` (no database) uses in-memory keys.
+
 ### Endpoints
 
 | Endpoint | Success | Failures |

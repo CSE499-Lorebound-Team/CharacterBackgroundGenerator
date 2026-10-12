@@ -186,9 +186,14 @@ The auth cookie and the email-confirmation and password-reset tokens are protect
 - [ ] Migration adding the `DataProtectionKeys` table.
 - [ ] `SetApplicationName("Lorebound")`, so keys stay valid when the container or path changes.
 - [ ] api/README: where the keys live and that they must never be deleted while users are signed in.
+  - It also says the keys are stored as plain XML (no key encryptor), so the database credentials are the real protection.
+- [ ] Tests:
+  - The test database reset keeps `DataProtectionKeys`, as production does.
+  - `ApiFactory` (no database) uses in-memory keys.
 
 ## Acceptance criteria
-- A test signs in, builds a new app host on the same database, and the old cookie still authenticates.
+- A test signs in, builds a new app host on the same database, and the old cookie still authenticates (`Auth/DataProtectionKeysTests`).
+- A password-reset link issued by one host also works on the new host.
 
 @@@ P8-09
 title: Turn email off for the demo

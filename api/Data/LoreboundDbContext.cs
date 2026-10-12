@@ -1,5 +1,6 @@
 using Lorebound.Api.Models;
 using Lorebound.Api.Sharing;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -7,9 +8,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Lorebound.Api.Data;
 
 // Identity supplies the Users DbSet. Its roles tables stay unused because
-// roles are per-setting (see P2-01).
+// roles are per-setting (see P2-01). The Data Protection keys live here too
+// (P8-08), so they survive restarts of a host with no lasting disk.
 public class LoreboundDbContext
-    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>,
+      IDataProtectionKeyContext
 {
   private readonly TimeProvider _timeProvider;
 
@@ -36,6 +39,13 @@ public class LoreboundDbContext
   public DbSet<Character> Characters => Set<Character>();
 
   public DbSet<CharacterChoice> CharacterChoices => Set<CharacterChoice>();
+
+  /// <summary>
+  /// The keys that protect the auth cookie and the emailed tokens. Never
+  /// delete rows while users are signed in: their cookies and links stop
+  /// working.
+  /// </summary>
+  public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
   protected override void ConfigureConventions(
       ModelConfigurationBuilder configurationBuilder)
