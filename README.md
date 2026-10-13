@@ -685,14 +685,15 @@ At minimum, make sure:
 
 ## Continuous Integration (CI)
 
-Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has two checks, both shown at the bottom of the PR:
+Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has three checks, shown at the bottom of the PR:
 
 | Check | Runs |
 | --- | --- |
 | `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
 | `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
+| `e2e (optional)` | The Playwright smoke test (`npm run e2e`) against a fresh PostgreSQL service; uploads a report when it fails |
 
-Both must pass before merging; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
+`api` and `frontend` must pass before merging; `e2e (optional)` is not a required check, but look at it when it fails; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
 
 ---
 
@@ -725,6 +726,16 @@ npm run build
 ```
 
 The build should complete without errors before merging major frontend changes.
+
+### End-to-end smoke test
+
+`npm run e2e` in `frontend/` runs the Playwright smoke test (`frontend/e2e/smoke.spec.ts`): a GameMaster registers, creates a setting with entries and an invite link; a second user follows the link signed out, registers, joins and builds and completes a character. Both accounts are deleted afterwards.
+
+- Playwright starts the seeded API and `npm run dev` itself, or reuses ones already running on ports 5110 and 3000.
+- PostgreSQL must be running and migrated (step 3 of Getting Started, `scripts\onboard.ps1`).
+- Once per machine, install the browser: `npx playwright install chromium`.
+- It takes about a minute. On failure it prints the failing step and saves a trace and screenshots under `frontend/test-results/`; open a trace with `npx playwright show-trace <path>`.
+- Do not run it twice within a minute: registration is rate limited to 10 requests a minute.
 
 ---
 

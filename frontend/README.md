@@ -83,3 +83,7 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 - The builder's steps come only from `GET /api/builder/steps` (`useBuilderSteps` in `lib/builder-steps.ts`); there is no copy of the catalog in the frontend. `choiceRows` turns the catalog plus a character's choices into the rows shown on the character page, the builder's summary panel and Review.
 - `/builder/[characterId]` resumes at `currentStep`. Moving to another step (Next, Back or the summary panel) saves the open step with `PUT /api/characters/{id}/choices/{key}` if its answer changed, and uses the character the API returns, including `staleSteps`.
 - Review edits the optional backstory (`PUT /api/characters/{id}`) and calls `/complete`. A complete character opens locked with "Reopen to Edit"; a read-only character, or someone else's, opens view-only.
+
+## End-to-end smoke test
+
+`npm run e2e` runs `e2e/smoke.spec.ts` with Playwright (`playwright.config.ts`): a GameMaster registers, creates a setting with entries and an invite; a second user joins through the link and completes a character. It boots the seeded API and the dev server (or reuses running ones), needs a migrated PostgreSQL, and the browser once per machine (`npx playwright install chromium`). See the root README, "End-to-end smoke test". CI runs it as the non-required `e2e (optional)` check.
