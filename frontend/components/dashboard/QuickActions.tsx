@@ -17,7 +17,7 @@ export function QuickActions() {
       <Button
         variant="outline"
         nativeButton={false}
-        render={<Link href="/builder" />}
+        render={<Link href="/characters?create=1" />}
       >
         <Plus className="h-4 w-4" />
         Create Character

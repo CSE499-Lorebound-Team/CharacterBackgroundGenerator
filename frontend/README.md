@@ -39,10 +39,51 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 `npm run lint` must pass with no errors; the CI `frontend` check runs it on every Pull Request. Fix lint problems instead of disabling rules.
 
-## Reading localStorage in pages
+## Calling the API
 
-Until pages are wired to the API (Phase 9), settings and entries live in `localStorage` (`lib/settings/*-store.ts`). Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
+The browser calls same-origin `/api/...` paths; `next.config.ts` rewrites them to `API_ORIGIN` (default `http://localhost:5110`, see `.env.example` and [ADR 0001](../docs/decisions/0001-same-origin-api-proxy.md)). The auth cookie is httpOnly: no code reads or stores a token.
 
-- Use `useIsClient()` from `lib/use-is-client.ts`, which is `false` during server rendering and hydration and `true` in the browser.
-- Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/settings/page.tsx`.
-- To reset a form from props, give the form a `key` (see `components/settings/SettingEntryDialog.tsx`) rather than syncing state in an effect.
+- **Client components:** `useApiFetch()` from `lib/use-api-fetch.ts`. A 401 from a protected call redirects to `/login?next=<current page>`. `apiFetch()` from `lib/api.ts` is the same call without the redirect.
+- **Server components and actions:** `apiFetchServer()` from `lib/api-server.ts` calls `API_ORIGIN` directly and forwards the incoming cookie.
+- All three add the `X-Requested-With: Lorebound` header the API's CSRF check requires, send `json` as the JSON body, return `undefined` for empty responses, and throw `ApiError { status, title, detail, errors }` built from the problem JSON. `errors` holds the per-field validation messages.
+- Types for every request and response DTO live in `lib/types.ts`, the only place API types are defined.
+
+```ts
+const fetchApi = useApiFetch();
+const setting = await fetchApi<SettingDetailDto>("/api/settings", {
+  method: "POST",
+  json: { name, description } satisfies CreateSettingRequest,
+});
+```
+
+## Loading data in pages
+
+- `useApiData<T>(path)` (`lib/use-api-data.ts`) GETs one resource and returns `data`, `error`, `isLoading` and `reload()`. Pass `null` to wait.
+- `usePagedList<T>(path)` loads a `PagedResult<T>` list: page 1 whenever `path` changes, then `loadMore()` appends the next page. Pass the filters in `path` (without `page`/`pageSize`) and call `reload()` after a change.
+- Both keep the previous data while new data loads, and set state only when a request settles, so they satisfy `react-hooks/set-state-in-effect`.
+- Debounce search boxes with `useDebouncedValue` (300 ms).
+- Show the three states with `LoadingCards`, `ErrorState` (with a retry) and `EmptyState` from `components/layout/PageStates.tsx`. Each app section (`dashboard`, `settings`, `characters`, `builder`) also has a `loading.tsx` skeleton and an `error.tsx` boundary (`components/layout/RouteStates.tsx`) for anything that throws while rendering.
+- Confirm a change with `useToast()` (`components/layout/Toaster.tsx`), e.g. `toast("Entry saved")`. Errors stay inline in the form or dialog, next to what needs fixing.
+- The dashboard is a server component: it fetches `GET /api/dashboard` with `apiFetchServer`, and a 401 redirects to `/login`.
+- There is no mock data: every page reads the API.
+- Form helpers: `FormField` and `FormAlert` (`components/forms/`), with `readValidationErrors` (`lib/form-errors.ts`) to put a 400's errors under their fields.
+
+## Sign-in and the session
+
+- `/login` and `/register` live in the `app/(auth)` route group, which has no sidebar. Both read `next` (same-site paths only, see `safeNextPath` in `lib/auth.ts`) and go there after signing in, or to `/dashboard`.
+- Register signs in straight away. If the API refuses because the email is not confirmed yet (`Auth:RequireConfirmedEmail`), the page says "check your email" instead.
+- The emailed links open `/confirm-email?userId=&code=` (confirms on load; a used or bad link offers to resend) and `/reset-password?email=&code=`. `/forgot-password` shows the same message whether or not the account exists. In development the API prints these links to its console instead of sending email; run it with `Auth__RequireConfirmedEmail=true` to try the confirmation flow, since Development lets unconfirmed accounts log in.
+- `useSession()` from `lib/session.tsx` gives `status` (`loading`, `authenticated` with `user`, or `unauthenticated`), `refresh()` and `logout()`. `SessionProvider` in the root layout loads the user once from `GET /api/users/me`; call `refresh()` after anything that signs in.
+- Invite links open `/join/[code]`: it previews the setting (`GET /api/invites/{code}`) and joins as a Player (`POST .../accept`). Every unusable code shows the same "invalid or expired" message. Members and invites are managed on the setting page's Members tab (`components/settings/SettingMembers.tsx`, `SettingInvites.tsx`).
+- `proxy.ts` sends `/dashboard`, `/settings`, `/characters`, `/builder` and `/join` to `/login?next=...` when there is no `lorebound.auth` cookie. This is only an optimistic check: `AppShell` also redirects when the session turns out to be signed out (an expired cookie, or Log out), and the API checks every request.
+- The sidebar and mobile navigation show the user's display name, initials and email, and a Log out button (`components/layout/UserMenu.tsx`).
+
+## Characters and the builder
+
+- The builder's steps come only from `GET /api/builder/steps` (`useBuilderSteps` in `lib/builder-steps.ts`); there is no copy of the catalog in the frontend. `choiceRows` turns the catalog plus a character's choices into the rows shown on the character page, the builder's summary panel and Review.
+- `/builder/[characterId]` resumes at `currentStep`. Moving to another step (Next, Back or the summary panel) saves the open step with `PUT /api/characters/{id}/choices/{key}` if its answer changed, and uses the character the API returns, including `staleSteps`.
+- Review edits the optional backstory (`PUT /api/characters/{id}`) and calls `/complete`. A complete character opens locked with "Reopen to Edit"; a read-only character, or someone else's, opens view-only.
+
+## End-to-end smoke test
+
+`npm run e2e` runs `e2e/smoke.spec.ts` with Playwright (`playwright.config.ts`): a GameMaster registers, creates a setting with entries and an invite; a second user joins through the link and completes a character. It boots the seeded API and the dev server (or reuses running ones), needs a migrated PostgreSQL, and the browser once per machine (`npx playwright install chromium`). See the root README, "End-to-end smoke test". CI runs it as the non-required `e2e (optional)` check.

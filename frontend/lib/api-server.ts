@@ -1,109 +1,38 @@
 import "server-only";
 
-import { cookies } from "next/headers";
+import { headers } from "next/headers";
 
 import {
-  ApiError,
+  buildRequest,
+  readResponse,
+  type ApiRequestInit,
 } from "@/lib/api";
 
-import type {
-  ProblemDetails,
-} from "@/lib/types";
+// Same default as the rewrite in next.config.ts.
+const apiOrigin = process.env.API_ORIGIN ?? "http://localhost:5110";
 
-function getApiUrl(
-  path: string
-): string {
-  const baseUrl =
-    process.env.API_ORIGIN;
-
-  if (!baseUrl) {
-    throw new Error(
-      "API origin is not configured."
-    );
-  }
-
-  return new URL(
-    path,
-    baseUrl
-  ).toString();
-}
-
+/**
+ * Calls the API from server components and server actions. A relative URL
+ * does not work on the server, so this calls API_ORIGIN directly and forwards
+ * the incoming request's cookie header (ADR 0001).
+ */
 export async function apiFetchServer<T>(
   path: string,
-  init: RequestInit = {}
+  init: ApiRequestInit = {}
 ): Promise<T> {
-  const cookieStore =
-    await cookies();
+  const request = buildRequest(init);
+  const requestHeaders = new Headers(request.headers);
+  const cookie = (await headers()).get("cookie");
 
-  const cookieHeader =
-    cookieStore
-      .getAll()
-      .map(
-        (cookie) =>
-          `${cookie.name}=${cookie.value}`
-      )
-      .join("; ");
-
-  const requestHeaders =
-    new Headers(init.headers);
-
-  requestHeaders.set(
-    "X-Requested-With",
-    "Lorebound"
-  );
-
-  if (cookieHeader) {
-    requestHeaders.set(
-      "Cookie",
-      cookieHeader
-    );
+  if (cookie) {
+    requestHeaders.set("Cookie", cookie);
   }
 
-  if (
-    init.body &&
-    !requestHeaders.has(
-      "Content-Type"
-    ) &&
-    typeof init.body === "string"
-  ) {
-    requestHeaders.set(
-      "Content-Type",
-      "application/json"
-    );
-  }
+  const response = await fetch(new URL(path, apiOrigin), {
+    ...request,
+    headers: requestHeaders,
+    cache: "no-store",
+  });
 
-  const response =
-    await fetch(
-      getApiUrl(path),
-      {
-        ...init,
-        headers:
-          requestHeaders,
-        cache: "no-store",
-      }
-    );
-
-  if (!response.ok) {
-    let problem:
-      | ProblemDetails
-      | undefined;
-
-    try {
-      problem =
-        (await response.json()) as ProblemDetails;
-    } catch {
-      problem = undefined;
-    }
-
-    throw new ApiError(
-      response.status,
-      problem
-    );
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return readResponse<T>(response);
 }

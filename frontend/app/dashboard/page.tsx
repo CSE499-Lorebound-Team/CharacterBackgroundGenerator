@@ -1,168 +1,119 @@
-"use client";
-
-import { useMemo } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { useIsClient } from "@/lib/use-is-client";
+import { redirect } from "next/navigation";
 
+import { CharacterCard } from "@/components/dashboard/CharacterCard";
+import { DashboardCounts } from "@/components/dashboard/DashboardCounts";
+import { QuickActions } from "@/components/dashboard/QuickActions";
+import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { SettingCard } from "@/components/dashboard/SettingCard";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { QuickActions } from "@/components/dashboard/QuickActions";
-import { SettingCard } from "@/components/dashboard/SettingCard";
-import { CharacterCard } from "@/components/dashboard/CharacterCard";
+import { EmptyState } from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
+import { ApiError } from "@/lib/api";
+import { apiFetchServer } from "@/lib/api-server";
+import type { DashboardDto } from "@/lib/types";
 
-import { getSettings } from "@/lib/settings/settings-store";
-import type { Setting } from "@/lib/settings/types";
+export const metadata: Metadata = {
+  title: "Dashboard | Lorebound",
+};
 
-import { getCharacters } from "@/lib/characters/characters-store";
-import type { Character } from "@/lib/characters/types";
+// Rendered on the server with the user's cookie forwarded (lib/api-server).
+// Other failures reach app/dashboard/error.tsx.
+export default async function DashboardPage() {
+  let dashboard: DashboardDto;
 
-export default function DashboardPage() {
-  const isClient = useIsClient();
-
-  const settings = useMemo<Setting[]>(
-    () =>
-      isClient
-        ? getSettings()
-        : [],
-    [isClient]
-  );
-
-  const characters = useMemo<Character[]>(
-    () =>
-      isClient
-        ? getCharacters()
-        : [],
-    [isClient]
-  );
-
-  const recentSettings = useMemo(() => {
-    return [...settings]
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() -
-          new Date(a.updatedAt).getTime()
-      )
-      .slice(0, 3);
-  }, [settings]);
-
-  const recentCharacters = useMemo(() => {
-    return [...characters]
-      .sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() -
-          new Date(a.updatedAt).getTime()
-      )
-      .slice(0, 3);
-  }, [characters]);
+  try {
+    dashboard = await apiFetchServer<DashboardDto>("/api/dashboard");
+  } catch (error) {
+    // proxy.ts only checks that a cookie exists; this catches an expired one.
+    if (error instanceof ApiError && error.status === 401) {
+      redirect("/login?next=%2Fdashboard");
+    }
+    throw error;
+  }
 
   return (
     <AppShell>
       <PageHeader
         title="Dashboard"
-        description="Manage your settings and characters."
+        description="Your settings, characters and the latest changes."
         actions={<QuickActions />}
       />
 
       <div className="space-y-10">
+        <DashboardCounts counts={dashboard.counts} />
+
         <section className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-heading text-xl font-semibold">
-              My Settings
-            </h2>
-
-            <Button
-              variant="ghost"
-              className="self-start sm:self-auto"
-              nativeButton={false}
-              render={<Link href="/settings" />}
-            >
-              View All Settings
-            </Button>
-          </div>
-
-          {recentSettings.length > 0 ? (
+          <SectionHeader title="My Settings" href="/settings" linkLabel="View All Settings" />
+          {dashboard.recentSettings.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {recentSettings.map((setting) => (
-                <SettingCard
-                  key={setting.id}
-                  id={setting.id}
-                  name={setting.name}
-                  entryCount={setting.entryCount}
-                  updatedAt={setting.updatedAt}
-                />
+              {dashboard.recentSettings.map((setting) => (
+                <SettingCard key={setting.id} setting={setting} />
               ))}
             </div>
           ) : (
-            <div className="border border-dashed border-border p-8 text-center">
-              <p className="font-medium">
-                No settings yet
-              </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                Create your first campaign setting to start building lore.
-              </p>
-
-              <Button
-                className="mt-4"
-                nativeButton={false}
-                render={<Link href="/settings" />}
-              >
-                Create Setting
-              </Button>
-            </div>
+            <EmptyState
+              title="No settings yet"
+              description="Create your first campaign setting, or join one with an invite link from your Game Master."
+              action={
+                <Button nativeButton={false} render={<Link href="/settings" />}>
+                  Create Setting
+                </Button>
+              }
+            />
           )}
         </section>
 
         <section className="space-y-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="font-heading text-xl font-semibold">
-              My Characters
-            </h2>
-
-            <Button
-              variant="ghost"
-              className="self-start sm:self-auto"
-              nativeButton={false}
-              render={<Link href="/characters" />}
-            >
-              View All Characters
-            </Button>
-          </div>
-
-          {recentCharacters.length > 0 ? (
+          <SectionHeader title="My Characters" href="/characters" linkLabel="View All Characters" />
+          {dashboard.recentCharacters.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {recentCharacters.map((character) => (
-                <CharacterCard
-                  key={character.id}
-                  id={character.id}
-                  name={character.name}
-                  settingName={character.settingName}
-                  status={character.status}
-                />
+              {dashboard.recentCharacters.map((character) => (
+                <CharacterCard key={character.id} character={character} />
               ))}
             </div>
           ) : (
-            <div className="border border-dashed border-border p-8 text-center">
-              <p className="font-medium">
-                No characters yet
-              </p>
-
-              <p className="mt-2 text-sm text-muted-foreground">
-                Create your first character to begin building their background.
-              </p>
-
-              <Button
-                className="mt-4"
-                nativeButton={false}
-                render={<Link href="/characters" />}
-              >
-                Create Character
-              </Button>
-            </div>
+            <EmptyState
+              title="No characters yet"
+              description="Create your first character to begin building their background."
+              action={
+                <Button nativeButton={false} render={<Link href="/characters?create=1" />}>
+                  Create Character
+                </Button>
+              }
+            />
           )}
+        </section>
+
+        <section className="space-y-4">
+          <h2 className="font-heading text-xl font-semibold">Recent Activity</h2>
+          <RecentActivity activity={dashboard.recentActivity} />
         </section>
       </div>
     </AppShell>
+  );
+}
+
+type SectionHeaderProps = {
+  title: string;
+  href: string;
+  linkLabel: string;
+};
+
+function SectionHeader({ title, href, linkLabel }: SectionHeaderProps) {
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <h2 className="font-heading text-xl font-semibold">{title}</h2>
+      <Button
+        variant="ghost"
+        className="self-start sm:self-auto"
+        nativeButton={false}
+        render={<Link href={href} />}
+      >
+        {linkLabel}
+      </Button>
+    </div>
   );
 }

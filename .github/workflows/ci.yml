@@ -77,3 +77,65 @@ jobs:
       - run: npm run lint
 
       - run: npm run build
+
+  # End-to-end smoke test (P9-17): a GM builds a setting and a second user
+  # joins and completes a character. Not a required status check: it needs a
+  # database, both servers and a browser, so it is slower and more fragile
+  # than the jobs above. Run it locally with `npm run e2e` in frontend/.
+  e2e:
+    name: e2e (optional)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: lorebound
+          POSTGRES_USER: lorebound
+          POSTGRES_PASSWORD: lorebound-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lorebound"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ConnectionStrings__DefaultConnection: Host=localhost;Port=5432;Database=lorebound;Username=lorebound;Password=lorebound-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # The seeder refuses a database with pending migrations.
+      - name: Migrate the database
+        run: |
+          dotnet tool restore
+          dotnet restore api
+          dotnet ef database update --project api
+
+      - run: npm ci
+        working-directory: frontend
+
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+
+      # Playwright starts the API (seeded) and the frontend itself.
+      - run: npm run e2e
+        working-directory: frontend
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7

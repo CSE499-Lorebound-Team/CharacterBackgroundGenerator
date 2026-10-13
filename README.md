@@ -52,7 +52,7 @@ From a fresh clone to signed in with sample data, on Windows:
       Use `player@lorebound.local` / `lorebound-player-dev` for the Player.
    2. The explorer keeps the sign-in cookie. Try **Dashboard → GET /api/dashboard** or **Settings → GET /api/settings**.
    3. Every request that changes data (POST, PUT, PATCH, DELETE), login included, needs that same `X-Requested-With: Lorebound` header. The explorer lists it on those requests.
-6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Until Phase 9 wires the pages to the API, the frontend shows mock data and has no working sign-in.
+6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Log in with a seeded account from step 5 or register a new one; the API must be running. Every page reads the API; there is no mock data.
 7. **Run the tests** with `dotnet test Lorebound.slnx` from the repository root (Docker Desktop must be running).
 
 New to the codebase? Read [How the API Works](#how-the-api-works) next.
@@ -135,6 +135,7 @@ CharacterBackgroundGenerator/
 ├── docs/decisions/        (architecture decision records)
 ├── docs/performance/      (query review: findings, volume and EXPLAIN scripts)
 ├── docs/security/         (security review and deploy checklist)
+├── docs/deployment.md     (runbook for the course demo on Vercel, Render and Supabase)
 ├── .github/               (CI workflows, issue forms)
 ├── Lorebound.slnx         (solution: api + api.Tests)
 ├── docker-compose.yml     (local PostgreSQL)
@@ -684,14 +685,15 @@ At minimum, make sure:
 
 ## Continuous Integration (CI)
 
-Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has two checks, both shown at the bottom of the PR:
+Every Pull Request into `dev` or `main` runs `.github/workflows/ci.yml` on GitHub Actions. It has three checks, shown at the bottom of the PR:
 
 | Check | Runs |
 | --- | --- |
 | `api` | `dotnet restore`, `dotnet build`, `dotnet test` (with a real PostgreSQL container), and a check that every model change has a migration |
 | `frontend` | `npm ci`, `npm run lint`, `npm run build` in `frontend/` |
+| `e2e (optional)` | The Playwright smoke test (`npm run e2e`) against a fresh PostgreSQL service; uploads a report when it fails |
 
-Both must pass before merging; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
+`api` and `frontend` must pass before merging; `e2e (optional)` is not a required check, but look at it when it fails; branch protection enforces this on `dev` and `main` (see [Branch Protection](#branch-protection)). If one fails, open **Details** on the check to see the log, fix the problem locally with the same command, and push again; CI re-runs automatically. You can also re-run it from the repository's **Actions** tab.
 
 ---
 
@@ -724,6 +726,16 @@ npm run build
 ```
 
 The build should complete without errors before merging major frontend changes.
+
+### End-to-end smoke test
+
+`npm run e2e` in `frontend/` runs the Playwright smoke test (`frontend/e2e/smoke.spec.ts`): a GameMaster registers, creates a setting with entries and an invite link; a second user follows the link signed out, registers, joins and builds and completes a character. Both accounts are deleted afterwards.
+
+- Playwright starts the seeded API and `npm run dev` itself, or reuses ones already running on ports 5110 and 3000.
+- PostgreSQL must be running and migrated (step 3 of Getting Started, `scripts\onboard.ps1`).
+- Once per machine, install the browser: `npx playwright install chromium`.
+- It takes about a minute. On failure it prints the failing step and saves a trace and screenshots under `frontend/test-results/`; open a trace with `npx playwright show-trace <path>`.
+- Do not run it twice within a minute: registration is rate limited to 10 requests a minute.
 
 ---
 
@@ -1147,21 +1159,20 @@ Never commit passwords, API keys, or private credentials to GitHub.
 
 ## Frontend Environment Variables
 
-Local frontend configuration may use:
+The frontend needs no configuration to run against the local API. To point it elsewhere, copy the template to `frontend/.env.local` (ignored by Git):
 
-```text
-frontend/.env.local
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
 ```
-
-For example:
 
 ```env
 API_ORIGIN=http://localhost:5110
 ```
 
-The browser never calls the API directly. The frontend forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md); the rewrite itself lands with P9-03. The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
+The browser never calls the API directly. `next.config.ts` forwards `/api/*` to `API_ORIGIN` (a server-only variable; the default matches the API port in `api/Properties/launchSettings.json`), so the auth cookie belongs to the frontend's own origin, and server components call `API_ORIGIN` directly with the incoming cookie. `NEXT_PUBLIC_API_URL` is not used. See [ADR 0001](docs/decisions/0001-same-origin-api-proxy.md) and, for the client code, [frontend/README.md](frontend/README.md#calling-the-api). The API's CSRF check only accepts unsafe requests whose `Origin` is `http://localhost:3000` (set in `api/appsettings.Development.json`), so run the frontend on its default port.
 
-The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings.
+The deployed demo uses the same rewrite: Vercel serves the frontend with `API_ORIGIN` set to the API on Render, and the database is on Supabase. See [ADR 0003](docs/decisions/0003-production-hosting.md) for the hosts and their settings, and the runbook [docs/deployment.md](docs/deployment.md) for how to set them up, deploy and check them. Tolaji owns Render and Supabase, and Bugbear777 owns Vercel.
 
 Files containing local secrets should not be committed.
 
@@ -1511,7 +1522,7 @@ Verify that:
 
 1. the API is running
 2. the frontend is running
-3. `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is `http://localhost:5110`, the address shown by `dotnet run`
+3. `API_ORIGIN` in `frontend/.env.local`, if set, is `http://localhost:5110`, the address shown by `dotnet run`; restart `npm run dev` after changing it, because rewrites are read at startup
 4. the frontend runs on `http://localhost:3000`, the only origin CORS allows in development (`Cors:AllowedOrigins` in `api/appsettings.Development.json`)
 5. your local environment configuration is correct
 

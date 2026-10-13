@@ -1,10 +1,11 @@
 "use client";
 
-import {
-  FormEvent,
-  useState,
-} from "react";
+import { type FormEvent, useState } from "react";
+import Link from "next/link";
 
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
+import { errorMessage } from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -22,211 +22,172 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ApiError } from "@/lib/api";
+import { readValidationErrors, type FieldErrors } from "@/lib/form-errors";
+import type {
+  CharacterDetailDto,
+  CreateCharacterRequest,
+  PagedResult,
+  SettingListItemDto,
+} from "@/lib/types";
+import { useApiData } from "@/lib/use-api-data";
+import { useApiFetch } from "@/lib/use-api-fetch";
 
-import { getSettings } from "@/lib/settings/settings-store";
-import type { Setting } from "@/lib/settings/types";
-
-import { useIsClient } from "@/lib/use-is-client";
+// CreateCharacterRequest limit in the API.
+const NAME_MAX = 100;
 
 type CreateCharacterDialogProps = {
   open: boolean;
-  onOpenChange:
-    (open: boolean) => void;
-
-  onCreate: (
-    name: string,
-    settingId: string,
-    settingName: string
-  ) => void;
+  onOpenChange: (open: boolean) => void;
+  onCreated: (character: CharacterDetailDto) => void;
 };
 
+/** Starts a draft in one of the user's settings. */
 export function CreateCharacterDialog({
   open,
   onOpenChange,
-  onCreate,
+  onCreated,
 }: CreateCharacterDialogProps) {
-  const [name, setName] =
-  useState("");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        {open && (
+          <CreateCharacterForm onOpenChange={onOpenChange} onCreated={onCreated} />
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-const [
-  selectedSettingId,
-  setSelectedSettingId,
-] = useState("");
+function CreateCharacterForm({
+  onOpenChange,
+  onCreated,
+}: Omit<CreateCharacterDialogProps, "open">) {
+  const fetchApi = useApiFetch();
 
-const [error, setError] =
-  useState<string>();
+  // Any member may create a character, GameMasters included. 100 is the
+  // API's page size cap; nobody belongs to that many settings.
+  const settings = useApiData<PagedResult<SettingListItemDto>>(
+    "/api/settings?pageSize=100"
+  );
 
-const isClient = useIsClient();
+  const [name, setName] = useState("");
+  const [settingId, setSettingId] = useState<string>();
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-const settings: Setting[] =
-  isClient
-    ? getSettings()
-    : [];
+  const items = (settings.data?.items ?? []).map((setting) => ({
+    value: setting.id,
+    label: setting.name,
+  }));
 
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(undefined);
 
-    if (!name.trim()) {
-      setError(
-        "Enter a character name."
-      );
+    if (!settingId) {
+      setFieldErrors({ settingId: "Choose a setting." });
       return;
     }
+    setFieldErrors({});
+    setIsSubmitting(true);
 
-    if (!selectedSettingId) {
-      setError(
-        "Choose a campaign setting."
-      );
-      return;
+    try {
+      const character = await fetchApi<CharacterDetailDto>("/api/characters", {
+        method: "POST",
+        // A blank name becomes "Unnamed Character" in the API.
+        json: { settingId, name: name.trim() } satisfies CreateCharacterRequest,
+      });
+      onCreated(character);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        const result = readValidationErrors(error, ["name", "settingId"]);
+        setFieldErrors(result.fieldErrors);
+        setFormError(result.general);
+      } else {
+        setFormError(errorMessage(error));
+      }
+      setIsSubmitting(false);
     }
-
-    const setting =
-      settings.find(
-        (item) =>
-          item.id ===
-          selectedSettingId
-      );
-
-    if (!setting) {
-      setError(
-        "The selected setting could not be found."
-      );
-      return;
-    }
-
-    onCreate(
-      name.trim(),
-      setting.id,
-      setting.name
-    );
-
-    setName("");
-    setSelectedSettingId("");
-    setError(undefined);
-
-    onOpenChange(false);
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            Create Character
-          </DialogTitle>
+    <>
+      <DialogHeader>
+        <DialogTitle>Create Character</DialogTitle>
+        <DialogDescription>
+          Choose the campaign setting your character belongs to. The builder
+          then walks you through their background.
+        </DialogDescription>
+      </DialogHeader>
 
-          <DialogDescription>
-            Choose the campaign setting
-            this character belongs to.
-            You can build their
-            background afterward.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          onSubmit={handleSubmit}
-          className="space-y-5"
-        >
-          <div className="space-y-2">
-            <Label htmlFor="character-name">
-              Character Name
-            </Label>
-
-            <Input
-              id="character-name"
-              value={name}
-              onChange={(event) =>
-                setName(
-                  event.target.value
-                )
-              }
-              placeholder="Theron Vale"
-            />
-          </div>
+      {settings.error ? (
+        <FormAlert>{errorMessage(settings.error)}</FormAlert>
+      ) : !settings.data ? (
+        <p className="text-sm text-muted-foreground">Loading your settings...</p>
+      ) : items.length === 0 ? (
+        <div className="space-y-3 text-sm">
+          <p>You need to belong to a setting first.</p>
+          <p className="text-muted-foreground">
+            Create one, or ask your Game Master for an invite link.
+          </p>
+          <Link href="/settings" className="font-medium text-primary hover:underline">
+            Go to Settings
+          </Link>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          {formError && <FormAlert>{formError}</FormAlert>}
 
           <div className="space-y-2">
-            <Label>
-              Campaign Setting
-            </Label>
-
+            <Label id="character-setting-label">Setting</Label>
             <Select
-              value={
-                selectedSettingId
-              }
-              onValueChange={(value) =>
-                setSelectedSettingId(
-                  value ?? ""
-                )
-              }
+              items={items}
+              value={settingId ?? null}
+              onValueChange={(value) => setSettingId(value ?? undefined)}
             >
-              <SelectTrigger className="w-full">
-                <SelectValue>
-                  {selectedSettingId
-                    ? settings.find(
-                        (setting) =>
-                          setting.id ===
-                          selectedSettingId
-                      )?.name
-                    : "Choose a setting"}
-                </SelectValue>
+              <SelectTrigger
+                className="w-full"
+                aria-labelledby="character-setting-label"
+                aria-invalid={fieldErrors.settingId ? true : undefined}
+              >
+                <SelectValue placeholder="Choose a setting" />
               </SelectTrigger>
-
               <SelectContent>
-                {settings.map(
-                  (setting) => (
-                    <SelectItem
-                      key={setting.id}
-                      value={setting.id}
-                    >
-                      {setting.name}
-                    </SelectItem>
-                  )
-                )}
+                {items.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+            {fieldErrors.settingId && (
+              <p className="text-sm text-destructive">{fieldErrors.settingId}</p>
+            )}
           </div>
 
-          {settings.length === 0 && (
-            <p className="text-sm text-muted-foreground">
-              You need a campaign
-              setting before creating a
-              character.
-            </p>
-          )}
-
-          {error && (
-            <p className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          <FormField
+            id="character-name"
+            label="Character Name"
+            placeholder="Unnamed Character"
+            maxLength={NAME_MAX}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            error={fieldErrors.name}
+            hint="You can change it later."
+          />
 
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() =>
-                onOpenChange(false)
-              }
-            >
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-
-            <Button
-              type="submit"
-              disabled={
-                settings.length === 0
-              }
-            >
-              Create Character
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Creating..." : "Start Building"}
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      )}
+    </>
   );
 }

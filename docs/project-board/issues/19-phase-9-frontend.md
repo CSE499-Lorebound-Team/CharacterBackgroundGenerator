@@ -56,21 +56,22 @@ depends: P1-12
 One typed fetch layer for all pages.
 
 ## Tasks
-- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: same-origin relative paths (`/api/...`; P1-12 chose the rewrite, see `docs/decisions/0001-same-origin-api-proxy.md`), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out.
+- [ ] `lib/api.ts` `apiFetch<T>(path, init)`: same-origin relative paths (`/api/...`; P1-12 chose the rewrite, see `docs/decisions/0001-same-origin-api-proxy.md`), `credentials: "include"`, header `X-Requested-With: Lorebound`, JSON in/out (a `json` option is sent as the JSON body; an empty response such as 204 returns `undefined`).
 - [ ] `next.config.ts` `rewrites()` forwarding `/api/:path*` to `${API_ORIGIN}/api/:path*` (default `http://localhost:5110`), as in the ADR.
 - [ ] Throw `ApiError { status, title, detail, errors }` parsed from problem JSON.
-- [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `cookies()` from `next/headers` is async in current Next).
+- [ ] Server-side variant that calls `API_ORIGIN` directly and forwards the incoming `cookie` header (server components need it; `headers()` from `next/headers` is async in current Next).
 - [ ] `.env.example` with `API_ORIGIN` (server-only; no `NEXT_PUBLIC_API_URL`).
 - [ ] Shared DTO types in `lib/types.ts` mirroring API DTOs.
-  - `SettingEntryType` matches the API enum: `Location | Culture | Religion | Faction | Organization | Profession | SocialClass | HistoricalEvent | Person | Other`. `Nation` and `City` become `Location`; retire `lib/settings/types.ts` and `lib/characters/types.ts`.
+  - `SettingEntryType` matches the API enum: `Location | Culture | Religion | Faction | Organization | Profession | SocialClass | HistoricalEvent | Person | Other`. `Nation` and `City` become `Location`.
+  - `lib/types.ts` is the only home for API types. The mock-era `lib/settings/types.ts` and `lib/characters/types.ts` are retired page by page: each of P9-07 to P9-14 stops importing them when it wires its page to the API, and P9-16 deletes them.
   - Entries have one `description: string | null` (no `summary`/`content`); `isGmOnly` is optional because the API omits it for players.
   - Setting role is `myRole: "GameMaster" | "Player"`, not `"GM"`.
-  - Characters carry `isOwner`, `isReadOnly`, `homelandName` (list) and `choices: { stepKey, ordinal, entryId, entryName, entryType, freeText }[]`; `backstory` is nullable.
+  - Characters carry `isOwner` (detail), `isReadOnly`, `homelandName` (list) and `choices: { stepKey, ordinal, entryId, entryName, entryType, freeText }[]`; `backstory` is nullable.
 - [ ] Never read or store any token in JS; there are none.
 
 ## Implementation details
 - Read `frontend/node_modules/next/dist/docs/` before coding (see `frontend/AGENTS.md`).
-- On 401 from a protected call, redirect to `/login` with a `next` param.
+- On 401 from a protected call, redirect to `/login` with a `next` param. Client components get this from `useApiFetch()` (`lib/use-api-fetch.ts`); `/api/auth/*` and `/api/health` are exempt.
 
 ## Acceptance criteria
 - A test page can call `/api/health` and an authenticated endpoint after login.
@@ -92,6 +93,10 @@ Entry point for unauthenticated users.
 - [ ] Client-side validation mirroring API rules (email, password length 10, display name).
 - [ ] Show field errors from `ApiError.errors` and a generic banner for 401/429/lockout.
 - [ ] After login, redirect to `next` or `/dashboard`; after register show "check your email" when confirmation is required.
+  - `next` must be a same-site path (`/...`, not `//...`); anything else falls back to `/dashboard`.
+  - The API does not say whether login needs a confirmed email, so register signs in straight away with the same credentials: success goes to `next`, and a 401 means confirmation is required. Identity refuses an unconfirmed account before checking the password, so this never counts toward lockout.
+  - Lockout is 423 (`Retry-After`), rate limiting 429; a 401 banner also hints that a new account may need confirming.
+  - A "Keep me signed in for 14 days" checkbox sends `rememberMe`.
 - [ ] No auth layout chrome (no sidebar).
 
 ## Acceptance criteria
@@ -114,6 +119,8 @@ Replace the hardcoded "Joseph Marlow" and protect app routes.
 - [ ] Route protection for `/dashboard`, `/settings`, `/characters`, `/builder`: use the Next 16 convention documented in `node_modules/next/dist/docs/` (may be `proxy.ts`), as an optimistic redirect only; the API remains the authority.
 - [ ] Sidebar and `MobileNav` show real display name and initials; add a Log out action calling `POST /auth/logout`.
 - [ ] Logged-in users visiting `/login` are redirected to `/dashboard`.
+  - Done in the page once `/api/users/me` confirms the session, not in `proxy.ts`: the proxy only sees that a cookie exists, and a stale cookie would bounce between `/login` and `/dashboard`.
+  - `proxy.ts` sends a request without the `lorebound.auth` cookie to `/login?next=...`; `AppShell` also redirects when the session is signed out (expired cookie), and after Log out it opens `/login` without `next`.
 
 ## Acceptance criteria
 - Unauthenticated visit to `/dashboard` lands on `/login`; logout returns there.
@@ -265,6 +272,8 @@ Replace mock characters.
 - [ ] "Create Character" flow: choose setting (from joined settings), create draft, go to builder.
 - [ ] Delete with confirmation.
 - [ ] Dashboard `QuickActions` links to the create-character flow instead of `/builder`; the builder needs a character (`/builder/{id}`, PR #208).
+  - The flow is `/characters?create=1`, which opens the create dialog; with no setting to choose, the dialog points to `/settings`.
+- [ ] The character page `/characters/[id]` loads `GET /api/characters/{id}`: status and "Read-only" badges, the answers per builder step, the backstory as plain text, and for the owner Edit (name and backstory), Continue Building and Delete. A GameMaster reading a Player's character sees it without those actions.
 
 ## Acceptance criteria
 - Created draft appears in the list and opens in the builder.
@@ -306,10 +315,13 @@ Persistence and finishing.
 
 ## Tasks
 - [ ] Next saves via `PUT /choices/{key}` and advances; resume drafts at `currentStep`.
+  - Back and the summary panel's step links save the open step the same way, so no answer is lost; a step is saved only when its answer changed.
 - [ ] Replace `lib/builder/builder-store.ts` (localStorage) with `PUT /choices/{key}` and `GET /characters/{id}`.
+  - The store was deleted with the hardcoded catalog in P9-13, once nothing imported it.
 - [ ] Show stale-step warnings returned by the API and link to fix them.
 - [ ] Review step lists all choices; "Complete" calls `/complete` and shows API validation errors.
 - [ ] Read-only characters open in a view-only mode.
+  - So does someone else's character (a GameMaster reading a Player's). A complete character opens locked, with "Reopen to Edit" (`POST /reopen`) to change its answers.
 - [ ] Optional free-text backstory field saved via `PUT /characters/{id}`, on the Review step or the character page; it is not a catalog step (PR #208's step 7 editor moves here).
 
 ## Acceptance criteria
@@ -352,6 +364,7 @@ Finish the UX and delete leftovers.
 - [ ] Empty states with a call to action (no settings, no characters, no entries).
 - [ ] Toast/inline feedback for mutations.
 - [ ] Grep for leftover mock strings ("Osepia", "Theron Vale", "Joseph Marlow") and remove.
+- [ ] Delete the mock-era `lib/settings/types.ts` and `lib/characters/types.ts` (P9-03); every type comes from `lib/types.ts`.
 
 ## Acceptance criteria
 - No hardcoded mock data remains; every page handles the three states.
