@@ -15,6 +15,8 @@ import {
 import { EntrySearch } from "@/components/settings/EntrySearch";
 import { RoleBadge } from "@/components/settings/RoleBadge";
 import { SettingEntryDialog } from "@/components/settings/SettingEntryDialog";
+import { SettingInvites } from "@/components/settings/SettingInvites";
+import { SettingMembers } from "@/components/settings/SettingMembers";
 import { SettingEntryCard } from "@/components/settings/SettingEntryCard";
 import { SettingTabs, type SettingTab } from "@/components/settings/SettingTabs";
 import { Button } from "@/components/ui/button";
@@ -79,6 +81,7 @@ type SettingDetailProps = {
 function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
   const isGm = setting.myRole === "GameMaster";
   const [addOpen, setAddOpen] = useState(false);
+  const [section, setSection] = useState<"lore" | "members">("lore");
 
   const [activeTab, setActiveTab] = useState<SettingTab>("Overview");
   const [search, setSearch] = useState("");
@@ -110,7 +113,7 @@ function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
       <PageHeader
         title={setting.name}
         description={setting.description ?? undefined}
-        actions={addButton}
+        actions={section === "lore" ? addButton : undefined}
       />
 
       <div className="-mt-3 mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -121,73 +124,96 @@ function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
         <span>Updated {formatRelativeTime(setting.updatedAt)}</span>
       </div>
 
-      <div className="space-y-6">
-        <SettingTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          counts={setting.entryCountsByType}
-        />
-
-        {activeTab === "Overview" && (
-          <TypeOverview
-            counts={setting.entryCountsByType}
-            onSelect={setActiveTab}
-          />
-        )}
-
-        <EntrySearch value={search} onChange={setSearch} />
-
-        {entries.error ? (
-          <ErrorState error={entries.error} onRetry={entries.reload} />
-        ) : !entries.hasLoaded ? (
-          <LoadingCards />
-        ) : entries.items.length === 0 ? (
-          <EmptyState
-            title={
-              query
-                ? "No entries match your search"
-                : activeTab === "Overview"
-                  ? "No lore entries yet"
-                  : `No ${tabLabel.toLowerCase()} yet`
-            }
-            description={
-              query
-                ? "Search looks at entry names and descriptions."
-                : isGm
-                  ? "Add a lore entry to start building this setting."
-                  : "Your Game Master has not shared any entries here yet."
-            }
-            action={query ? undefined : addButton}
-          />
-        ) : (
-          <div
-            className={cn(
-              "space-y-4 transition-opacity",
-              entries.isLoading && "opacity-60"
-            )}
-            aria-busy={entries.isLoading}
+      <div role="tablist" aria-label="Setting sections" className="mb-6 flex gap-1">
+        {(["lore", "members"] as const).map((value) => (
+          <Button
+            key={value}
+            role="tab"
+            aria-selected={section === value}
+            size="sm"
+            variant={section === value ? "default" : "outline"}
+            onClick={() => setSection(value)}
           >
-            <div className="grid gap-4 lg:grid-cols-2">
-              {entries.items.map((entry) => (
-                <SettingEntryCard
-                  key={entry.id}
-                  settingId={setting.id}
-                  entry={entry}
-                />
-              ))}
-            </div>
-
-            {entries.hasMore && (
-              <LoadMore
-                shown={entries.items.length}
-                total={entries.totalCount}
-                loading={entries.loadingMore}
-                onLoadMore={entries.loadMore}
-              />
-            )}
-          </div>
-        )}
+            {value === "lore" ? "Lore" : "Members"}
+          </Button>
+        ))}
       </div>
+
+      {section === "members" ? (
+        <div className="space-y-10">
+          <SettingMembers setting={setting} onChanged={onSettingChanged} />
+          {/* Players get 403 on invites, so the section is not shown. */}
+          {isGm && <SettingInvites settingId={setting.id} />}
+        </div>
+      ) : (
+        <div className="space-y-6">
+          <SettingTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            counts={setting.entryCountsByType}
+          />
+
+          {activeTab === "Overview" && (
+            <TypeOverview
+              counts={setting.entryCountsByType}
+              onSelect={setActiveTab}
+            />
+          )}
+
+          <EntrySearch value={search} onChange={setSearch} />
+
+          {entries.error ? (
+            <ErrorState error={entries.error} onRetry={entries.reload} />
+          ) : !entries.hasLoaded ? (
+            <LoadingCards />
+          ) : entries.items.length === 0 ? (
+            <EmptyState
+              title={
+                query
+                  ? "No entries match your search"
+                  : activeTab === "Overview"
+                    ? "No lore entries yet"
+                    : `No ${tabLabel.toLowerCase()} yet`
+              }
+              description={
+                query
+                  ? "Search looks at entry names and descriptions."
+                  : isGm
+                    ? "Add a lore entry to start building this setting."
+                    : "Your Game Master has not shared any entries here yet."
+              }
+              action={query ? undefined : addButton}
+            />
+          ) : (
+            <div
+              className={cn(
+                "space-y-4 transition-opacity",
+                entries.isLoading && "opacity-60"
+              )}
+              aria-busy={entries.isLoading}
+            >
+              <div className="grid gap-4 lg:grid-cols-2">
+                {entries.items.map((entry) => (
+                  <SettingEntryCard
+                    key={entry.id}
+                    settingId={setting.id}
+                    entry={entry}
+                  />
+                ))}
+              </div>
+
+              {entries.hasMore && (
+                <LoadMore
+                  shown={entries.items.length}
+                  total={entries.totalCount}
+                  loading={entries.loadingMore}
+                  onLoadMore={entries.loadMore}
+                />
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {isGm && (
         <SettingEntryDialog

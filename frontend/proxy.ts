@@ -5,8 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
 const AUTH_COOKIE = "lorebound.auth";
 
 /**
- * Optimistic route protection: with no auth cookie at all, app pages go
- * straight to /login. A cookie that is present but expired gets through,
+ * Optimistic route protection: with no auth cookie at all, app pages (and
+ * invite links) go straight to /login, keeping the page in `next`. A cookie that is present but expired gets through,
  * and the page's first API call answers 401 (see useApiFetch and AppShell).
  * The API is the authority on every request.
  *
@@ -32,5 +32,6 @@ export const config = {
     "/settings/:path*",
     "/characters/:path*",
     "/builder/:path*",
+    "/join/:path*",
   ],
 };
