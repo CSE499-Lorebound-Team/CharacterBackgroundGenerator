@@ -1,10 +1,10 @@
 "use client";
 
-import {
-  FormEvent,
-  useState,
-} from "react";
+import { type FormEvent, useState } from "react";
 
+import { FormAlert } from "@/components/forms/FormAlert";
+import { FormField } from "@/components/forms/FormField";
+import { errorMessage } from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,60 +13,41 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ApiError } from "@/lib/api";
+import {
+  type FieldErrors,
+  hasErrors,
+  readValidationErrors,
+} from "@/lib/form-errors";
+import type { CharacterDetailDto, UpdateCharacterRequest } from "@/lib/types";
+import { useApiFetch } from "@/lib/use-api-fetch";
 
-import { getSettings } from "@/lib/settings/settings-store";
-import type { Setting } from "@/lib/settings/types";
-
-import type {
-  Character,
-  CharacterStatus,
-} from "@/lib/characters/types";
-
-import { useIsClient } from "@/lib/use-is-client";
+// UpdateCharacterRequest limits in the API.
+const NAME_MAX = 100;
+export const BACKSTORY_MAX = 10000;
 
 type EditCharacterDialogProps = {
   open: boolean;
-  onOpenChange:
-    (open: boolean) => void;
-
-  character: Character;
-
-  onSave: (data: {
-    name: string;
-    settingId: string;
-    settingName: string;
-    status: CharacterStatus;
-    backstory: string;
-  }) => void;
+  onOpenChange: (open: boolean) => void;
+  character: CharacterDetailDto;
+  onSaved: (character: CharacterDetailDto) => void;
 };
 
+/** The character's name and free-text backstory (PUT /api/characters/{id}). */
 export function EditCharacterDialog({
   open,
   onOpenChange,
-  character,
-  onSave,
+  ...props
 }: EditCharacterDialogProps) {
   return (
-    <Dialog
-      open={open}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <EditCharacterForm
-          key={`${open ? "open" : "closed"}:${character.id}`}
-          character={character}
+          key={open ? "open" : "closed"}
           onOpenChange={onOpenChange}
-          onSave={onSave}
+          {...props}
         />
       </DialogContent>
     </Dialog>
@@ -74,214 +55,119 @@ export function EditCharacterDialog({
 }
 
 function EditCharacterForm({
-  character,
   onOpenChange,
-  onSave,
-}: Omit<
-  EditCharacterDialogProps,
-  "open"
->) {
-  const isClient = useIsClient();
+  character,
+  onSaved,
+}: Omit<EditCharacterDialogProps, "open">) {
+  const fetchApi = useApiFetch();
 
-  const settings: Setting[] =
-    isClient
-      ? getSettings()
-      : [];
+  const [name, setName] = useState(character.name);
+  const [backstory, setBackstory] = useState(character.backstory ?? "");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formError, setFormError] = useState<string>();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [name, setName] =
-    useState(character.name);
-
-  const [settingId, setSettingId] =
-    useState(character.settingId);
-
-  const [status, setStatus] =
-    useState<CharacterStatus>(
-      character.status
-    );
-
-  const [backstory, setBackstory] =
-    useState(character.backstory);
-
-  const [error, setError] =
-    useState<string>();
-
-  function handleSubmit(
-    event: FormEvent<HTMLFormElement>
-  ) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setFormError(undefined);
 
-    if (!name.trim()) {
-      setError(
-        "Enter a character name."
-      );
-      return;
+    const errors: FieldErrors = {
+      name: name.trim() ? undefined : "Enter a name.",
+    };
+    setFieldErrors(errors);
+    if (hasErrors(errors)) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const saved = await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}`, {
+        method: "PUT",
+        json: {
+          name: name.trim(),
+          backstory: backstory.trim() || null,
+        } satisfies UpdateCharacterRequest,
+      });
+      onSaved(saved);
+      onOpenChange(false);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        const result = readValidationErrors(error, ["name", "backstory"]);
+        setFieldErrors(result.fieldErrors);
+        setFormError(result.general);
+      } else {
+        setFormError(errorMessage(error));
+      }
+      setIsSubmitting(false);
     }
-
-    const setting =
-      settings.find(
-        (item) =>
-          item.id === settingId
-      );
-
-    if (!setting) {
-      setError(
-        "Choose a campaign setting."
-      );
-      return;
-    }
-
-    onSave({
-      name: name.trim(),
-      settingId: setting.id,
-      settingName: setting.name,
-      status,
-      backstory: backstory.trim(),
-    });
-
-    onOpenChange(false);
   }
 
   return (
     <>
       <DialogHeader>
-        <DialogTitle>
-          Edit Character
-        </DialogTitle>
-
+        <DialogTitle>Edit Character</DialogTitle>
         <DialogDescription>
-          Update this character&apos;s
-          basic information and backstory.
+          The backstory is optional free text, separate from the builder&apos;s
+          answers.
         </DialogDescription>
       </DialogHeader>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-5"
-      >
-        <div className="space-y-2">
-          <Label htmlFor="character-name">
-            Character Name
-          </Label>
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        {formError && <FormAlert>{formError}</FormAlert>}
 
-          <Input
-            id="character-name"
-            value={name}
-            onChange={(event) =>
-              setName(
-                event.target.value
-              )
-            }
-          />
-        </div>
+        <FormField
+          id="character-name"
+          label="Name"
+          maxLength={NAME_MAX}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          error={fieldErrors.name}
+        />
 
-        <div className="space-y-2">
-          <Label>
-            Campaign Setting
-          </Label>
-
-          <Select
-            value={settingId}
-            onValueChange={(value) =>
-              setSettingId(
-                value ?? ""
-              )
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue>
-                {settings.find(
-                  (setting) =>
-                    setting.id ===
-                    settingId
-                )?.name ??
-                  "Choose a setting"}
-              </SelectValue>
-            </SelectTrigger>
-
-            <SelectContent>
-              {settings.map(
-                (setting) => (
-                  <SelectItem
-                    key={setting.id}
-                    value={setting.id}
-                  >
-                    {setting.name}
-                  </SelectItem>
-                )
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label>
-            Status
-          </Label>
-
-          <Select
-            value={status}
-            onValueChange={(value) =>
-              setStatus(
-                value as CharacterStatus
-              )
-            }
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue />
-            </SelectTrigger>
-
-            <SelectContent>
-              <SelectItem value="Draft">
-                Draft
-              </SelectItem>
-
-              <SelectItem value="Complete">
-                Complete
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="backstory">
-            Backstory
-          </Label>
-
-          <Textarea
-            id="backstory"
-            value={backstory}
-            onChange={(event) =>
-              setBackstory(
-                event.target.value
-              )
-            }
-            placeholder="Write this character's backstory..."
-            className="min-h-52"
-          />
-        </div>
-
-        {error && (
-          <p className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        <BackstoryField
+          value={backstory}
+          onChange={setBackstory}
+          error={fieldErrors.backstory}
+        />
 
         <div className="flex justify-end gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              onOpenChange(false)
-            }
-          >
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-
-          <Button type="submit">
-            Save Changes
+          <Button type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Saving..." : "Save"}
           </Button>
         </div>
       </form>
     </>
+  );
+}
+
+type BackstoryFieldProps = {
+  value: string;
+  onChange: (value: string) => void;
+  error?: string;
+};
+
+/** Plain text: the API stores it as sent and the page shows it as text. */
+export function BackstoryField({ value, onChange, error }: BackstoryFieldProps) {
+  return (
+    <div className="space-y-2">
+      <Label htmlFor="character-backstory">Backstory (optional)</Label>
+      <Textarea
+        id="character-backstory"
+        className="min-h-48"
+        placeholder="The people, events, losses and victories that shaped your character..."
+        maxLength={BACKSTORY_MAX}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={error ? true : undefined}
+      />
+      <div className="flex justify-between gap-2 text-xs">
+        <span className="text-destructive">{error}</span>
+        <span className="text-muted-foreground">
+          {value.length} / {BACKSTORY_MAX}
+        </span>
+      </div>
+    </div>
   );
 }
