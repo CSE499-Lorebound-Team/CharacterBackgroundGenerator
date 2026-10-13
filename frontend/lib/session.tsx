@@ -103,7 +103,7 @@ export function useSession(): Session {
   return session;
 }
 
-/** Up to two initials from a display name, e.g. "Joseph Marlow" -> "JM". */
+/** Up to two initials from a display name, e.g. "Ada Byron" -> "AB". */
 export function initialsOf(displayName: string): string {
   const initials = displayName
     .trim()

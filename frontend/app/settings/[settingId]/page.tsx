@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   EmptyState,
@@ -81,6 +82,7 @@ type SettingDetailProps = {
 function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
   const isGm = setting.myRole === "GameMaster";
   const [addOpen, setAddOpen] = useState(false);
+  const toast = useToast();
   const [section, setSection] = useState<"lore" | "members">("lore");
 
   const [activeTab, setActiveTab] = useState<SettingTab>("Overview");
@@ -221,9 +223,10 @@ function SettingDetail({ setting, onSettingChanged }: SettingDetailProps) {
           onOpenChange={setAddOpen}
           settingId={setting.id}
           defaultType={activeTab === "Overview" ? undefined : activeTab}
-          onSaved={() => {
+          onSaved={(entry) => {
             entries.reload();
             onSettingChanged();
+            toast(`Added ${entry.name}`);
           }}
         />
       )}

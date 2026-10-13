@@ -7,6 +7,7 @@ import { CircleX, Users } from "lucide-react";
 
 import { FormAlert } from "@/components/forms/FormAlert";
 import { errorMessage } from "@/components/layout/PageStates";
+import { useToast } from "@/components/layout/Toaster";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import type { AcceptInviteResponse, InvitePreviewDto } from "@/lib/types";
@@ -17,6 +18,7 @@ import { useApiFetch } from "@/lib/use-api-fetch";
 export function JoinInvite({ code }: { code: string }) {
   const router = useRouter();
   const fetchApi = useApiFetch();
+  const toast = useToast();
   const path = `/api/invites/${encodeURIComponent(code)}`;
 
   // A 401 sends the user to /login?next=/join/<code> (useApiFetch).
@@ -33,6 +35,7 @@ export function JoinInvite({ code }: { code: string }) {
       const result = await fetchApi<AcceptInviteResponse>(`${path}/accept`, {
         method: "POST",
       });
+      if (!preview.data?.alreadyMember) toast(`Joined ${preview.data?.settingName ?? "the setting"}`);
       router.push(`/settings/${result.settingId}`);
     } catch (error) {
       setJoinError(

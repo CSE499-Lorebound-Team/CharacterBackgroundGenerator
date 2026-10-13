@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Roboto } from "next/font/google";
 import "./globals.css";
+import { ToastProvider } from "@/components/layout/Toaster";
 import { SessionProvider } from "@/lib/session";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +30,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", roboto.variable)}
     >
       <body className="min-h-full flex flex-col">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <ToastProvider>{children}</ToastProvider>
+        </SessionProvider>
       </body>
     </html>
   );

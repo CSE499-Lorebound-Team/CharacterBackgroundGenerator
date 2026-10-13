@@ -46,7 +46,7 @@ The browser calls same-origin `/api/...` paths; `next.config.ts` rewrites them t
 - **Client components:** `useApiFetch()` from `lib/use-api-fetch.ts`. A 401 from a protected call redirects to `/login?next=<current page>`. `apiFetch()` from `lib/api.ts` is the same call without the redirect.
 - **Server components and actions:** `apiFetchServer()` from `lib/api-server.ts` calls `API_ORIGIN` directly and forwards the incoming cookie.
 - All three add the `X-Requested-With: Lorebound` header the API's CSRF check requires, send `json` as the JSON body, return `undefined` for empty responses, and throw `ApiError { status, title, detail, errors }` built from the problem JSON. `errors` holds the per-field validation messages.
-- Types for every request and response DTO live in `lib/types.ts`. The mock-era `lib/settings/types.ts` and `lib/characters/types.ts` go away as each page is wired to the API (P9-07 to P9-14); new code must not import them.
+- Types for every request and response DTO live in `lib/types.ts`, the only place API types are defined.
 
 ```ts
 const fetchApi = useApiFetch();
@@ -62,7 +62,10 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 - `usePagedList<T>(path)` loads a `PagedResult<T>` list: page 1 whenever `path` changes, then `loadMore()` appends the next page. Pass the filters in `path` (without `page`/`pageSize`) and call `reload()` after a change.
 - Both keep the previous data while new data loads, and set state only when a request settles, so they satisfy `react-hooks/set-state-in-effect`.
 - Debounce search boxes with `useDebouncedValue` (300 ms).
-- Show the three states with `LoadingCards`, `ErrorState` (with a retry) and `EmptyState` from `components/layout/PageStates.tsx`.
+- Show the three states with `LoadingCards`, `ErrorState` (with a retry) and `EmptyState` from `components/layout/PageStates.tsx`. Each app section (`dashboard`, `settings`, `characters`, `builder`) also has a `loading.tsx` skeleton and an `error.tsx` boundary (`components/layout/RouteStates.tsx`) for anything that throws while rendering.
+- Confirm a change with `useToast()` (`components/layout/Toaster.tsx`), e.g. `toast("Entry saved")`. Errors stay inline in the form or dialog, next to what needs fixing.
+- The dashboard is a server component: it fetches `GET /api/dashboard` with `apiFetchServer`, and a 401 redirects to `/login`.
+- There is no mock data: every page reads the API.
 - Form helpers: `FormField` and `FormAlert` (`components/forms/`), with `readValidationErrors` (`lib/form-errors.ts`) to put a 400's errors under their fields.
 
 ## Sign-in and the session
@@ -74,14 +77,6 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 - Invite links open `/join/[code]`: it previews the setting (`GET /api/invites/{code}`) and joins as a Player (`POST .../accept`). Every unusable code shows the same "invalid or expired" message. Members and invites are managed on the setting page's Members tab (`components/settings/SettingMembers.tsx`, `SettingInvites.tsx`).
 - `proxy.ts` sends `/dashboard`, `/settings`, `/characters`, `/builder` and `/join` to `/login?next=...` when there is no `lorebound.auth` cookie. This is only an optimistic check: `AppShell` also redirects when the session turns out to be signed out (an expired cookie, or Log out), and the API checks every request.
 - The sidebar and mobile navigation show the user's display name, initials and email, and a Log out button (`components/layout/UserMenu.tsx`).
-
-## Reading localStorage in pages
-
-Every page except the dashboard uses the API. Until P9-15 wires it up, the dashboard still reads settings and characters from `localStorage` (`lib/settings/*-store.ts`, `lib/characters/characters-store.ts`), so what you create elsewhere does not appear there yet; P9-16 deletes those stores. Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
-
-- Use `useIsClient()` from `lib/use-is-client.ts`, which is `false` during server rendering and hydration and `true` in the browser.
-- Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/dashboard/page.tsx`.
-- To reset a form from props, give the form a `key` (see `components/settings/SettingEntryDialog.tsx`) rather than syncing state in an effect.
 
 ## Characters and the builder
 

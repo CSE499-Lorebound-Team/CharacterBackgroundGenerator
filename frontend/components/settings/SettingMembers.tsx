@@ -6,6 +6,7 @@ import { LogOut } from "lucide-react";
 
 import { ConfirmDialog } from "@/components/forms/ConfirmDialog";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/layout/PageStates";
+import { useToast } from "@/components/layout/Toaster";
 import { RoleBadge } from "@/components/settings/RoleBadge";
 import { Button } from "@/components/ui/button";
 import { formatRelativeTime } from "@/lib/format";
@@ -38,6 +39,7 @@ export function SettingMembers({ setting, onChanged }: SettingMembersProps) {
   const router = useRouter();
   const fetchApi = useApiFetch();
   const session = useSession();
+  const toast = useToast();
   const myUserId = session.status === "authenticated" ? session.user.id : null;
 
   // A setting has few members; 100 is the API's page size cap.
@@ -71,6 +73,7 @@ export function SettingMembers({ setting, onChanged }: SettingMembersProps) {
         }
       );
       members.reload();
+      toast(`${pending.member.displayName} is now ${pending.role === "GameMaster" ? "a Game Master" : "a Player"}`);
       return;
     }
 
@@ -81,12 +84,14 @@ export function SettingMembers({ setting, onChanged }: SettingMembersProps) {
 
     if (pending.kind === "leave") {
       // Takes effect at once: the setting now answers 404 for this user.
+      toast(`You left ${setting.name}`);
       router.push("/settings");
       return;
     }
 
     members.reload();
     onChanged();
+    toast(`Removed ${pending.member.displayName}`);
   }
 
   const dialog = describe(pending, setting.name);

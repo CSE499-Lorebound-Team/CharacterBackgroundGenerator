@@ -13,6 +13,7 @@ import {
   LoadingCards,
   LoadMore,
 } from "@/components/layout/PageStates";
+import { useToast } from "@/components/layout/Toaster";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
 import { formatRelativeTime } from "@/lib/format";
@@ -34,6 +35,7 @@ const MAX_USES_LIMIT = 100;
 export function SettingInvites({ settingId }: { settingId: string }) {
   const fetchApi = useApiFetch();
   const invites = usePagedList<InviteDto>(`/api/settings/${settingId}/invites`, 20);
+  const toast = useToast();
 
   const [revoking, setRevoking] = useState<InviteDto>();
   const [revokeOpen, setRevokeOpen] = useState(false);
@@ -97,6 +99,7 @@ export function SettingInvites({ settingId }: { settingId: string }) {
             method: "DELETE",
           });
           invites.reload();
+          toast("Invite revoked");
         }}
       />
     </section>

@@ -11,6 +11,7 @@ import { EditCharacterDialog } from "@/components/characters/EditCharacterDialog
 import { ConfirmDialog } from "@/components/forms/ConfirmDialog";
 import { FormAlert } from "@/components/forms/FormAlert";
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/lib/api";
@@ -83,6 +84,7 @@ type CharacterSheetProps = {
 function CharacterSheet({ character, steps, onChanged }: CharacterSheetProps) {
   const router = useRouter();
   const fetchApi = useApiFetch();
+  const toast = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -179,7 +181,10 @@ function CharacterSheet({ character, steps, onChanged }: CharacterSheetProps) {
           open={editOpen}
           onOpenChange={setEditOpen}
           character={character}
-          onSaved={onChanged}
+          onSaved={() => {
+            onChanged();
+            toast("Character saved");
+          }}
         />
       )}
 
@@ -191,6 +196,7 @@ function CharacterSheet({ character, steps, onChanged }: CharacterSheetProps) {
         confirmLabel="Delete Character"
         onConfirm={async () => {
           await fetchApi<void>(`/api/characters/${character.id}`, { method: "DELETE" });
+          toast(`Deleted ${character.name}`);
           router.push("/characters");
         }}
       />

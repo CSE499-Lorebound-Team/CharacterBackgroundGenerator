@@ -52,7 +52,7 @@ From a fresh clone to signed in with sample data, on Windows:
       Use `player@lorebound.local` / `lorebound-player-dev` for the Player.
    2. The explorer keeps the sign-in cookie. Try **Dashboard → GET /api/dashboard** or **Settings → GET /api/settings**.
    3. Every request that changes data (POST, PUT, PATCH, DELETE), login included, needs that same `X-Requested-With: Lorebound` header. The explorer lists it on those requests.
-6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Log in with a seeded account from step 5 or register a new one; the API must be running. Every page except the dashboard uses the API; the dashboard still shows mock data until P9-15.
+6. **Run the frontend** in a second terminal: `cd frontend`, `npm install`, `npm run dev`, then open `http://localhost:3000`. Log in with a seeded account from step 5 or register a new one; the API must be running. Every page reads the API; there is no mock data.
 7. **Run the tests** with `dotnet test Lorebound.slnx` from the repository root (Docker Desktop must be running).
 
 New to the codebase? Read [How the API Works](#how-the-api-works) next.

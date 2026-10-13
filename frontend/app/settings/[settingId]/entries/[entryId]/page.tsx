@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import { EmptyState, ErrorState, LoadingCards } from "@/components/layout/PageStates";
 import { DeleteEntryDialog } from "@/components/settings/DeleteEntryDialog";
 import { GmOnlyBadge, TypeBadge } from "@/components/settings/EntryBadges";
@@ -92,6 +93,7 @@ type EntryArticleProps = {
 
 function EntryArticle({ settingId, entry, isGm, onChanged }: EntryArticleProps) {
   const router = useRouter();
+  const toast = useToast();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -154,14 +156,20 @@ function EntryArticle({ settingId, entry, isGm, onChanged }: EntryArticleProps) 
             onOpenChange={setEditOpen}
             settingId={settingId}
             entry={entry}
-            onSaved={onChanged}
+            onSaved={(saved) => {
+              onChanged();
+              toast(`Saved ${saved.name}`);
+            }}
           />
           <DeleteEntryDialog
             open={deleteOpen}
             onOpenChange={setDeleteOpen}
             settingId={settingId}
             entry={entry}
-            onDeleted={() => router.push(`/settings/${settingId}`)}
+            onDeleted={() => {
+              toast(`Deleted ${entry.name}`);
+              router.push(`/settings/${settingId}`);
+            }}
           />
         </>
       )}
