@@ -30,6 +30,8 @@ export type ProblemDetails = {
   instance?: string | null;
   // Validation problems (400) list messages per field.
   errors?: Record<string, string[]>;
+  // Extensions sit at the top level, e.g. relationshipCount on a 409.
+  [extension: string]: unknown;
 };
 
 export type PagedResult<T> = {

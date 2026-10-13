@@ -1,4 +1,6 @@
 import Link from "next/link";
+
+import { GmOnlyBadge, TypeBadge } from "@/components/settings/EntryBadges";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -7,56 +9,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { plural } from "@/lib/format";
+import type { EntryListItemDto } from "@/lib/types";
 
 type SettingEntryCardProps = {
-  id: string;
   settingId: string;
-
-  name: string;
-  type: string;
-  description: string;
-  relationshipCount: number;
-
-  isGmOnly?: boolean;
+  entry: EntryListItemDto;
 };
 
-export function SettingEntryCard({
-  id,
-  settingId,
-  name,
-  type,
-  description,
-  relationshipCount,
-  isGmOnly = false,
-}: SettingEntryCardProps) {
+export function SettingEntryCard({ settingId, entry }: SettingEntryCardProps) {
   return (
     <Card className="transition-colors hover:border-primary/40">
       <CardHeader className="space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <CardTitle>{name}</CardTitle>
+          <CardTitle>{entry.name}</CardTitle>
 
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-              {type}
-            </span>
-
-            {isGmOnly && (
-              <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive">
-                GM Only
-              </span>
-            )}
+            <TypeBadge type={entry.entryType} />
+            {/* The API only sends isGmOnly to GameMasters. */}
+            {entry.isGmOnly && <GmOnlyBadge />}
           </div>
         </div>
       </CardHeader>
 
       <CardContent className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          {description}
-        </p>
+        {entry.description ? (
+          <p className="line-clamp-3 text-sm text-muted-foreground">
+            {entry.description}
+          </p>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">No description yet.</p>
+        )}
 
         <p className="text-xs text-muted-foreground">
-          {relationshipCount}{" "}
-          {relationshipCount === 1 ? "relationship" : "relationships"}
+          {plural(entry.relationshipCount, "relationship")}
         </p>
       </CardContent>
 
@@ -65,13 +51,9 @@ export function SettingEntryCard({
           variant="outline"
           className="w-full"
           nativeButton={false}
-          render={
-            <Link
-              href={`/settings/${settingId}/entries/${id}`}
-            />
-          }
+          render={<Link href={`/settings/${settingId}/entries/${entry.id}`} />}
         >
-          Open Article
+          Open Entry
         </Button>
       </CardFooter>
     </Card>

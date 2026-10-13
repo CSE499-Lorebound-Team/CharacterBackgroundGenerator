@@ -56,6 +56,15 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 });
 ```
 
+## Loading data in pages
+
+- `useApiData<T>(path)` (`lib/use-api-data.ts`) GETs one resource and returns `data`, `error`, `isLoading` and `reload()`. Pass `null` to wait.
+- `usePagedList<T>(path)` loads a `PagedResult<T>` list: page 1 whenever `path` changes, then `loadMore()` appends the next page. Pass the filters in `path` (without `page`/`pageSize`) and call `reload()` after a change.
+- Both keep the previous data while new data loads, and set state only when a request settles, so they satisfy `react-hooks/set-state-in-effect`.
+- Debounce search boxes with `useDebouncedValue` (300 ms).
+- Show the three states with `LoadingCards`, `ErrorState` (with a retry) and `EmptyState` from `components/layout/PageStates.tsx`.
+- Form helpers: `FormField` and `FormAlert` (`components/forms/`), with `readValidationErrors` (`lib/form-errors.ts`) to put a 400's errors under their fields.
+
 ## Sign-in and the session
 
 - `/login` and `/register` live in the `app/(auth)` route group, which has no sidebar. Both read `next` (same-site paths only, see `safeNextPath` in `lib/auth.ts`) and go there after signing in, or to `/dashboard`.
@@ -67,8 +76,8 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 
 ## Reading localStorage in pages
 
-Until pages are wired to the API (Phase 9), settings and entries live in `localStorage` (`lib/settings/*-store.ts`). Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
+The settings pages (`/settings`, a setting, its entries) use the API. Until the dashboard, characters and builder are wired up (P9-12 to P9-15), those pages still read settings, entries and characters from `localStorage` (`lib/settings/*-store.ts`, `lib/characters/characters-store.ts`), so a setting created on `/settings` does not appear there yet. Do **not** load the stores with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
 
 - Use `useIsClient()` from `lib/use-is-client.ts`, which is `false` during server rendering and hydration and `true` in the browser.
-- Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/settings/page.tsx`.
+- Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/dashboard/page.tsx`.
 - To reset a form from props, give the form a `key` (see `components/settings/SettingEntryDialog.tsx`) rather than syncing state in an effect.
