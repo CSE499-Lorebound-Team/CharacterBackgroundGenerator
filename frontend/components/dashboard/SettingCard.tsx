@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 
+import { RoleBadge } from "@/components/settings/RoleBadge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,34 +10,25 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatRelativeTime, plural } from "@/lib/format";
+import type { SettingListItemDto } from "@/lib/types";
 
-type SettingCardProps = {
-  id: string;
-  name: string;
-  entryCount: number;
-  updatedAt: string;
-};
-
-export function SettingCard({
-  id,
-  name,
-  entryCount,
-  updatedAt,
-}: SettingCardProps) {
-  const updatedText = new Date(updatedAt).toLocaleDateString();
-
+export function SettingCard({ setting }: { setting: SettingListItemDto }) {
   return (
     <Card className="transition-colors hover:border-primary/40">
-      <CardHeader className="space-y-2">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-primary" />
-          <CardTitle>{name}</CardTitle>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <BookOpen className="h-4 w-4 shrink-0 text-primary" />
+            <CardTitle className="truncate">{setting.name}</CardTitle>
+          </div>
+          <RoleBadge role={setting.myRole} isOwner={setting.isOwner} />
         </div>
       </CardHeader>
 
       <CardContent className="space-y-1 text-sm text-muted-foreground">
-        <p>{entryCount} {entryCount === 1 ? "entry" : "entries"}</p>
-        <p>Updated {updatedText}</p>
+        <p>{plural(setting.entryCount, "entry", "entries")}</p>
+        <p>Updated {formatRelativeTime(setting.updatedAt)}</p>
       </CardContent>
 
       <CardFooter>
@@ -44,9 +36,7 @@ export function SettingCard({
           variant="outline"
           className="w-full"
           nativeButton={false}
-          render={
-            <Link href={`/settings/${id}`} />
-          }
+          render={<Link href={`/settings/${setting.id}`} />}
         >
           Open Setting
         </Button>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserRound } from "lucide-react";
 
+import { ReadOnlyBadge, StatusBadge } from "@/components/characters/CharacterBadges";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,45 +10,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import type { CharacterListItemDto } from "@/lib/types";
 
-type CharacterCardProps = {
-  id: string;
-  name: string;
-  settingName: string;
-  status: "Draft" | "Complete";
-};
+export function CharacterCard({ character }: { character: CharacterListItemDto }) {
+  const canBuild = character.status === "Draft" && !character.isReadOnly;
 
-export function CharacterCard({
-  id,
-  name,
-  settingName,
-  status,
-}: CharacterCardProps) {
   return (
     <Card className="transition-colors hover:border-primary/40">
-      <CardHeader className="space-y-2">
-        <div className="flex items-center gap-2">
-          <UserRound className="h-4 w-4 text-primary" />
-
-          <CardTitle>{name}</CardTitle>
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            <UserRound className="h-4 w-4 shrink-0 text-primary" />
+            <CardTitle className="truncate">{character.name}</CardTitle>
+          </div>
+          <div className="flex shrink-0 gap-1">
+            <StatusBadge status={character.status} />
+            {character.isReadOnly && <ReadOnlyBadge />}
+          </div>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-2 text-sm">
-        <p className="text-muted-foreground">
-          {settingName}
+      <CardContent className="space-y-1 text-sm text-muted-foreground">
+        <p className="truncate">{character.settingName}</p>
+        <p className="truncate">
+          {character.homelandName ? `From ${character.homelandName}` : "No homeland yet"}
         </p>
-
-        <span
-          className={[
-            "inline-flex rounded-full px-2 py-1 text-xs font-medium",
-            status === "Complete"
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground",
-          ].join(" ")}
-        >
-          {status}
-        </span>
       </CardContent>
 
       <CardFooter>
@@ -56,12 +43,10 @@ export function CharacterCard({
           className="w-full"
           nativeButton={false}
           render={
-            <Link href={`/characters/${id}`} />
+            <Link href={canBuild ? `/builder/${character.id}` : `/characters/${character.id}`} />
           }
         >
-          {status === "Draft"
-            ? "Continue"
-            : "View"}
+          {canBuild ? "Continue Building" : "View Character"}
         </Button>
       </CardFooter>
     </Card>
