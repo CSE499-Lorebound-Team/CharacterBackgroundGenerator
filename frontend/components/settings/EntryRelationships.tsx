@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Plus, X } from "lucide-react";
 
 import { FormAlert } from "@/components/forms/FormAlert";
 import { errorMessage } from "@/components/layout/PageStates";
+import { useToast } from "@/components/layout/Toaster";
 import { AddRelationshipDialog } from "@/components/settings/AddRelationshipDialog";
 import { TypeBadge } from "@/components/settings/EntryBadges";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ export function EntryRelationships({
   onChanged,
 }: EntryRelationshipsProps) {
   const [addOpen, setAddOpen] = useState(false);
+  const toast = useToast();
   const [removing, setRemoving] = useState<Removing>();
 
   const isEmpty = entry.outgoing.length === 0 && entry.incoming.length === 0;
@@ -85,14 +87,20 @@ export function EntryRelationships({
             onOpenChange={setAddOpen}
             settingId={settingId}
             entry={entry}
-            onAdded={onChanged}
+            onAdded={() => {
+              onChanged();
+              toast("Relationship added");
+            }}
           />
           <RemoveRelationshipDialog
             settingId={settingId}
             entryName={entry.name}
             removing={removing}
             onClose={() => setRemoving(undefined)}
-            onRemoved={onChanged}
+            onRemoved={() => {
+              onChanged();
+              toast("Relationship removed");
+            }}
           />
         </>
       )}

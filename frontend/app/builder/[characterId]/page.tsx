@@ -13,6 +13,7 @@ import { ChoiceSummary } from "@/components/characters/ChoiceSummary";
 import { BackstoryField } from "@/components/characters/EditCharacterDialog";
 import { FormAlert } from "@/components/forms/FormAlert";
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import {
   EmptyState,
   ErrorState,
@@ -146,13 +147,14 @@ type WizardProps = {
 function Wizard({ steps, character, onSaved }: WizardProps) {
   const router = useRouter();
   const fetchApi = useApiFetch();
+  const toast = useToast();
 
   const [drafts, setDrafts] = useState<Drafts>(() => draftsFrom(character));
   const [index, setIndex] = useState(() => startIndex(steps, character));
   const [problems, setProblems] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [backstory, setBackstory] = useState(character.backstory ?? "");
-  const [backstoryNote, setBackstoryNote] = useState<string>();
+  const [backstoryError, setBackstoryError] = useState<string>();
 
   const step = steps[index];
   const draft = drafts[step.key] ?? emptyDraft;
@@ -210,7 +212,7 @@ function Wizard({ steps, character, onSaved }: WizardProps) {
   }
 
   async function saveBackstory() {
-    setBackstoryNote(undefined);
+    setBackstoryError(undefined);
     try {
       const updated = await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}`, {
         method: "PUT",
@@ -220,9 +222,9 @@ function Wizard({ steps, character, onSaved }: WizardProps) {
         } satisfies UpdateCharacterRequest,
       });
       onSaved(updated);
-      setBackstoryNote("Backstory saved.");
+      toast("Backstory saved");
     } catch (error) {
-      setBackstoryNote(problemLines(error).join(" "));
+      setBackstoryError(problemLines(error).join(" "));
     }
   }
 
@@ -237,6 +239,7 @@ function Wizard({ steps, character, onSaved }: WizardProps) {
       await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}/complete`, {
         method: "POST",
       });
+      toast(`${character.name} is complete`);
       router.push(`/characters/${character.id}`);
     } catch (error) {
       // 400: one error per failing step, keyed by step key (and Name).
@@ -336,8 +339,8 @@ function Wizard({ steps, character, onSaved }: WizardProps) {
                   <Button variant="outline" size="sm" onClick={saveBackstory}>
                     Save Backstory
                   </Button>
-                  {backstoryNote && (
-                    <span className="text-sm text-muted-foreground">{backstoryNote}</span>
+                  {backstoryError && (
+                    <span className="text-sm text-destructive">{backstoryError}</span>
                   )}
                 </div>
               </div>
@@ -383,6 +386,7 @@ type CompletedProps = {
 /** A complete character's answers are locked until it is reopened. */
 function Completed({ character, steps, onReopened }: CompletedProps) {
   const fetchApi = useApiFetch();
+  const toast = useToast();
   const [error, setError] = useState<string>();
   const [isReopening, setIsReopening] = useState(false);
 
@@ -395,6 +399,7 @@ function Completed({ character, steps, onReopened }: CompletedProps) {
           method: "POST",
         })
       );
+      toast("Reopened as a draft");
     } catch (caught) {
       setError(errorMessage(caught));
       setIsReopening(false);

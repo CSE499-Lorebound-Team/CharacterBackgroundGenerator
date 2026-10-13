@@ -9,6 +9,7 @@ import { CharacterSearch } from "@/components/characters/CharacterSearch";
 import { CreateCharacterDialog } from "@/components/characters/CreateCharacterDialog";
 import { ConfirmDialog } from "@/components/forms/ConfirmDialog";
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   EmptyState,
@@ -36,6 +37,7 @@ export default function CharactersPage({
 }: PageProps<"/characters">) {
   const router = useRouter();
   const fetchApi = useApiFetch();
+  const toast = useToast();
   // ?create=1 (the dashboard's Create Character) opens the dialog at once.
   const { create } = use(searchParams);
 
@@ -155,6 +157,7 @@ export default function CharactersPage({
           if (!deleting) return;
           await fetchApi<void>(`/api/characters/${deleting.id}`, { method: "DELETE" });
           characters.reload();
+          toast(`Deleted ${deleting.name}`);
         }}
       />
     </AppShell>

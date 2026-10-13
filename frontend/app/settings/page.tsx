@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { useToast } from "@/components/layout/Toaster";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   EmptyState,
@@ -31,6 +32,7 @@ const roleFilters: { value: RoleFilter; label: string }[] = [
 
 export default function SettingsPage() {
   const router = useRouter();
+  const toast = useToast();
 
   const [search, setSearch] = useState("");
   const [role, setRole] = useState<RoleFilter>("all");
@@ -133,6 +135,7 @@ export default function SettingsPage() {
         onCreated={(setting) => {
           setCreateOpen(false);
           settings.reload();
+          toast(`Created ${setting.name}`);
           router.push(`/settings/${setting.id}`);
         }}
       />
