@@ -272,6 +272,8 @@ Replace mock characters.
 - [ ] "Create Character" flow: choose setting (from joined settings), create draft, go to builder.
 - [ ] Delete with confirmation.
 - [ ] Dashboard `QuickActions` links to the create-character flow instead of `/builder`; the builder needs a character (`/builder/{id}`, PR #208).
+  - The flow is `/characters?create=1`, which opens the create dialog; with no setting to choose, the dialog points to `/settings`.
+- [ ] The character page `/characters/[id]` loads `GET /api/characters/{id}`: status and "Read-only" badges, the answers per builder step, the backstory as plain text, and for the owner Edit (name and backstory), Continue Building and Delete. A GameMaster reading a Player's character sees it without those actions.
 
 ## Acceptance criteria
 - Created draft appears in the list and opens in the builder.
@@ -313,10 +315,13 @@ Persistence and finishing.
 
 ## Tasks
 - [ ] Next saves via `PUT /choices/{key}` and advances; resume drafts at `currentStep`.
+  - Back and the summary panel's step links save the open step the same way, so no answer is lost; a step is saved only when its answer changed.
 - [ ] Replace `lib/builder/builder-store.ts` (localStorage) with `PUT /choices/{key}` and `GET /characters/{id}`.
+  - The store was deleted with the hardcoded catalog in P9-13, once nothing imported it.
 - [ ] Show stale-step warnings returned by the API and link to fix them.
 - [ ] Review step lists all choices; "Complete" calls `/complete` and shows API validation errors.
 - [ ] Read-only characters open in a view-only mode.
+  - So does someone else's character (a GameMaster reading a Player's). A complete character opens locked, with "Reopen to Edit" (`POST /reopen`) to change its answers.
 - [ ] Optional free-text backstory field saved via `PUT /characters/{id}`, on the Review step or the character page; it is not a catalog step (PR #208's step 7 editor moves here).
 
 ## Acceptance criteria

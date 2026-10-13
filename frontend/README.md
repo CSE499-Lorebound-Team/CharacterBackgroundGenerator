@@ -77,8 +77,14 @@ const setting = await fetchApi<SettingDetailDto>("/api/settings", {
 
 ## Reading localStorage in pages
 
-The settings pages (`/settings`, a setting, its entries) use the API. Until the dashboard, characters and builder are wired up (P9-12 to P9-15), those pages still read settings, entries and characters from `localStorage` (`lib/settings/*-store.ts`, `lib/characters/characters-store.ts`), so a setting created on `/settings` does not appear there yet. Do **not** load the stores with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
+Every page except the dashboard uses the API. Until P9-15 wires it up, the dashboard still reads settings and characters from `localStorage` (`lib/settings/*-store.ts`, `lib/characters/characters-store.ts`), so what you create elsewhere does not appear there yet; P9-16 deletes those stores. Do **not** load them with `setState` inside `useEffect`; the `react-hooks/set-state-in-effect` lint rule rejects it. Instead:
 
 - Use `useIsClient()` from `lib/use-is-client.ts`, which is `false` during server rendering and hydration and `true` in the browser.
 - Key the page content on it so it remounts once on the client, and read the store in a lazy `useState(() => isClient ? getSettings() : [])` initializer. See `app/dashboard/page.tsx`.
 - To reset a form from props, give the form a `key` (see `components/settings/SettingEntryDialog.tsx`) rather than syncing state in an effect.
+
+## Characters and the builder
+
+- The builder's steps come only from `GET /api/builder/steps` (`useBuilderSteps` in `lib/builder-steps.ts`); there is no copy of the catalog in the frontend. `choiceRows` turns the catalog plus a character's choices into the rows shown on the character page, the builder's summary panel and Review.
+- `/builder/[characterId]` resumes at `currentStep`. Moving to another step (Next, Back or the summary panel) saves the open step with `PUT /api/characters/{id}/choices/{key}` if its answer changed, and uses the character the API returns, including `staleSteps`.
+- Review edits the optional backstory (`PUT /api/characters/{id}`) and calls `/complete`. A complete character opens locked with "Reopen to Edit"; a read-only character, or someone else's, opens view-only.

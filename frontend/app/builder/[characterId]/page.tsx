@@ -1,746 +1,468 @@
 "use client";
 
-import {
-  use,
-  useMemo,
-  useState,
-} from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, Lock } from "lucide-react";
 
-import { AppShell } from "@/components/layout/AppShell";
 import { BuilderProgress } from "@/components/builder/BuilderProgress";
-import { BuilderReview } from "@/components/builder/BuilderReview";
 import { BuilderTextStep } from "@/components/builder/BuilderTextStep";
 import { CharacterSummaryPanel } from "@/components/builder/CharacterSummaryPanel";
 import { EntryChoiceStep } from "@/components/builder/EntryChoiceStep";
+import { ChoiceSummary } from "@/components/characters/ChoiceSummary";
+import { BackstoryField } from "@/components/characters/EditCharacterDialog";
+import { FormAlert } from "@/components/forms/FormAlert";
+import { AppShell } from "@/components/layout/AppShell";
+import {
+  EmptyState,
+  ErrorState,
+  errorMessage,
+  LoadingCards,
+} from "@/components/layout/PageStates";
 import { Button } from "@/components/ui/button";
-
-import {
-  getBuilderState,
-  saveBuilderState,
-} from "@/lib/builder/builder-store";
-import {
-  builderSteps,
-  getBuilderStep,
-} from "@/lib/builder/steps";
-import {
-  getCharacter,
-  updateCharacter,
-  updateCharacterProgress,
-} from "@/lib/characters/characters-store";
-import {
-  getEntriesForSetting,
-} from "@/lib/settings/entries-store";
-import {
-  getSetting,
-} from "@/lib/settings/settings-store";
-import { useIsClient } from "@/lib/use-is-client";
-
+import { ApiError } from "@/lib/api";
+import { choiceRows, stepLabel, useBuilderSteps } from "@/lib/builder-steps";
 import type {
-  BuilderStepKey,
-  CharacterBuilderState,
-} from "@/lib/builder/types";
-import type {
-  Character,
-} from "@/lib/characters/types";
-import type {
-  SettingEntry,
-} from "@/lib/settings/types";
+  BuilderStepDto,
+  CharacterDetailDto,
+  SaveChoiceRequest,
+  UpdateCharacterRequest,
+} from "@/lib/types";
+import { useApiData } from "@/lib/use-api-data";
+import { useApiFetch } from "@/lib/use-api-fetch";
 
+export default function BuilderPage({ params }: PageProps<"/builder/[characterId]">) {
+  const { characterId } = use(params);
 
-type BuilderPageProps = {
-  params: Promise<{
-    characterId: string;
-  }>;
-};
+  const steps = useBuilderSteps();
+  const character = useApiData<CharacterDetailDto>(`/api/characters/${characterId}`);
 
-type EntryChoiceKey =
-  | "homelandEntryId"
-  | "cultureEntryId"
-  | "religionEntryId"
-  | "factionEntryId";
-
-export default function BuilderPage({
-  params,
-}: BuilderPageProps) {
-  const { characterId } =
-    use(params);
-
-  const isClient =
-    useIsClient();
-
-  return (
-    <BuilderContent
-      key={`${isClient ? "client" : "server"}:${characterId}`}
-      characterId={characterId}
-      loaded={isClient}
-    />
-  );
-}
-
-function BuilderContent({
-  characterId,
-  loaded,
-}: {
-  characterId: string;
-  loaded: boolean;
-}) {
-  const router =
-    useRouter();
-
-  const [
-    character,
-    setCharacter,
-  ] =
-    useState<Character | undefined>(
-      () =>
-        loaded
-          ? getCharacter(
-              characterId
-            )
-          : undefined
-    );
-
-  const [
-    builderState,
-    setBuilderState,
-  ] =
-    useState<
-      CharacterBuilderState | undefined
-    >(() =>
-      loaded
-        ? getBuilderState(
-            characterId
-          )
-        : undefined
-    );
-
-  const setting =
-    useMemo(
-      () =>
-        loaded &&
-        character
-          ? getSetting(
-              character.settingId
-            )
-          : undefined,
-      [
-        loaded,
-        character,
-      ]
-    );
-
-  const entries =
-    useMemo<SettingEntry[]>(
-      () => {
-        if (
-          !loaded ||
-          !character
-        ) {
-          return [];
-        }
-
-        const allEntries =
-          getEntriesForSetting(
-            character.settingId
-          );
-
-        if (
-          setting?.role === "Player"
-        ) {
-          return allEntries.filter(
-            (entry) =>
-              !entry.isGmOnly
-          );
-        }
-
-        return allEntries;
-      },
-      [
-        loaded,
-        character,
-        setting,
-      ]
-    );
-
-  if (!loaded) {
+  if (character.error instanceof ApiError && character.error.status === 404) {
     return (
       <AppShell>
-        <div className="py-16 text-center text-muted-foreground">
-          Loading builder...
-        </div>
+        <EmptyState
+          title="Character not found"
+          description="This character does not exist, or you cannot see it."
+          action={
+            <Button variant="outline" nativeButton={false} render={<Link href="/characters" />}>
+              Back to Characters
+            </Button>
+          }
+        />
       </AppShell>
     );
   }
 
-  if (
-    !character ||
-    !builderState
-  ) {
-    return (
-      <AppShell>
-        <div className="py-16 text-center">
-          <h1 className="text-2xl font-semibold">
-            Character not found
-          </h1>
-
-          <p className="mt-2 text-muted-foreground">
-            This character could not
-            be loaded.
-          </p>
-
-          <Button
-            className="mt-6"
-            variant="outline"
-            nativeButton={false}
-            render={
-              <Link href="/characters" />
-            }
-          >
-            Back to Characters
-          </Button>
-        </div>
-      </AppShell>
-    );
-  }
-
-  const currentCharacter =
-    character;
-
-  const currentBuilderState =
-    builderState;
-
-  const step =
-    getBuilderStep(
-      currentBuilderState.currentStep
-    );
-
-  if (!step) {
-    return null;
-  }
-
-  const entryChoiceKey =
-    getEntryChoiceKey(
-      step.key
-    );
-
-  const entryOptions =
-    step.entryTypes
-      ? entries.filter(
-          (entry) =>
-            step.entryTypes?.includes(
-              entry.type
-            )
-        )
-      : [];
-
-  const selectedEntryId =
-    entryChoiceKey
-      ? currentBuilderState
-          .choices[
-          entryChoiceKey
-        ]
-      : undefined;
-
-  const selectedHomeland =
-    findChoiceEntry(
-      entries,
-      currentBuilderState
-        .choices
-        .homelandEntryId
-    );
-
-  const selectedCulture =
-    findChoiceEntry(
-      entries,
-      currentBuilderState
-        .choices
-        .cultureEntryId
-    );
-
-  const selectedReligion =
-    findChoiceEntry(
-      entries,
-      currentBuilderState
-        .choices
-        .religionEntryId
-    );
-
-  const selectedFaction =
-    findChoiceEntry(
-      entries,
-      currentBuilderState
-        .choices
-        .factionEntryId
-    );
-
-  function persistState(
-    state:
-      CharacterBuilderState
-  ) {
-    const saved =
-      saveBuilderState(
-        state.characterId,
-        {
-          currentStep:
-            state.currentStep,
-          choices:
-            state.choices,
-        }
-      );
-
-    setBuilderState(
-      saved
-    );
-
-    updateCharacterProgress(
-      characterId,
-      saved.currentStep
-    );
-  }
-
-  function selectEntry(
-    choiceKey:
-      EntryChoiceKey,
-    entryId: string
-  ) {
-    persistState({
-      ...currentBuilderState,
-
-      choices: {
-        ...currentBuilderState
-          .choices,
-
-        [choiceKey]:
-          entryId,
-      },
-
-      updatedAt:
-        new Date()
-          .toISOString(),
-    });
-  }
-
-  function updateMotivation(
-    motivation: string
-  ) {
-    persistState({
-      ...currentBuilderState,
-
-      choices: {
-        ...currentBuilderState
-          .choices,
-
-        motivation,
-      },
-
-      updatedAt:
-        new Date()
-          .toISOString(),
-    });
-  }
-
-  function updateBackstoryChoice(
-    backstory: string
-  ) {
-    persistState({
-      ...currentBuilderState,
-
-      choices: {
-        ...currentBuilderState
-          .choices,
-
-        backstory,
-      },
-
-      updatedAt:
-        new Date()
-          .toISOString(),
-    });
-  }
-
-  function handleBack() {
-    if (
-      currentBuilderState
-        .currentStep <= 1
-    ) {
-      return;
-    }
-
-    persistState({
-      ...currentBuilderState,
-
-      currentStep:
-        currentBuilderState
-          .currentStep - 1,
-
-      updatedAt:
-        new Date()
-          .toISOString(),
-    });
-  }
-
-  function handleNext() {
-    if (
-      currentBuilderState
-        .currentStep >=
-      builderSteps.length
-    ) {
-      return;
-    }
-
-    persistState({
-      ...currentBuilderState,
-
-      currentStep:
-        currentBuilderState
-          .currentStep + 1,
-
-      updatedAt:
-        new Date()
-          .toISOString(),
-    });
-  }
-
-  function handleComplete() {
-    const backstory =
-      currentBuilderState
-        .choices
-        .backstory ?? "";
-
-    const updated =
-      updateCharacter(
-        currentCharacter.id,
-        {
-          name:
-            currentCharacter.name,
-
-          settingId:
-            currentCharacter.settingId,
-
-          settingName:
-            currentCharacter.settingName,
-
-          status:
-            "Complete",
-
-          backstory,
-        }
-      );
-
-    if (!updated) {
-      return;
-    }
-
-    setCharacter(
-      updated
-    );
-
-    router.push(
-      `/characters/${updated.id}`
-    );
-  }
-
-  const nextDisabled =
-    Boolean(
-      entryChoiceKey &&
-      !step.optional &&
-      !selectedEntryId
-    ) ||
-    (
-      step.key ===
-        "motivation" &&
-      !currentBuilderState
-        .choices
-        .motivation
-        ?.trim()
-    );
-
-  const isReview =
-    step.key === "review";
+  const error = character.error ?? steps.error;
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-7xl space-y-8">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {
-              currentCharacter.name
-            }
-          </p>
-
-          <h1 className="font-heading text-3xl font-bold tracking-tight">
-            Character Background
-            Builder
-          </h1>
-        </div>
-
-        <BuilderProgress
-          currentStep={
-            step.order
-          }
-          totalSteps={
-            builderSteps.length
-          }
-          stepName={
-            step.title
-          }
+      {error ? (
+        <ErrorState
+          error={error}
+          onRetry={() => {
+            character.reload();
+            steps.reload();
+          }}
         />
-
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <section className="space-y-6">
-            <div>
-              <h2 className="font-heading text-2xl font-semibold">
-                {
-                  step.title
-                }
-              </h2>
-
-              <p className="mt-1 text-muted-foreground">
-                {
-                  step.description
-                }
-              </p>
-            </div>
-
-            {step.key ===
-              "character" && (
-              <CharacterIntro
-                character={
-                  currentCharacter
-                }
-              />
-            )}
-
-            {entryChoiceKey && (
-              <EntryChoiceStep
-                options={
-                  entryOptions
-                }
-                selectedId={
-                  selectedEntryId
-                }
-                onSelect={(
-                  entryId
-                ) =>
-                  selectEntry(
-                    entryChoiceKey,
-                    entryId
-                  )
-                }
-              />
-            )}
-
-            {step.key ===
-              "motivation" && (
-              <BuilderTextStep
-                value={
-                  currentBuilderState
-                    .choices
-                    .motivation ?? ""
-                }
-                onChange={
-                  updateMotivation
-                }
-                placeholder="What does your character want, fear, protect, or hope to accomplish?"
-              />
-            )}
-
-            {step.key ===
-              "backstory" && (
-              <BuilderTextStep
-                value={
-                  currentBuilderState
-                    .choices
-                    .backstory ?? ""
-                }
-                onChange={
-                  updateBackstoryChoice
-                }
-                placeholder="Describe the important people, events, losses, victories, and experiences that shaped your character."
-              />
-            )}
-
-            {step.key ===
-              "review" && (
-              <BuilderReview
-                characterName={
-                  currentCharacter.name
-                }
-                setting={
-                  currentCharacter
-                    .settingName
-                }
-                homeland={
-                  selectedHomeland?.name
-                }
-                culture={
-                  selectedCulture?.name
-                }
-                religion={
-                  selectedReligion?.name
-                }
-                faction={
-                  selectedFaction?.name
-                }
-                motivation={
-                  currentBuilderState
-                    .choices
-                    .motivation
-                }
-                backstory={
-                  currentBuilderState
-                    .choices
-                    .backstory
-                }
-              />
-            )}
-
-            <div className="flex flex-col-reverse gap-2 border-t border-border pt-6 sm:flex-row sm:justify-between">
-              <Button
-                variant="outline"
-                onClick={
-                  handleBack
-                }
-                disabled={
-                  currentBuilderState
-                    .currentStep <=
-                  1
-                }
-              >
-                Back
-              </Button>
-
-              {isReview ? (
-                <Button
-                  onClick={
-                    handleComplete
-                  }
-                >
-                  Complete Character
-                </Button>
-              ) : (
-                <Button
-                  onClick={
-                    handleNext
-                  }
-                  disabled={
-                    nextDisabled
-                  }
-                >
-                  Next
-                </Button>
-              )}
-            </div>
-          </section>
-
-          <CharacterSummaryPanel
-            setting={
-              currentCharacter
-                .settingName
-            }
-            homeland={
-              selectedHomeland
-                ?.name
-            }
-            culture={
-              selectedCulture
-                ?.name
-            }
-            religion={
-              selectedReligion
-                ?.name
-            }
-            faction={
-              selectedFaction
-                ?.name
-            }
-            motivation={
-              currentBuilderState
-                .choices
-                .motivation
-            }
-          />
-        </div>
-      </div>
+      ) : !character.data || !steps.data ? (
+        <LoadingCards count={4} />
+      ) : (
+        <Builder key={character.data.id} steps={steps.data.steps} initial={character.data} />
+      )}
     </AppShell>
   );
 }
 
-function CharacterIntro({
-  character,
-}: {
-  character: Character;
-}) {
+/** The answer being edited for each step, before it is saved. */
+type Draft = { entryIds: string[]; freeText: string };
+type Drafts = Record<string, Draft>;
+
+const emptyDraft: Draft = { entryIds: [], freeText: "" };
+
+function draftsFrom(character: CharacterDetailDto): Drafts {
+  const drafts: Drafts = {};
+
+  for (const choice of [...character.choices].sort((a, b) => a.ordinal - b.ordinal)) {
+    const draft = (drafts[choice.stepKey] ??= { entryIds: [], freeText: "" });
+    if (choice.entryId) draft.entryIds.push(choice.entryId);
+    if (choice.freeText) draft.freeText = choice.freeText;
+  }
+
+  return drafts;
+}
+
+function sameDraft(a: Draft, b: Draft): boolean {
   return (
-    <div className="rounded-lg border border-border bg-card p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Character
-      </p>
+    a.freeText.trim() === b.freeText.trim() &&
+    a.entryIds.length === b.entryIds.length &&
+    a.entryIds.every((id, i) => id === b.entryIds[i])
+  );
+}
 
-      <h3 className="mt-2 font-heading text-2xl font-semibold">
-        {
-          character.name
-        }
-      </h3>
+/** Resume a draft at its currentStep (the order of the first unsaved step). */
+function startIndex(steps: BuilderStepDto[], character: CharacterDetailDto): number {
+  const index = steps.findIndex((step) => step.order === character.currentStep);
+  return index >= 0 ? index : steps.length - 1;
+}
 
-      <p className="mt-2 text-sm text-muted-foreground">
-        Campaign Setting
-      </p>
+/** Messages from a refused save or completion, keyed by step or field. */
+function problemLines(error: unknown): string[] {
+  if (error instanceof ApiError && error.errors) {
+    return Object.entries(error.errors).map(([key, messages]) => {
+      const label = key && !/^(EntryIds|FreeText|stepKey)/i.test(key) ? `${stepLabel(key)}: ` : "";
+      return label + messages.join(" ");
+    });
+  }
+  return [errorMessage(error)];
+}
 
-      <p className="mt-1 font-medium">
-        {
-          character.settingName
-        }
-      </p>
+type BuilderProps = {
+  steps: BuilderStepDto[];
+  initial: CharacterDetailDto;
+};
 
-      <p className="mt-6 text-sm leading-6 text-muted-foreground">
-        Your choices in the next
-        steps will connect this
-        character to the lore of
-        their campaign setting.
-      </p>
+function Builder({ steps, initial }: BuilderProps) {
+  const [character, setCharacter] = useState(initial);
+  const editable = character.isOwner && !character.isReadOnly;
+
+  if (!editable) {
+    return <ViewOnly character={character} steps={steps} />;
+  }
+
+  if (character.status === "Complete") {
+    return <Completed character={character} steps={steps} onReopened={setCharacter} />;
+  }
+
+  return <Wizard steps={steps} character={character} onSaved={setCharacter} />;
+}
+
+type WizardProps = {
+  steps: BuilderStepDto[];
+  character: CharacterDetailDto;
+  onSaved: (character: CharacterDetailDto) => void;
+};
+
+function Wizard({ steps, character, onSaved }: WizardProps) {
+  const router = useRouter();
+  const fetchApi = useApiFetch();
+
+  const [drafts, setDrafts] = useState<Drafts>(() => draftsFrom(character));
+  const [index, setIndex] = useState(() => startIndex(steps, character));
+  const [problems, setProblems] = useState<string[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [backstory, setBackstory] = useState(character.backstory ?? "");
+  const [backstoryNote, setBackstoryNote] = useState<string>();
+
+  const step = steps[index];
+  const draft = drafts[step.key] ?? emptyDraft;
+  const saved = draftsFrom(character)[step.key] ?? emptyDraft;
+  const rows = choiceRows(steps, character);
+  const isStale = character.staleSteps.includes(step.key);
+
+  function updateDraft(change: Partial<Draft>) {
+    setDrafts((current) => ({ ...current, [step.key]: { ...draft, ...change } }));
+  }
+
+  const answered = step.allowFreeText
+    ? draft.freeText.trim().length > 0
+    : draft.entryIds.length > 0;
+  const canContinue = !step.required || step.maxSelections === 0 || answered;
+
+  /** Saves the open step if its answer changed; false if the API refused. */
+  async function saveStep(): Promise<boolean> {
+    if (step.maxSelections === 0 || sameDraft(draft, saved)) return true;
+
+    setIsSaving(true);
+    setProblems([]);
+
+    try {
+      const request: SaveChoiceRequest = step.allowFreeText
+        ? { entryIds: null, freeText: draft.freeText.trim() || null }
+        : { entryIds: draft.entryIds, freeText: null };
+
+      // Returns the character with currentStep and staleSteps updated.
+      const updated = await fetchApi<CharacterDetailDto>(
+        `/api/characters/${character.id}/choices/${step.key}`,
+        { method: "PUT", json: request }
+      );
+      onSaved(updated);
+      return true;
+    } catch (error) {
+      setProblems(problemLines(error));
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function goTo(target: number) {
+    if (target === index) return;
+    if (await saveStep()) {
+      setProblems([]);
+      setIndex(target);
+    }
+  }
+
+  function goToKey(key: string) {
+    const target = steps.findIndex((candidate) => candidate.key === key);
+    if (target >= 0) void goTo(target);
+  }
+
+  async function saveBackstory() {
+    setBackstoryNote(undefined);
+    try {
+      const updated = await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}`, {
+        method: "PUT",
+        json: {
+          name: character.name,
+          backstory: backstory.trim() || null,
+        } satisfies UpdateCharacterRequest,
+      });
+      onSaved(updated);
+      setBackstoryNote("Backstory saved.");
+    } catch (error) {
+      setBackstoryNote(problemLines(error).join(" "));
+    }
+  }
+
+  async function complete() {
+    setIsSaving(true);
+    setProblems([]);
+
+    try {
+      // Keep an unsaved backstory edit too; it is not part of completion.
+      if ((character.backstory ?? "") !== backstory.trim()) await saveBackstory();
+
+      await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}/complete`, {
+        method: "POST",
+      });
+      router.push(`/characters/${character.id}`);
+    } catch (error) {
+      // 400: one error per failing step, keyed by step key (and Name).
+      setProblems(problemLines(error));
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-8">
+      <div>
+        <p className="text-sm text-muted-foreground">{character.settingName}</p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">{character.name}</h1>
+      </div>
+
+      <BuilderProgress position={index + 1} totalSteps={steps.length} stepTitle={step.title} />
+
+      {character.staleSteps.length > 0 && (
+        <FormAlert>
+          <p className="flex items-center gap-2 font-medium">
+            <AlertTriangle className="h-4 w-4" />
+            Some answers no longer fit your earlier choices.
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {character.staleSteps.map((key) => (
+              <Button key={key} size="sm" variant="outline" onClick={() => goToKey(key)}>
+                Fix {stepLabel(key)}
+              </Button>
+            ))}
+          </div>
+        </FormAlert>
+      )}
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="space-y-6">
+          <p className="text-muted-foreground">{step.description}</p>
+
+          {isStale && (
+            <FormAlert>
+              Your earlier choices changed, and this answer no longer fits them.
+              Choose again.
+            </FormAlert>
+          )}
+
+          {problems.length > 0 && (
+            <FormAlert>
+              <ul className="list-disc space-y-1 pl-4">
+                {problems.map((problem) => (
+                  <li key={problem}>{problem}</li>
+                ))}
+              </ul>
+            </FormAlert>
+          )}
+
+          {step.key === "setting" && (
+            <div className="border border-border bg-card p-5">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Setting
+              </p>
+              <p className="mt-1 text-lg font-medium">{character.settingName}</p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Every answer comes from this setting&apos;s lore.
+              </p>
+            </div>
+          )}
+
+          {step.entryType && (
+            <EntryChoiceStep
+              // Remount per step and per save, so options reflect the
+              // latest earlier choices.
+              key={`${step.key}:${character.updatedAt}`}
+              characterId={character.id}
+              step={step}
+              selectedIds={draft.entryIds}
+              onChange={(entryIds) => updateDraft({ entryIds })}
+            />
+          )}
+
+          {step.allowFreeText && (
+            <BuilderTextStep
+              id={`step-${step.key}`}
+              label={step.title}
+              value={draft.freeText}
+              onChange={(freeText) => updateDraft({ freeText })}
+              placeholder="What does your character want, fear, protect, or hope to accomplish?"
+              maxLength={step.maxFreeTextLength ?? 2000}
+            />
+          )}
+
+          {step.key === "review" && (
+            <div className="space-y-6">
+              <ChoiceSummary rows={rows} columns />
+
+              <div className="space-y-2 border-t border-border pt-6">
+                <BackstoryField value={backstory} onChange={setBackstory} />
+                <div className="flex items-center gap-3">
+                  <Button variant="outline" size="sm" onClick={saveBackstory}>
+                    Save Backstory
+                  </Button>
+                  {backstoryNote && (
+                    <span className="text-sm text-muted-foreground">{backstoryNote}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col-reverse gap-2 border-t border-border pt-6 sm:flex-row sm:justify-between">
+            <Button
+              variant="outline"
+              disabled={index === 0 || isSaving}
+              onClick={() => goTo(index - 1)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+
+            {step.key === "review" ? (
+              <Button disabled={isSaving} onClick={complete}>
+                <Check className="h-4 w-4" />
+                {isSaving ? "Completing..." : "Complete Character"}
+              </Button>
+            ) : (
+              <Button disabled={!canContinue || isSaving} onClick={() => goTo(index + 1)}>
+                {isSaving ? "Saving..." : "Next"}
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <CharacterSummaryPanel rows={rows} activeKey={step.key} onSelect={goToKey} />
+      </div>
     </div>
   );
 }
 
-function getEntryChoiceKey(
-  stepKey:
-    BuilderStepKey
-):
-  | EntryChoiceKey
-  | undefined {
-  switch (stepKey) {
-    case "homeland":
-      return "homelandEntryId";
+type CompletedProps = {
+  character: CharacterDetailDto;
+  steps: BuilderStepDto[];
+  onReopened: (character: CharacterDetailDto) => void;
+};
 
-    case "culture":
-      return "cultureEntryId";
+/** A complete character's answers are locked until it is reopened. */
+function Completed({ character, steps, onReopened }: CompletedProps) {
+  const fetchApi = useApiFetch();
+  const [error, setError] = useState<string>();
+  const [isReopening, setIsReopening] = useState(false);
 
-    case "religion":
-      return "religionEntryId";
-
-    case "faction":
-      return "factionEntryId";
-
-    default:
-      return undefined;
+  async function reopen() {
+    setError(undefined);
+    setIsReopening(true);
+    try {
+      onReopened(
+        await fetchApi<CharacterDetailDto>(`/api/characters/${character.id}/reopen`, {
+          method: "POST",
+        })
+      );
+    } catch (caught) {
+      setError(errorMessage(caught));
+      setIsReopening(false);
+    }
   }
+
+  return (
+    <SummaryLayout
+      character={character}
+      steps={steps}
+      notice={
+        <>
+          <p className="flex items-center gap-2 font-medium">
+            <Check className="h-4 w-4" />
+            This character is complete.
+          </p>
+          <p className="mt-1">Reopen it as a draft to change its answers.</p>
+          {error && <p className="mt-1 text-destructive">{error}</p>}
+          <Button className="mt-3" size="sm" disabled={isReopening} onClick={reopen}>
+            {isReopening ? "Reopening..." : "Reopen to Edit"}
+          </Button>
+        </>
+      }
+    />
+  );
 }
 
-function findChoiceEntry(
-  entries: SettingEntry[],
-  entryId?: string
-):
-  | SettingEntry
-  | undefined {
-  if (!entryId) {
-    return undefined;
-  }
+/** Read-only (owner removed from the setting) or someone else's character. */
+function ViewOnly({ character, steps }: { character: CharacterDetailDto; steps: BuilderStepDto[] }) {
+  return (
+    <SummaryLayout
+      character={character}
+      steps={steps}
+      notice={
+        <p className="flex items-center gap-2">
+          <Lock className="h-4 w-4" />
+          {character.isOwner
+            ? `You are no longer a member of ${character.settingName}, so this character is read-only.`
+            : `This is ${character.ownerDisplayName}'s character. You can view it, but only they can edit it.`}
+        </p>
+      }
+    />
+  );
+}
 
-  return entries.find(
-    (entry) =>
-      entry.id === entryId
+type SummaryLayoutProps = {
+  character: CharacterDetailDto;
+  steps: BuilderStepDto[];
+  notice: React.ReactNode;
+};
+
+function SummaryLayout({ character, steps, notice }: SummaryLayoutProps) {
+  return (
+    <div className="mx-auto max-w-5xl space-y-8">
+      <div>
+        <p className="text-sm text-muted-foreground">{character.settingName}</p>
+        <h1 className="font-heading text-3xl font-bold tracking-tight">{character.name}</h1>
+      </div>
+
+      <FormAlert variant="success">{notice}</FormAlert>
+
+      <section className="border border-border p-6">
+        <ChoiceSummary rows={choiceRows(steps, character)} columns />
+      </section>
+
+      <Button variant="outline" nativeButton={false} render={<Link href={`/characters/${character.id}`} />}>
+        View Character Page
+      </Button>
+    </div>
   );
 }
