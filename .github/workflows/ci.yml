@@ -119,6 +119,7 @@ jobs:
       - name: Migrate the database
         run: |
           dotnet tool restore
+          dotnet restore api
           dotnet ef database update --project api
 
       - run: npm ci
